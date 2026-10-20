@@ -1,0 +1,40 @@
+.sl h2{margin:0}.sl h3{margin:0 0 6px;font-family:var(--display);font-size:1.05rem}.sl h4{margin:10px 0 4px}
+.sl-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.sl-cod{border:0;background:var(--mar-t);color:var(--fg);border-radius:10px;padding:4px 8px;font:inherit;font-size:.72rem;word-break:break-all;text-align:left;cursor:pointer}
+.sl-papel{border-radius:999px;padding:3px 10px;font-size:.78rem;font-weight:700;font-style:normal;background:var(--mar-t)}
+.sl-papel.p-admin{background:var(--uva-t)}.sl-papel.p-candidato{background:var(--menta-t)}
+.sl-bloco{background:var(--card);border:1px solid var(--borda);border-radius:20px;padding:14px;display:flex;flex-direction:column;gap:8px;box-shadow:var(--sombra)}
+.sl-linha{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.sl-linha em,.sl-pep em,.sl-op em{font-style:normal;font-size:.78rem;color:var(--suave)}
+.sl-mudo{color:var(--coral)!important}
+.sl-est{padding:1px 8px;border-radius:999px;background:var(--mar-t)}.sl-est.e-finalizada{background:var(--menta-t)}.sl-est.e-em_andamento{background:var(--sol-t)}.sl-est.e-pausada{background:var(--coral-t)}
+.sl-relogio{font:800 2rem var(--display);font-variant-numeric:tabular-nums}.sl-relogio.fim{color:var(--coral)}
+.sl-pep{display:flex;flex-direction:column;gap:6px;padding:8px 0;border-top:1px solid var(--borda)}.sl-pep.crit{border-left:3px solid var(--coral);padding-left:8px}
+.sl-marcas{display:flex;gap:6px}.sl-m{flex:1;min-height:40px;border:2px solid var(--borda);background:transparent;color:var(--fg);border-radius:12px;font:inherit;font-weight:700;cursor:pointer}
+.sl-m.on{background:var(--mar);border-color:var(--mar);color:#fff}
+.sl-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.sl-stats div{background:var(--bg);border-radius:14px;padding:10px;display:flex;flex-direction:column}.sl-stats b{font:800 1.5rem var(--display)}.sl-stats span{font-size:.78rem;color:var(--suave)}
+.sl-it{font-size:.86rem;padding:3px 0}.sl-it.r-nao{color:var(--coral)}
+.sl-sel fieldset{border:1px solid var(--borda);border-radius:14px;margin:0 0 8px;padding:8px 10px}.sl-sel legend{font-weight:700;font-size:.85rem}
+.sl-op{display:flex;gap:8px;align-items:center;font-size:.9rem;padding:3px 0}.sl-op input{min-height:auto;width:18px;height:18px}
+.sl-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px}
+.sl-tile{aspect-ratio:4/3;background:#000;border-radius:12px;position:relative;overflow:hidden}.sl-tile span{position:absolute;left:6px;bottom:4px;color:#fff;font-size:.72rem;z-index:2}
+.sl-sair{align-self:flex-start;background:var(--coral-t);color:var(--fg);box-shadow:none}
+
+/* cartas da estação, transcrição e sugestões */
+.sl-cartas{display:flex;flex-direction:column;gap:8px}
+.sl-carta{border:1px solid var(--borda);border-radius:16px;padding:10px 12px;background:var(--bg)}
+.sl-carta h4{margin:0 0 4px;font-family:var(--display);font-size:.95rem}.sl-carta h4 em{font-style:normal;font-weight:500;font-size:.75rem;color:var(--suave)}
+.sl-carta p{margin:0;font-size:.92rem;line-height:1.45;white-space:pre-wrap}
+.sl-carta.ini{background:var(--mar-t)}.sl-carta.ini.c-cenario{background:var(--menta-t)}
+.sl-carta.mat.lib{border-color:var(--menta)}.sl-bloq{opacity:.6}
+.sl-carta-acoes{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+.sl-dica{background:var(--sol-t);border-radius:999px;padding:2px 10px;font-size:.78rem}.sl-ok{font-style:normal;color:var(--menta);font-weight:700;font-size:.82rem}
+.sl-transc{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--bg);border-radius:14px;padding:8px 12px}
+.sl-transc>.sub:last-child{flex-basis:100%;font-size:.76rem}
+.sl-led{width:10px;height:10px;border-radius:50%;background:var(--suave)}.sl-led.ouvindo{background:var(--coral);animation:sl-pulsa 1.2s infinite}
+@keyframes sl-pulsa{50%{opacity:.35}}
+.sl-fala{flex-basis:100%;font-style:italic}.sl-fala.parcial{opacity:.6}
+.sl-fala-av ol{margin:6px 0;padding-left:20px;font-size:.88rem}
+.sl-sug{font-size:.8rem;background:var(--mar-t);border-radius:10px;padding:3px 8px}.sl-sug.r-sim{background:var(--menta-t)}.sl-sug.r-nao{background:var(--coral-t)}.sl-sug.fraca{opacity:.7}
+.sl-sug .ln{margin-left:8px}
