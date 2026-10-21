@@ -1,0 +1,1346 @@
+[
+ {
+  "ano": "2011",
+  "ano_num": 2011,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "HAS",
+  "ordem": 0
+ },
+ {
+  "ano": "2011",
+  "ano_num": 2011,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "IOT",
+  "ordem": 1
+ },
+ {
+  "ano": "2011",
+  "ano_num": 2011,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Cólico biliar",
+  "ordem": 0
+ },
+ {
+  "ano": "2011",
+  "ano_num": 2011,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Sutura",
+  "ordem": 1
+ },
+ {
+  "ano": "2011",
+  "ano_num": 2011,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Atenção ao RN",
+  "ordem": 0
+ },
+ {
+  "ano": "2011",
+  "ano_num": 2011,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Crescimento e desenvolvimento + obesidade",
+  "ordem": 1
+ },
+ {
+  "ano": "2011",
+  "ano_num": 2011,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Pré-natal",
+  "ordem": 0
+ },
+ {
+  "ano": "2011",
+  "ano_num": 2011,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "DIP",
+  "ordem": 1
+ },
+ {
+  "ano": "2011",
+  "ano_num": 2011,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Puericultura",
+  "ordem": 0
+ },
+ {
+  "ano": "2011",
+  "ano_num": 2011,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Dengue hemorrágica",
+  "ordem": 1
+ },
+ {
+  "ano": "2012",
+  "ano_num": 2012,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "IAM",
+  "ordem": 0
+ },
+ {
+  "ano": "2012",
+  "ano_num": 2012,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "IOT",
+  "ordem": 1
+ },
+ {
+  "ano": "2012",
+  "ano_num": 2012,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Complicação pós- operatória",
+  "ordem": 0
+ },
+ {
+  "ano": "2012",
+  "ano_num": 2012,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Neoplasia de próstata",
+  "ordem": 1
+ },
+ {
+  "ano": "2012",
+  "ano_num": 2012,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Aleitamento materno + atraso vacinal",
+  "ordem": 0
+ },
+ {
+  "ano": "2012",
+  "ano_num": 2012,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Criptorquidia",
+  "ordem": 1
+ },
+ {
+  "ano": "2012",
+  "ano_num": 2012,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Pré- eclâmpsia",
+  "ordem": 0
+ },
+ {
+  "ano": "2012",
+  "ano_num": 2012,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Gestação ectópica rota + óbito",
+  "ordem": 1
+ },
+ {
+  "ano": "2012",
+  "ano_num": 2012,
+  "sem": null,
+  "area": "mfc",
+  "tema": "ACS",
+  "ordem": 0
+ },
+ {
+  "ano": "2012",
+  "ano_num": 2012,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Pré-natal",
+  "ordem": 1
+ },
+ {
+  "ano": "2013",
+  "ano_num": 2013,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "TEP",
+  "ordem": 0
+ },
+ {
+  "ano": "2013",
+  "ano_num": 2013,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "PAC",
+  "ordem": 1
+ },
+ {
+  "ano": "2013",
+  "ano_num": 2013,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Queimadura",
+  "ordem": 0
+ },
+ {
+  "ano": "2013",
+  "ano_num": 2013,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Sutura",
+  "ordem": 1
+ },
+ {
+  "ano": "2013",
+  "ano_num": 2013,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Meningite meningocócica",
+  "ordem": 0
+ },
+ {
+  "ano": "2013",
+  "ano_num": 2013,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Icterícia neonatal",
+  "ordem": 1
+ },
+ {
+  "ano": "2013",
+  "ano_num": 2013,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Infertilidade conjugal",
+  "ordem": 0
+ },
+ {
+  "ano": "2013",
+  "ano_num": 2013,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Parto+ Distocia",
+  "ordem": 1
+ },
+ {
+  "ano": "2013",
+  "ano_num": 2013,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Atendimento domiciliar + obesidade",
+  "ordem": 0
+ },
+ {
+  "ano": "2013",
+  "ano_num": 2013,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Função da ESF",
+  "ordem": 1
+ },
+ {
+  "ano": "2014",
+  "ano_num": 2014,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "Lombalgia mecânica",
+  "ordem": 0
+ },
+ {
+  "ano": "2014",
+  "ano_num": 2014,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "Hipotireoidismo",
+  "ordem": 1
+ },
+ {
+  "ano": "2014",
+  "ano_num": 2014,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Celulite com porta de entrada",
+  "ordem": 0
+ },
+ {
+  "ano": "2014",
+  "ano_num": 2014,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "ATLS Trauma tíbia",
+  "ordem": 1
+ },
+ {
+  "ano": "2014",
+  "ano_num": 2014,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Febre escarlatina",
+  "ordem": 0
+ },
+ {
+  "ano": "2014",
+  "ano_num": 2014,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Atenção ao RN",
+  "ordem": 1
+ },
+ {
+  "ano": "2014",
+  "ano_num": 2014,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Pré-natal + sífilis",
+  "ordem": 0
+ },
+ {
+  "ano": "2014",
+  "ano_num": 2014,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Anticoncepcional",
+  "ordem": 1
+ },
+ {
+  "ano": "2014",
+  "ano_num": 2014,
+  "sem": null,
+  "area": "mfc",
+  "tema": "TB pulmonar",
+  "ordem": 0
+ },
+ {
+  "ano": "2014",
+  "ano_num": 2014,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Tabagismo + enfisema pulmonar",
+  "ordem": 1
+ },
+ {
+  "ano": "2015",
+  "ano_num": 2015,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "DM2",
+  "ordem": 0
+ },
+ {
+  "ano": "2015",
+  "ano_num": 2015,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "ITU recorrente",
+  "ordem": 1
+ },
+ {
+  "ano": "2015",
+  "ano_num": 2015,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Pneumotórax hipertensivo",
+  "ordem": 0
+ },
+ {
+  "ano": "2015",
+  "ano_num": 2015,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Úlcera gástrica perfurada",
+  "ordem": 1
+ },
+ {
+  "ano": "2015",
+  "ano_num": 2015,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Puericultura + aleitamento",
+  "ordem": 0
+ },
+ {
+  "ano": "2015",
+  "ano_num": 2015,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Atraso crescimento constitucional",
+  "ordem": 1
+ },
+ {
+  "ano": "2015",
+  "ano_num": 2015,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Ameaça de abortamento",
+  "ordem": 0
+ },
+ {
+  "ano": "2015",
+  "ano_num": 2015,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Violência sexual",
+  "ordem": 1
+ },
+ {
+  "ano": "2015",
+  "ano_num": 2015,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Hanseníase",
+  "ordem": 0
+ },
+ {
+  "ano": "2015",
+  "ano_num": 2015,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Tabagismo crônico + Check- up",
+  "ordem": 1
+ },
+ {
+  "ano": "2016",
+  "ano_num": 2016,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "Protocolo Spikes + HIV",
+  "ordem": 0
+ },
+ {
+  "ano": "2016",
+  "ano_num": 2016,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "Enxaqueca+prevenção quartenária",
+  "ordem": 1
+ },
+ {
+  "ano": "2016",
+  "ano_num": 2016,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Sutura",
+  "ordem": 0
+ },
+ {
+  "ano": "2016",
+  "ano_num": 2016,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Abdome agudo perfurado úlcera gástrica",
+  "ordem": 1
+ },
+ {
+  "ano": "2016",
+  "ano_num": 2016,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Asma + uso de espaçador",
+  "ordem": 0
+ },
+ {
+  "ano": "2016",
+  "ano_num": 2016,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Sd. De Don",
+  "ordem": 1
+ },
+ {
+  "ano": "2016",
+  "ano_num": 2016,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Risco de suicídio + violência doméstica",
+  "ordem": 0
+ },
+ {
+  "ano": "2016",
+  "ano_num": 2016,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Dengue na gestante",
+  "ordem": 1
+ },
+ {
+  "ano": "2016",
+  "ano_num": 2016,
+  "sem": null,
+  "area": "mfc",
+  "tema": "TB pulmonar",
+  "ordem": 0
+ },
+ {
+  "ano": "2016",
+  "ano_num": 2016,
+  "sem": null,
+  "area": "mfc",
+  "tema": "ESF",
+  "ordem": 1
+ },
+ {
+  "ano": "2017",
+  "ano_num": 2017,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "HAS + Raio-X + ECG",
+  "ordem": 0
+ },
+ {
+  "ano": "2017",
+  "ano_num": 2017,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "DRGE",
+  "ordem": 1
+ },
+ {
+  "ano": "2017",
+  "ano_num": 2017,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Trauma + sutura",
+  "ordem": 0
+ },
+ {
+  "ano": "2017",
+  "ano_num": 2017,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Pneumotórax espontâneo",
+  "ordem": 1
+ },
+ {
+  "ano": "2017",
+  "ano_num": 2017,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Puericultura + crescimento e desenvolvimento",
+  "ordem": 0
+ },
+ {
+  "ano": "2017",
+  "ano_num": 2017,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Obstrução das vias aéreas + BLS",
+  "ordem": 1
+ },
+ {
+  "ano": "2017",
+  "ano_num": 2017,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Anticoncepcional + relação médico e paciente + IAM",
+  "ordem": 0
+ },
+ {
+  "ano": "2017",
+  "ano_num": 2017,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Eclâmpsia",
+  "ordem": 1
+ },
+ {
+  "ano": "2017",
+  "ano_num": 2017,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Visita domiciliar IAM + Plano de cuidado",
+  "ordem": 0
+ },
+ {
+  "ano": "2017",
+  "ano_num": 2017,
+  "sem": null,
+  "area": "mfc",
+  "tema": "LER + TAG",
+  "ordem": 1
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "Leucemia aguda",
+  "ordem": 0
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "PAC",
+  "ordem": 1
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "DRGE (reaplicação)",
+  "ordem": 2
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "ATLS + Fratura exposta de tíbia",
+  "ordem": 0
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Apendicite aguda",
+  "ordem": 1
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Coqueluche",
+  "ordem": 0
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Anemia falciforme + crise álgica",
+  "ordem": 1
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Cetoacidose diabética (reaplicação)",
+  "ordem": 2
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "SUA",
+  "ordem": 0
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Lipotimia",
+  "ordem": 1
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "mfc",
+  "tema": "TB pulmonar",
+  "ordem": 0
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Violência física",
+  "ordem": 1
+ },
+ {
+  "ano": "2020",
+  "ano_num": 2020,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Obesidade + Baby Blues (reaplicação)",
+  "ordem": 2
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "Hipertireoidismo",
+  "ordem": 0
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "Cirrose hepática descompensada com ascite",
+  "ordem": 1
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "clinica_medica",
+  "tema": "DPOC (reaplicação)",
+  "ordem": 2
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Abdome agudo obstrutivo",
+  "ordem": 0
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Pneumotórax hipertensivo",
+  "ordem": 1
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "cirurgia",
+  "tema": "Uropatia obstrutiva/Litíase urinária com infecção urinária",
+  "ordem": 2
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Icterícia neonatal",
+  "ordem": 0
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Puericultura RN pré-termo",
+  "ordem": 1
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "pediatria",
+  "tema": "Invaginação intestinal",
+  "ordem": 2
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "DIU + citologia ASC- H",
+  "ordem": 0
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Ameaça de abortamento",
+  "ordem": 1
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "ginecologia_obstetricia",
+  "tema": "Candidíase vaginal",
+  "ordem": 2
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "mfc",
+  "tema": "IAM com supra na UBS",
+  "ordem": 0
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Dengue Grupo B",
+  "ordem": 1
+ },
+ {
+  "ano": "2021",
+  "ano_num": 2021,
+  "sem": null,
+  "area": "mfc",
+  "tema": "Rastreio CA de mama, consulta de rotina UBS",
+  "ordem": 2
+ },
+ {
+  "ano": "2022.1",
+  "ano_num": 2022,
+  "sem": "1",
+  "area": "clinica_medica",
+  "tema": "Retocolite ulcerativa",
+  "ordem": 0
+ },
+ {
+  "ano": "2022.1",
+  "ano_num": 2022,
+  "sem": "1",
+  "area": "clinica_medica",
+  "tema": "Artrite por gota",
+  "ordem": 1
+ },
+ {
+  "ano": "2022.1",
+  "ano_num": 2022,
+  "sem": "1",
+  "area": "cirurgia",
+  "tema": "Câncer colorretal + doença hemorroidária",
+  "ordem": 0
+ },
+ {
+  "ano": "2022.1",
+  "ano_num": 2022,
+  "sem": "1",
+  "area": "cirurgia",
+  "tema": "Queimadura",
+  "ordem": 1
+ },
+ {
+  "ano": "2022.1",
+  "ano_num": 2022,
+  "sem": "1",
+  "area": "pediatria",
+  "tema": "Apendicite aguda",
+  "ordem": 0
+ },
+ {
+  "ano": "2022.1",
+  "ano_num": 2022,
+  "sem": "1",
+  "area": "pediatria",
+  "tema": "Triagem neonatal",
+  "ordem": 1
+ },
+ {
+  "ano": "2022.1",
+  "ano_num": 2022,
+  "sem": "1",
+  "area": "ginecologia_obstetricia",
+  "tema": "DIP",
+  "ordem": 0
+ },
+ {
+  "ano": "2022.1",
+  "ano_num": 2022,
+  "sem": "1",
+  "area": "ginecologia_obstetricia",
+  "tema": "DPP + Sofrimento fetal agudo",
+  "ordem": 1
+ },
+ {
+  "ano": "2022.1",
+  "ano_num": 2022,
+  "sem": "1",
+  "area": "mfc",
+  "tema": "Leishmaniose tegumentar",
+  "ordem": 0
+ },
+ {
+  "ano": "2022.1",
+  "ano_num": 2022,
+  "sem": "1",
+  "area": "mfc",
+  "tema": "Tabagismo",
+  "ordem": 1
+ },
+ {
+  "ano": "2022.2",
+  "ano_num": 2022,
+  "sem": "2",
+  "area": "clinica_medica",
+  "tema": "Síncope/origem cardíaca Wolff- Parkinson-White",
+  "ordem": 0
+ },
+ {
+  "ano": "2022.2",
+  "ano_num": 2022,
+  "sem": "2",
+  "area": "clinica_medica",
+  "tema": "Anemia megaloblástica secundaria a deficiência de vitB12",
+  "ordem": 1
+ },
+ {
+  "ano": "2022.2",
+  "ano_num": 2022,
+  "sem": "2",
+  "area": "cirurgia",
+  "tema": "Prostatite aguda/HPB",
+  "ordem": 0
+ },
+ {
+  "ano": "2022.2",
+  "ano_num": 2022,
+  "sem": "2",
+  "area": "cirurgia",
+  "tema": "Colecistite aguda litiásica",
+  "ordem": 1
+ },
+ {
+  "ano": "2022.2",
+  "ano_num": 2022,
+  "sem": "2",
+  "area": "pediatria",
+  "tema": "Febre sem sinais localizatórios",
+  "ordem": 0
+ },
+ {
+  "ano": "2022.2",
+  "ano_num": 2022,
+  "sem": "2",
+  "area": "pediatria",
+  "tema": "Hidrocele comunicante",
+  "ordem": 1
+ },
+ {
+  "ano": "2022.2",
+  "ano_num": 2022,
+  "sem": "2",
+  "area": "ginecologia_obstetricia",
+  "tema": "Gravidez não desejada",
+  "ordem": 0
+ },
+ {
+  "ano": "2022.2",
+  "ano_num": 2022,
+  "sem": "2",
+  "area": "ginecologia_obstetricia",
+  "tema": "Sífilis recente/Sífilis primária",
+  "ordem": 1
+ },
+ {
+  "ano": "2022.2",
+  "ano_num": 2022,
+  "sem": "2",
+  "area": "mfc",
+  "tema": "Herpes Zoster",
+  "ordem": 0
+ },
+ {
+  "ano": "2022.2",
+  "ano_num": 2022,
+  "sem": "2",
+  "area": "mfc",
+  "tema": "Orientação imunização adolescente UBS",
+  "ordem": 1
+ },
+ {
+  "ano": "2023.1",
+  "ano_num": 2023,
+  "sem": "1",
+  "area": "clinica_medica",
+  "tema": "Asma brônquica",
+  "ordem": 0
+ },
+ {
+  "ano": "2023.1",
+  "ano_num": 2023,
+  "sem": "1",
+  "area": "clinica_medica",
+  "tema": "Tosse associada ao enalapril + hipertensão arterial descompensada",
+  "ordem": 1
+ },
+ {
+  "ano": "2023.1",
+  "ano_num": 2023,
+  "sem": "1",
+  "area": "cirurgia",
+  "tema": "Infecção de sítio cirúrgico superficial + provável endocardite infecciosa",
+  "ordem": 0
+ },
+ {
+  "ano": "2023.1",
+  "ano_num": 2023,
+  "sem": "1",
+  "area": "cirurgia",
+  "tema": "Torção testicular",
+  "ordem": 1
+ },
+ {
+  "ano": "2023.1",
+  "ano_num": 2023,
+  "sem": "1",
+  "area": "pediatria",
+  "tema": "Puericultura + aleitamento cruzado",
+  "ordem": 0
+ },
+ {
+  "ano": "2023.1",
+  "ano_num": 2023,
+  "sem": "1",
+  "area": "pediatria",
+  "tema": "Ingestão de corpo estranho – bateria/pilha",
+  "ordem": 1
+ },
+ {
+  "ano": "2023.1",
+  "ano_num": 2023,
+  "sem": "1",
+  "area": "ginecologia_obstetricia",
+  "tema": "Coleta do Papanicolau",
+  "ordem": 0
+ },
+ {
+  "ano": "2023.1",
+  "ano_num": 2023,
+  "sem": "1",
+  "area": "ginecologia_obstetricia",
+  "tema": "DM gestacional",
+  "ordem": 1
+ },
+ {
+  "ano": "2023.1",
+  "ano_num": 2023,
+  "sem": "1",
+  "area": "mfc",
+  "tema": "DSEI + desnutrição grave",
+  "ordem": 0
+ },
+ {
+  "ano": "2023.1",
+  "ano_num": 2023,
+  "sem": "1",
+  "area": "mfc",
+  "tema": "Sd. De Burnout – esgotamento mental relacionado ao trabalho",
+  "ordem": 1
+ },
+ {
+  "ano": "2023.2",
+  "ano_num": 2023,
+  "sem": "2",
+  "area": "clinica_medica",
+  "tema": "Urticaria aguda relacionada a medicamentos AINES e Analgésicos/Farmacodermia",
+  "ordem": 0
+ },
+ {
+  "ano": "2023.2",
+  "ano_num": 2023,
+  "sem": "2",
+  "area": "clinica_medica",
+  "tema": "AVCI",
+  "ordem": 1
+ },
+ {
+  "ano": "2023.2",
+  "ano_num": 2023,
+  "sem": "2",
+  "area": "cirurgia",
+  "tema": "Pancreatite aguda biliar",
+  "ordem": 0
+ },
+ {
+  "ano": "2023.2",
+  "ano_num": 2023,
+  "sem": "2",
+  "area": "cirurgia",
+  "tema": "Sutura/Ferida limpa-contaminada",
+  "ordem": 1
+ },
+ {
+  "ano": "2023.2",
+  "ano_num": 2023,
+  "sem": "2",
+  "area": "pediatria",
+  "tema": "Acidente por escorpião amarelo/Tytius serrulatius",
+  "ordem": 0
+ },
+ {
+  "ano": "2023.2",
+  "ano_num": 2023,
+  "sem": "2",
+  "area": "pediatria",
+  "tema": "Puericultura/ Realizar medidas antropométricas",
+  "ordem": 1
+ },
+ {
+  "ano": "2023.2",
+  "ano_num": 2023,
+  "sem": "2",
+  "area": "ginecologia_obstetricia",
+  "tema": "Exame das mamas e conduta",
+  "ordem": 0
+ },
+ {
+  "ano": "2023.2",
+  "ano_num": 2023,
+  "sem": "2",
+  "area": "ginecologia_obstetricia",
+  "tema": "Consulta pré- natal/ realizar exame físico obstétrico",
+  "ordem": 1
+ },
+ {
+  "ano": "2023.2",
+  "ano_num": 2023,
+  "sem": "2",
+  "area": "mfc",
+  "tema": "Atributos nucleares da APS/Prevenção do câncer de colo de útero/ assistência saúde da mulher lésbica",
+  "ordem": 0
+ },
+ {
+  "ano": "2023.2",
+  "ano_num": 2023,
+  "sem": "2",
+  "area": "mfc",
+  "tema": "obesidade",
+  "ordem": 1
+ },
+ {
+  "ano": "2024.1",
+  "ano_num": 2024,
+  "sem": "1",
+  "area": "clinica_medica",
+  "tema": "Ascite por hipertensão portal",
+  "ordem": 0
+ },
+ {
+  "ano": "2024.1",
+  "ano_num": 2024,
+  "sem": "1",
+  "area": "clinica_medica",
+  "tema": "Asma",
+  "ordem": 1
+ },
+ {
+  "ano": "2024.1",
+  "ano_num": 2024,
+  "sem": "1",
+  "area": "cirurgia",
+  "tema": "ATLS/pneumotórax hipertensivo",
+  "ordem": 0
+ },
+ {
+  "ano": "2024.1",
+  "ano_num": 2024,
+  "sem": "1",
+  "area": "cirurgia",
+  "tema": "ATLS/Queimadura",
+  "ordem": 1
+ },
+ {
+  "ano": "2024.1",
+  "ano_num": 2024,
+  "sem": "1",
+  "area": "pediatria",
+  "tema": "Estenose hipertrófica do piloro",
+  "ordem": 0
+ },
+ {
+  "ano": "2024.1",
+  "ano_num": 2024,
+  "sem": "1",
+  "area": "pediatria",
+  "tema": "Celulite periorbitária/orbitária + presença de processo inflamatório",
+  "ordem": 1
+ },
+ {
+  "ano": "2024.1",
+  "ano_num": 2024,
+  "sem": "1",
+  "area": "ginecologia_obstetricia",
+  "tema": "Sd. HELLP",
+  "ordem": 0
+ },
+ {
+  "ano": "2024.1",
+  "ano_num": 2024,
+  "sem": "1",
+  "area": "ginecologia_obstetricia",
+  "tema": "Climatério/TH",
+  "ordem": 1
+ },
+ {
+  "ano": "2024.1",
+  "ano_num": 2024,
+  "sem": "1",
+  "area": "mfc",
+  "tema": "Protocolo SPIKES/Câncer de colo de útero (adenocarcinoma invasivo)",
+  "ordem": 0
+ },
+ {
+  "ano": "2024.1",
+  "ano_num": 2024,
+  "sem": "1",
+  "area": "mfc",
+  "tema": "DM/ Todas as orientações sobre inicio do uso de insulina",
+  "ordem": 1
+ },
+ {
+  "ano": "2024.2",
+  "ano_num": 2024,
+  "sem": "2",
+  "area": "clinica_medica",
+  "tema": "Dengue grupo A",
+  "ordem": 0
+ },
+ {
+  "ano": "2024.2",
+  "ano_num": 2024,
+  "sem": "2",
+  "area": "clinica_medica",
+  "tema": "AVC/Escala NIHSS",
+  "ordem": 1
+ },
+ {
+  "ano": "2024.2",
+  "ano_num": 2024,
+  "sem": "2",
+  "area": "cirurgia",
+  "tema": "Oclusão arterial aguda",
+  "ordem": 0
+ },
+ {
+  "ano": "2024.2",
+  "ano_num": 2024,
+  "sem": "2",
+  "area": "cirurgia",
+  "tema": "Choque hipovolêmico/AAH secundário a trauma abdominal fechado/Trauma esplênico",
+  "ordem": 1
+ },
+ {
+  "ano": "2024.2",
+  "ano_num": 2024,
+  "sem": "2",
+  "area": "pediatria",
+  "tema": "Criptorquidia/ Orientação fimose fisiológica",
+  "ordem": 0
+ },
+ {
+  "ano": "2024.2",
+  "ano_num": 2024,
+  "sem": "2",
+  "area": "pediatria",
+  "tema": "Puericultura/ Hipertensão infantil estágio 1",
+  "ordem": 1
+ },
+ {
+  "ano": "2024.2",
+  "ano_num": 2024,
+  "sem": "2",
+  "area": "ginecologia_obstetricia",
+  "tema": "Placenta prévia total",
+  "ordem": 0
+ },
+ {
+  "ano": "2024.2",
+  "ano_num": 2024,
+  "sem": "2",
+  "area": "ginecologia_obstetricia",
+  "tema": "Violência sexual",
+  "ordem": 1
+ },
+ {
+  "ano": "2024.2",
+  "ano_num": 2024,
+  "sem": "2",
+  "area": "mfc",
+  "tema": "Acidente com lagarta",
+  "ordem": 0
+ },
+ {
+  "ano": "2024.2",
+  "ano_num": 2024,
+  "sem": "2",
+  "area": "mfc",
+  "tema": "DIP",
+  "ordem": 1
+ },
+ {
+  "ano": "2025.1",
+  "ano_num": 2025,
+  "sem": "1",
+  "area": "clinica_medica",
+  "tema": "Espondilite Anquilosante",
+  "ordem": 0
+ },
+ {
+  "ano": "2025.1",
+  "ano_num": 2025,
+  "sem": "1",
+  "area": "clinica_medica",
+  "tema": "Paralisia de Bell",
+  "ordem": 1
+ },
+ {
+  "ano": "2025.1",
+  "ano_num": 2025,
+  "sem": "1",
+  "area": "cirurgia",
+  "tema": "Abdome agudo perfurativo",
+  "ordem": 0
+ },
+ {
+  "ano": "2025.1",
+  "ano_num": 2025,
+  "sem": "1",
+  "area": "cirurgia",
+  "tema": "Litíase urinária",
+  "ordem": 1
+ },
+ {
+  "ano": "2025.1",
+  "ano_num": 2025,
+  "sem": "1",
+  "area": "pediatria",
+  "tema": "TEA",
+  "ordem": 0
+ },
+ {
+  "ano": "2025.1",
+  "ano_num": 2025,
+  "sem": "1",
+  "area": "pediatria",
+  "tema": "Anafilaxia",
+  "ordem": 1
+ },
+ {
+  "ano": "2025.1",
+  "ano_num": 2025,
+  "sem": "1",
+  "area": "ginecologia_obstetricia",
+  "tema": "Dengue grupo B",
+  "ordem": 0
+ },
+ {
+  "ano": "2025.1",
+  "ano_num": 2025,
+  "sem": "1",
+  "area": "ginecologia_obstetricia",
+  "tema": "Miomatose uterina",
+  "ordem": 1
+ },
+ {
+  "ano": "2025.1",
+  "ano_num": 2025,
+  "sem": "1",
+  "area": "mfc",
+  "tema": "Densitometria óssea",
+  "ordem": 0
+ },
+ {
+  "ano": "2025.1",
+  "ano_num": 2025,
+  "sem": "1",
+  "area": "mfc",
+  "tema": "Insônia primária/inicial",
+  "ordem": 1
+ }
+]

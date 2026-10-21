@@ -79,6 +79,7 @@ const FORMATO = `Responda SOMENTE com um objeto JSON (sem texto fora dele) neste
 const REGRAS = `Regras:
 - Escreva em português do Brasil, no estilo das estações práticas do Revalida (OSCE): tarefa objetiva, ator com roteiro, checklist (PEP) observável.
 - Estrutura do PEP, nesta ordem: apresentação; anamnese dirigida; investigação de fatores desencadeantes/antecedentes; exame físico e exames com interpretação (quando o caso pedir); hipótese diagnóstica; conduta (medicação com droga, dose, via e frequência quando pertinente); orientações finais (sinais de alarme, retorno, entendimento). Marque como crítico o que, se omitido, compromete a segurança do paciente.
+- Pontuação do PEP: some cerca de 10 pontos no total, com itens entre 0,2 e 3 pontos (nenhum item acima de 10); "pontos_parcial" é sempre menor que "pontos_total".
 - Seja clinicamente coerente: sinais vitais, exames e conduta precisam combinar com o quadro. Não invente citações, números de protocolo, links nem nomes de diretrizes.
 - Todo exame que o checklist espera que o candidato solicite precisa existir em "materiais", com o resultado completo, liberado só sob demanda (gatilho).
 - Nenhum dado real de paciente. Isto é material de treino e será revisado por uma pessoa antes de ser usado.`;
@@ -330,12 +331,12 @@ export function criarIA({ cfg, fetchImpl = (...a) => fetch(...a), relogio = Date
       return { estacao: { ...r.estacao, area: base.area }, avisos: avisosDeCoerencia(r.estacao), provedor: r.provedor, modelo: r.modelo };
     },
     /** Confere o PEP pela transcrição. A resposta só vale com evidência presente na fala. */
-    async analisarTranscricao({ estacao, itens, transcricao }) {
-      const { sistema, usuario } = promptAnalise({ estacao, itens, transcricao });
-      const ids = itens.map((i) => i.id);
+    async analisarTranscricao({ estacao, itens, transcricao, referencias = [] }) {
+      const { sistema, usuario } = promptAnalise({ estacao, itens, transcricao, referencias });
+      const ids = itens.map((i) => i.id); const refs = referencias.map((r) => r.ref);
       try {
-        const r = await gerarJSON({ sistema, usuario, validar: (d) => validarAnalise(d, { ids, transcricao }), maxTokens: 6000 });
-        const v = validarAnalise(r.dados, { ids, transcricao });
+        const r = await gerarJSON({ sistema, usuario, validar: (d) => validarAnalise(d, { ids, transcricao, refs }), maxTokens: 8000 });
+        const v = validarAnalise(r.dados, { ids, transcricao, refs });
         return { itens: v.itens, resumo: v.resumo, rebaixados: v.rebaixados, provedor: r.provedor, modelo: r.modelo };
       } catch (e) { throw traduzir(e); }
     },

@@ -38,3 +38,6 @@
 .sl-fala-av ol{margin:6px 0;padding-left:20px;font-size:.88rem}
 .sl-sug{font-size:.8rem;background:var(--mar-t);border-radius:10px;padding:3px 8px}.sl-sug.r-sim{background:var(--menta-t)}.sl-sug.r-nao{background:var(--coral-t)}.sl-sug.fraca{opacity:.7}
 .sl-sug .ln{margin-left:8px}
+.sl-sit{font-style:normal;font-weight:600;margin-left:6px;padding:0 6px;border-radius:8px;background:#fff8}.sl-sit.s-erro,.sl-sit.s-confusao{color:#b3261e}.sl-sit.s-acerto{color:#1b7a4a}
+.sl-det{display:block;margin-top:4px;font-size:.8rem}.sl-det summary{cursor:pointer;color:var(--mar,#1a6fd6)}.sl-det p{margin:3px 0}
+.sl-analise{margin:8px 0;font-size:.85rem;border:1px dashed #0002;border-radius:10px;padding:4px 10px}.sl-analise summary{cursor:pointer;font-weight:600;opacity:.8}.sl-analise h5{margin:8px 0 2px;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;opacity:.7}.sl-analise ul{margin:2px 0;padding-left:18px}

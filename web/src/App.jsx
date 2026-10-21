@@ -5,6 +5,8 @@ import Instalador from './Instalador.jsx';
 import TelaEstacoes from './Estacoes.jsx';
 import TelaCiclos from './Salas.jsx';
 import TelaEstudo from './Estudo.jsx';
+import TelaCatalogo from './Catalogo.jsx';
+import { Icone } from './Icones.jsx';
 import TelaAnalise from './Analise.jsx';
 import { gravarModo, podeTrocarVersao } from './dispositivo.js';
 
@@ -889,7 +891,8 @@ export default function App() {
   }, []);
 
   // versão desktop (Electron): os itens do menu nativo pedem uma tela; no navegador comum isso não existe
-  useEffect(() => window.revalidaDesktop?.aoComando?.((c) => { if (c?.tela === 'estacoes') { setComando({ ...c, n: Date.now() }); setTela('estacoes'); } else if (c?.tela === 'estudo') { setComando({ ...c, n: Date.now() }); setTela('estudo'); } else if (c?.tela === 'ciclos') setTela('ciclos'); }), []);
+  const [menuOculto, setMenuOculto] = useState(() => { try { return localStorage.getItem('rv_menu_oculto') === '1'; } catch { return false; } });
+  useEffect(() => window.revalidaDesktop?.aoComando?.((c) => { if (c?.tela === 'estacoes') { setComando({ ...c, n: Date.now() }); setTela('estacoes'); } else if (c?.tela === 'estudo') { setComando({ ...c, n: Date.now() }); setTela('estudo'); } else if (c?.tela === 'catalogo') { setComando({ ...c, n: Date.now() }); setTela('catalogo'); } else if (c?.tela === 'ciclos') setTela('ciclos'); }), []);
 
   useEffect(() => {
     fetch('/api/instalacao/estado').then((r) => r.json()).then((d) => setInstalado(d.instalado !== false)).catch(() => setInstalado(true));
@@ -936,6 +939,8 @@ export default function App() {
     conteudo = <TelaCiclos token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} sugestao={sugestao} aoAnalise={abrirAnalise} aoRevisar={() => { setComando({ tela: 'estudo', aba: 'erros', n: Date.now() }); setTela('estudo'); }} />;
   } else if (tela === 'estudo') {
     conteudo = <TelaEstudo token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} comando={comando} aoAnalise={abrirAnalise} aoPraticar={(id) => { setSugestao(id); setTela('ciclos'); }} />;
+  } else if (tela === 'catalogo') {
+    conteudo = <TelaCatalogo token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} comando={comando} aoAbrirEstacao={(id) => { setComando({ tela: 'estacoes', abrir: id, n: Date.now() }); setTela('estacoes'); }} />;
   } else if (tela === 'analise' && analiseId) {
     conteudo = <TelaAnalise key={analiseId} execId={analiseId} token={sessaoAuth.token} api={api} aoVoltar={() => setTela('painel')}
       aoPraticar={(id) => { setSugestao(id); setTela('ciclos'); }}
@@ -950,7 +955,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app${menuOculto ? ' menu-oculto' : ''}`}>
       <div className="blobs" aria-hidden="true"><i className="blob b1" /><i className="blob b2" /><i className="blob b3" /><i className="blob b4" /></div>
       {instalado && sessaoAuth && !tokenSenha && sessaoAuth.senhaProvisoria && tela !== 'conta' && (
         <button type="button" className="faixa" onClick={() => setTela('conta')}>⚠ Sua senha é provisória. Toque para trocar.</button>
@@ -958,16 +963,21 @@ export default function App() {
       {podeTrocarVersao(dispositivo) && <RelogioDeBolso />}
       {conteudo}
       {instalado && sessaoAuth && !tokenSenha && (
-        <nav className="nav" aria-label="Navegação">
-          <button type="button" aria-current={tela === 'painel' ? 'page' : undefined} onClick={() => setTela('painel')}><span aria-hidden="true">🏠</span>Início</button>
+        <button type="button" className="menu-alterna" aria-controls="menu-principal" aria-expanded={!menuOculto} aria-label={menuOculto ? 'Mostrar menu' : 'Ocultar menu'} title={menuOculto ? 'Mostrar menu' : 'Ocultar menu'}
+          onClick={() => setMenuOculto((v) => { const n = !v; try { localStorage.setItem('rv_menu_oculto', n ? '1' : '0'); } catch { /* sem storage */ } return n; })}><Icone nome="menu" /></button>
+      )}
+      {instalado && sessaoAuth && !tokenSenha && (
+        <nav className="nav" id="menu-principal" aria-label="Navegação" hidden={menuOculto}>
+          <button type="button" aria-current={tela === 'painel' ? 'page' : undefined} onClick={() => setTela('painel')}><span className="ni" aria-hidden="true"><Icone nome="inicio" /></span>Início</button>
           <button type="button" aria-current={tela === 'sala' ? 'page' : undefined} disabled={!sala}
-            onClick={() => sala && setTela('sala')} style={!sala ? { opacity: .4 } : undefined}><span aria-hidden="true">🎥</span>Sala</button>
-          <button type="button" aria-current={tela === 'ciclos' ? 'page' : undefined} onClick={() => setTela('ciclos')}><span aria-hidden="true">🔁</span>Ciclos</button>
-          <button type="button" aria-current={tela === 'estudo' ? 'page' : undefined} onClick={() => setTela('estudo')}><span aria-hidden="true">📚</span>Estudo</button>
-          <button type="button" aria-current={tela === 'estacoes' ? 'page' : undefined} onClick={() => setTela('estacoes')}><span aria-hidden="true">✏️</span>Criar</button>
-          {ehGestor && <button type="button" aria-current={tela === 'admin' ? 'page' : undefined} onClick={() => setTela('admin')}><span aria-hidden="true">🛡</span>Admin</button>}
-          <button type="button" aria-current={tela === 'conta' ? 'page' : undefined} onClick={() => setTela('conta')}><span aria-hidden="true">👤</span>Conta</button>
-          <button type="button" onClick={() => sair()}><span aria-hidden="true">🚪</span>Sair</button>
+            onClick={() => sala && setTela('sala')} style={!sala ? { opacity: .4 } : undefined}><span className="ni" aria-hidden="true"><Icone nome="sala" /></span>Sala</button>
+          <button type="button" aria-current={tela === 'ciclos' ? 'page' : undefined} onClick={() => setTela('ciclos')}><span className="ni" aria-hidden="true"><Icone nome="ciclos" /></span>Ciclos</button>
+          <button type="button" aria-current={tela === 'estudo' ? 'page' : undefined} onClick={() => setTela('estudo')}><span className="ni" aria-hidden="true"><Icone nome="estudo" /></span>Estudo</button>
+          <button type="button" aria-current={tela === 'catalogo' ? 'page' : undefined} onClick={() => setTela('catalogo')}><span className="ni" aria-hidden="true"><Icone nome="catalogo" /></span>Catálogo</button>
+          <button type="button" aria-current={tela === 'estacoes' ? 'page' : undefined} onClick={() => setTela('estacoes')}><span className="ni" aria-hidden="true"><Icone nome="criar" /></span>Criar</button>
+          {ehGestor && <button type="button" aria-current={tela === 'admin' ? 'page' : undefined} onClick={() => setTela('admin')}><span className="ni" aria-hidden="true"><Icone nome="admin" /></span>Admin</button>}
+          <button type="button" aria-current={tela === 'conta' ? 'page' : undefined} onClick={() => setTela('conta')}><span className="ni" aria-hidden="true"><Icone nome="conta" /></span>Conta</button>
+          <button type="button" onClick={() => sair()}><span className="ni" aria-hidden="true"><Icone nome="sair" /></span>Sair</button>
         </nav>
       )}
     </div>

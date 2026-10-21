@@ -16,6 +16,7 @@ import { registrarInstalacao, registrarManutencao } from '../../src/instalacao.j
 import { registrarEstacoes } from '../../src/estacoes.js';
 import { registrarSalas } from '../../src/salas.js';
 import { registrarEstudo } from '../../src/estudo.js';
+import { registrarCatalogo } from '../../src/catalogo.js';
 import { registrarExecucao } from '../../src/execucao.js';
 import { analisarHeuristica, validarAnalise } from '../../src/analise-transcricao.js';
 import { sortearCampos, validarEstacao } from '../../src/estacao-esquema.js';
@@ -103,13 +104,14 @@ export async function iniciar({ pastaWeb, porta = 0, instalado = true, extras = 
     return { ok: true, erros: [], relacionados: [{ nome: 'Meningite bacteriana', tipo: 'diagnostico_diferencial', motivo: 'Febre com convulsão exige descartar infecção do SNC.', area: 'pediatria' }, { nome: 'Epilepsia', tipo: 'complicacao', motivo: 'Recorrência pode indicar epilepsia.', area: 'pediatria' }] }; };
   registrarEstacoes(app, { q, autenticar, ia: iaFalsa, emitir: () => {} });
   registrarEstudo(app, { q, autenticar, ia: iaFalsa });
+  registrarCatalogo(app, { q, autenticar });
   // salas/ciclos: rotas REAIS; o difundir só registra (sem socket.io), a tela se atualiza pelas próprias ações e pela consulta periódica
   const difundir = async (sala, evento) => { eventos.push({ sala, evento }); };
   // conferência pela fala: a IA falsa responde pelas palavras do item, mas passa pela validação REAL (sem trecho na fala, não pontua)
-  iaFalsa.analisarTranscricao = async function ({ itens, transcricao }) {
+  iaFalsa.analisarTranscricao = async function ({ itens, transcricao, referencias = [] }) {
     this.chamadas.push(['analisar', itens.length]); if (this.falha) throw this.falha;
-    const r = itens.map((i) => { const h = analisarHeuristica({ itens: [i], segmentos: transcricao.split(/(?<=[.?!])\s+/).map((texto) => ({ texto })) })[0]; return { id: i.id, resultado: h.resultado, evidencia: h.evidencia, justificativa: h.justificativa }; });
-    const v = validarAnalise({ itens: r, pontos_fortes: ['Perguntas dirigidas'], pontos_fracos: ['Faltou falar a conduta'], sugestoes: ['Verbalize droga, dose e via'] }, { ids: itens.map((i) => i.id), transcricao });
+    const r = itens.map((i) => { const h = analisarHeuristica({ itens: [i], segmentos: transcricao.split(/(?<=[.?!])\s+/).map((texto) => ({ texto })) })[0]; return { id: i.id, resultado: h.resultado, evidencia: h.evidencia, justificativa: h.justificativa, equivalencia: h.resultado === 'sim' ? 'Equivalente ao que o item pede.' : 'Mais fraca que o critério.', feedback: h.resultado === 'sim' ? '' : 'Verbalize a conduta completa pedida no critério.', referencia: h.resultado === 'sim' ? '' : (referencias[0]?.ref ?? 'R9') }; });
+    const v = validarAnalise({ itens: r, desempenho: 'Boa anamnese; faltou fechar a conduta.', pontos_fortes: ['Perguntas dirigidas'], pontos_fracos: ['Faltou falar a conduta'], sugestoes: ['Verbalize droga, dose e via'] }, { ids: itens.map((i) => i.id), transcricao, refs: referencias.map((r) => r.ref) });
     return { itens: v.itens, resumo: v.resumo, rebaixados: v.rebaixados, modelo: 'ia-falsa' };
   };
   iaFalsa.transcreverAudio = async function () { this.chamadas.push(['audio']); return { texto: 'trecho transcrito pela IA' }; };

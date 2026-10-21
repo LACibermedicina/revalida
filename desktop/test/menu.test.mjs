@@ -16,6 +16,8 @@ test('cada item manda o comando certo para a tela web', () => {
   const env = []; const m = base(true, env);
   for (const i of [...itens(m, 'Estações'), ...itens(m, 'Ciclos')]) i.click?.();
   assert.deepEqual(env.map((c) => `${c.tela}:${c.aba ?? ''}`), ['estacoes:novo', 'estacoes:gerar', 'estacoes:importar', 'estacoes:exportar', 'estacoes:lista', 'ciclos:']);
+  const e3 = []; for (const i of itens(base(true, e3), 'Catálogo')) i.click?.();
+  assert.deepEqual(e3.map((c) => `${c.tela}:${c.aba}`), ['catalogo:estacoes', 'catalogo:temas', 'catalogo:importar']);
   const e2 = []; for (const i of itens(base(true, e2), 'Estudo')) i.click?.();
   assert.deepEqual(e2.map((c) => `${c.tela}:${c.aba}`), ['estudo:trilha', 'estudo:cartoes', 'estudo:mapa', 'estudo:erros', 'estudo:guia', 'estudo:diretrizes']);
 });

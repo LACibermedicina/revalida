@@ -200,3 +200,17 @@ test('prompt de variação: base é dado, mudanças listadas, estrutura mantida'
   assert.match(usuario, /Perfil do paciente: Criança de 6 anos/); assert.match(usuario, /Dificuldade: básica/); assert.match(usuario, /PCDT Asma/);
   assert.doesNotMatch(usuario, /Cenário de atendimento:/, 'o que não foi pedido não entra nas mudanças');
 });
+
+test('REGRESSÃO: estação gerada pela IA abre, aparece na lista, publica e exporta (pontos do banco chegam como número, não "5.00")', async () => {
+  const u = await novo('Regressao');
+  const g = await api('POST', '/api/estacoes/gerar', u, { area: 'ginecologia_obstetricia', subtema: 'pré-natal' });
+  assert.equal(g.status, 201);
+  const lista = (await api('GET', '/api/estacoes/minhas', u)).corpo;
+  assert.ok(lista.some((x) => x.id === g.corpo.id), 'a estação criada aparece em "minhas estações"');
+  const e = (await api('GET', `/api/estacoes/${g.corpo.id}`, u)).corpo;
+  assert.ok(e.pep.every((p) => typeof p.pontos_total === 'number'), 'pontos_total sai como número');
+  const pub = await api('POST', `/api/estacoes/${g.corpo.id}/publicar`, u);
+  assert.equal(pub.status, 200, JSON.stringify(pub.corpo));
+  const exp = await api('POST', '/api/estacoes/exportar', u, { ids: [g.corpo.id] });
+  assert.equal(exp.status, 200);
+});

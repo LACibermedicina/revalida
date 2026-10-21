@@ -46,9 +46,11 @@ export function criarQ(db) {
       const v = l[i];
       if (v === '' && tipo !== 'text' && tipo !== 'citext') return [nome, null];
       if (tipo === 'boolean') return [nome, v === 't'];
-      if (/^(integer|bigint|smallint)$/.test(tipo)) return [nome, Number(v)];
+      if (/^(integer|smallint)$/.test(tipo)) return [nome, Number(v)];
+      if (tipo === 'bigint') return [nome, v];                         // node-pg devolve int8 como texto
+      if (/^numeric/.test(tipo)) return [nome, v];                      // ...e numeric também: quem precisa de número converte (era o que escondia o erro de publicar)
       if (/^(json|jsonb)$/.test(tipo)) return [nome, JSON.parse(v)];
-      if (/^(numeric|double precision|real)/.test(tipo)) return [nome, Number(v)];
+      if (/^(double precision|real)/.test(tipo)) return [nome, Number(v)];
       return [nome, v];
     })));
     return { rows };

@@ -36,6 +36,7 @@ const chamar = async (s, metodo, caminho, corpo) => {
   return { status: r.status, corpo: await r.json().catch(() => ({})) };
 };
 
+await srv.q(`insert into diretrizes (titulo, fonte, area, texto, categoria, obrigatoria) values ('PCDT Asma','Ministério da Saúde','clinica_medica',$1,'ministerio',true)`, ['Asma: conduta inicial com beta-2 agonista inalatório de curta duração, avaliação de gravidade e orientação de retorno. '.repeat(2)]);
 // estação aprovada: folha do candidato, cenário, checklist com critério e duas cartas sob demanda
 const est = (await srv.q(`insert into estacoes (titulo, area, status, duracao_min, instrucoes_candidato, cenario, script_ator, diagnostico_alvo, conceitos)
   values ('Asma agudizada na UBS','clinica_medica','aprovada',10,'Você atende uma paciente de 45 anos com falta de ar. Realize a anamnese, solicite os exames necessários e oriente a paciente.','Unidade básica de saúde, consultório.','Maria, 45 anos, costureira.','Asma agudizada','["Asma","Tabagismo"]') returning id`)).rows[0].id;
@@ -115,6 +116,20 @@ await passo('conferência do PEP pela fala: sugestões com trecho, o avaliador d
   await pa.locator('.sl-pep:has-text("início da falta") button:has-text("Sim")').click();      
   await pa.locator('.sl-pep:has-text("salbutamol") button:has-text("Não")').click();
   await pa.locator('.sl-pep:has-text("alarme") button:has-text("Parcial")').click();            // avaliador generoso: a fala nunca falou de sinais de alarme
+});
+
+await passo('menu discreto do avaliador: situação por item, equivalência, feedback e referência da bibliografia cadastrada', async () => {
+  const bloco = pa.locator('.sl-pep', { hasText: 'salbutamol' });
+  await bloco.locator('[data-testid="sugestao"] .sl-sit').waitFor();
+  assert.match(await bloco.locator('.sl-sit').textContent(), /Não falou|Erro|Confusão/);
+  await bloco.locator('[data-testid="sugestao-detalhe"] summary').click();
+  const det = await bloco.locator('[data-testid="sugestao-detalhe"]').textContent();
+  assert.match(det, /Equivalência com o critério/); assert.match(det, /Feedback/); assert.match(det, /PCDT Asma — Ministério da Saúde ★/);
+  await pa.locator('[data-testid="analise-fala"] summary').click();
+  const painel = await pa.locator('[data-testid="analise-fala"]').textContent();
+  assert.match(painel, /Boa anamnese/); assert.match(painel, /R1 PCDT Asma/); assert.match(painel, /exigida/); assert.match(painel, /Onde conferir/);
+  assert.equal(await pm.locator('[data-testid="analise-fala"]').count(), 0, 'o candidato nunca vê a análise');
+  await pa.screenshot({ path: join(saida, 'exec-analise-fala.png'), fullPage: true });
 });
 
 await passo('ao finalizar a transcrição para: o reconhecimento é desligado e o servidor recusa fala nova', async () => {

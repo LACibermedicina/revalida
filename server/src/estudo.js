@@ -27,7 +27,7 @@ export function registrarEstudo(app, { q, autenticar, ia, limitador = new Limita
 
   /* ---------- diretrizes ---------- */
   app.get('/api/diretrizes', autenticar, rota(async (_req, res) => {
-    res.json((await q('select id, titulo, fonte, url, area, length(texto)::int tamanho, criado_em from diretrizes order by criado_em desc limit 200')).rows);
+    res.json((await q('select id, titulo, fonte, url, area, categoria, obrigatoria, length(texto)::int tamanho, criado_em from diretrizes order by obrigatoria desc, criado_em desc limit 200')).rows);
   }));
   app.post('/api/diretrizes', autenticar, rota(async (req, res) => {
     if (!moderador(req.usuario)) return res.status(403).json({ erro: 'Só moderação e administração cadastram diretrizes.' });
@@ -35,8 +35,8 @@ export function registrarEstudo(app, { q, autenticar, ia, limitador = new Limita
     const titulo = t(b.titulo, 160); const texto = t(b.texto, 60_000); const url = t(b.url, 400);
     if (titulo.length < 3 || texto.length < 40) return res.status(400).json({ erro: 'Informe o título e o texto da diretriz (mínimo de 40 caracteres).' });
     if (url && !/^https?:\/\//i.test(url)) return res.status(400).json({ erro: 'O link precisa começar com http:// ou https://.' });
-    const r = await q('insert into diretrizes (titulo, fonte, url, area, texto, criado_por) values ($1,$2,$3,$4,$5,$6) returning id',
-      [titulo, t(b.fonte, 200), url || null, AREAS.includes(b.area) ? b.area : null, texto, U(req)]);
+    const r = await q('insert into diretrizes (titulo, fonte, url, area, texto, criado_por, categoria, obrigatoria) values ($1,$2,$3,$4,$5,$6,$7,$8) returning id',
+      [titulo, t(b.fonte, 200), url || null, AREAS.includes(b.area) ? b.area : null, texto, U(req), ['ministerio', 'oms', 'sociedade'].includes(b.categoria) ? b.categoria : 'outra', b.obrigatoria === true]);
     res.status(201).json({ id: r.rows[0].id });
   }));
   app.delete('/api/diretrizes/:id', autenticar, ID, rota(async (req, res) => {

@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { criarSalaVideo } from './video.js';
-import { CartasEstacao, TranscricaoCandidato, FalaDoCandidato, Sugestao, useAoVivo } from './SalaExecucao.jsx';
+import { CartasEstacao, TranscricaoCandidato, FalaDoCandidato, Sugestao, AnaliseDaFala, useAoVivo } from './SalaExecucao.jsx';
 import './salas.css';
 
 const PAPEL = { admin: 'Chefe', candidato: 'Candidato', observador: 'Observador' };
@@ -259,13 +259,14 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
           <CartasEstacao execId={exe.id} papel={euAvalio ? 'avaliador' : meu} api={api} token={token} segmentos={aoVivo.segmentos} />
           {meu === 'candidato' && exe.candidato_id === eu && <TranscricaoCandidato execId={exe.id} api={api} token={token} />}
           {euAvalio && <FalaDoCandidato segmentos={aoVivo.segmentos} info={aoVivo.info} aoAnalisar={aoVivo.analisar} />}
+          {euAvalio && <AnaliseDaFala info={aoVivo.info} />}
           {euAvalio && pep && (
             <>
               {pep.script_ator && <details><summary>Roteiro do ator</summary><p className="sub">{pep.script_ator}</p></details>}
               {pep.itens.map((i) => (
                 <div key={i.id} className={`sl-pep${i.critico ? ' crit' : ''}`}>
                   <span>{i.descricao}{i.critico && <em> crítico</em>} <em>{pts(i.pontos_total)} pts</em></span>
-                  <Sugestao s={aoVivo.sugestoes[i.id]} aoUsar={(v) => setMarcas((m) => ({ ...m, [i.id]: v }))} />
+                  <Sugestao resumo={aoVivo.info.resumo} s={aoVivo.sugestoes[i.id]} aoUsar={(v) => setMarcas((m) => ({ ...m, [i.id]: v }))} />
                   <span className="sl-marcas" role="group" aria-label={i.descricao}>
                     {MARCAS.map(([v, rot]) => <button key={v} className={`sl-m${marcas[i.id] === v ? ' on' : ''}`} aria-pressed={marcas[i.id] === v} onClick={() => setMarcas((m) => ({ ...m, [i.id]: v }))}>{rot}</button>)}
                   </span>

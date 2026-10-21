@@ -197,3 +197,14 @@ Gerar por IA aceita os campos do modelo (área, cenário, perfil, queixa, diagn�
 - **Painel de análise** (Início → estação feita; também no fim da estação na sala): resumo, pontos fortes e fracos por seção contra o seu histórico, comparação com outras estações e com a média da área, itens × fala, transcrição com os trechos destacados, e trilha sugerida.
 - **Cartões de revisão** dos pontos que você escolher: ficam ligados à estação, aparecem em Estudo → Cartões e entram na repetição espaçada.
 - **Outra abordagem**: a IA cria uma estação nova (rascunho) com o mesmo conteúdo, dando ênfase aos pontos escolhidos.
+
+## Catálogo de estações (aba 📋 Catálogo)
+- **Estações**: 426 estações de referência (`server/data/catalogo.json`, vindas da planilha anexada) com origem (INEP / INEP modificada / sem INEP), área, procedimento e didática. Cada pessoa marca estudo (não estudada / estudando / dominada), prioridade e anotações; **Gerar estação** cria um rascunho por IA a partir do item e o vincula (**Abrir estação** depois).
+- **Temas por ano**: matriz de 168 temas das provas práticas 2011–2025.1 (`server/data/temas-provas.json`), ordenada por frequência.
+- **Importar caderno** (moderador/admin): envia o texto de um caderno INEP; cada estação com pontuação por item vira rascunho num `.rvpack`, com relatório. Nada é publicado: o que o leitor não confirma (soma do PEP ≠ 10, roteiro do ator ausente) fica em `incertos` e entra como rascunho para conferência.
+- Limites: cadernos de 2011–2020 não trazem pontuação por item e não são importados; a leitura depende do texto extraído do PDF, por isso toda estação importada precisa de revisão humana.
+
+## Menu recolhível, ícones animados e análise da fala com bibliografia
+- **Menu**: botão ☰ oculta/mostra o menu (computador e celular); a escolha fica lembrada no aparelho. Ícones em SVG com animação ao passar o mouse e na tela ativa (respeitam "reduzir movimento").
+- **Análise da fala (só o avaliador)**: em cada item do PEP aparece a sugestão (sim/parcial/não) e a situação — acerto, parcial, erro, confusão de termo ou não falou; "ver análise" abre a equivalência com o critério, o termo confundido, o feedback e a referência. O menu "Análise da fala" mostra desempenho, pontos fortes/fracos e a bibliografia usada. O candidato nunca vê isso. A nota continua sendo do avaliador.
+- **Bibliografia**: em Estudo › Diretrizes, a administração cadastra o texto, o tipo (Ministério da Saúde, OMS, sociedade) e marca "exigida" (usada primeiro). A IA só pode citar essas referências (R1, R2…); citação fora da lista é descartada. Sem bibliografia, o feedback segue o consenso clínico geral e a tela avisa. O sistema NÃO traz o texto das diretrizes do Ministério, da OMS ou das sociedades: o que vale como norma é o que for cadastrado.

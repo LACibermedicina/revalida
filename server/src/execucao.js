@@ -7,7 +7,8 @@ import { ErroIA, audioOk } from './ia.js';
 import { traduzirErro, calcularNota } from './salas.js';
 import { diasParaReteste } from './estudo-logica.js';
 import { garantirTema, diretrizesDoTema } from './temas.js';
-import { analisarHeuristica, cartoesDoPEP, compararComMarcacao, compararSecoes, juntarTranscricao, pontosFortesEFracos, porSecao, sugestoesDeItens } from './analise-transcricao.js';
+import { referenciasDaEstacao } from './temas.js';
+import { FONTES_GERAIS, analisarHeuristica, cartoesDoPEP, compararComMarcacao, compararSecoes, juntarTranscricao, pontosFortesEFracos, porSecao, sugestoesDeItens } from './analise-transcricao.js';
 
 const ERROS_IA = { IA_NAO_CONFIGURADA: 503, IA_CHAVE_INVALIDA: 502, IA_LIMITE: 429, IA_DEMORA: 504, IA_FALHA: 502, IA_ESQUEMA: 502 };
 const MAX_SEGMENTOS = 3000;
@@ -128,13 +129,15 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
   async function analisar(x, segmentos) {
     const itens = await itensDaEstacao(x.estacao_id);
     if (segmentos.length === 0) return { fonte: 'heuristica', itens: analisarHeuristica({ itens, segmentos }), resumo: {}, aviso: 'Ainda não há fala transcrita.' };
+    const referencias = await referenciasDaEstacao(q, x).catch(() => []);
+    const bib = { referencias: referencias.map(({ ref, titulo, fonte, url, categoria, obrigatoria }) => ({ ref, titulo, fonte, url, categoria, obrigatoria })), fontes_gerais: FONTES_GERAIS[x.area] ?? [], sem_referencia: referencias.length === 0 };
     if (ia.configurado()) {
       try {
-        const r = await ia.analisarTranscricao({ estacao: x, itens, transcricao: juntarTranscricao(segmentos) });
-        return { fonte: 'ia', itens: r.itens, resumo: { ...r.resumo, rebaixados: r.rebaixados }, modelo: r.modelo };
+        const r = await ia.analisarTranscricao({ estacao: x, itens, transcricao: juntarTranscricao(segmentos), referencias });
+        return { fonte: 'ia', itens: r.itens, resumo: { ...r.resumo, rebaixados: r.rebaixados, ...bib }, modelo: r.modelo };
       } catch (e) { if (!(e instanceof ErroIA)) throw e; }
     }
-    return { fonte: 'heuristica', itens: analisarHeuristica({ itens, segmentos }), resumo: {}, aviso: ia.configurado() ? 'A IA falhou; usei a conferência por palavras.' : 'IA não configurada; usei a conferência por palavras.' };
+    return { fonte: 'heuristica', itens: analisarHeuristica({ itens, segmentos }), resumo: bib, aviso: ia.configurado() ? 'A IA falhou; usei a conferência por palavras.' : 'IA não configurada; usei a conferência por palavras.' };
   }
   async function guardarAnalise(execId, final, a, segmentos) {
     await q(`insert into analises_transcricao (execucao_id, final, fonte, itens, resumo, segmentos) values ($1,$2,$3,$4::jsonb,$5::jsonb,$6)
@@ -242,7 +245,7 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
       [x.id, c.nota, JSON.stringify(c.checklist), U(req)]);
     await q(`update usuario_estacao set melhor_nota = (select max(e.nota) from execucoes e join ciclo_itens i on i.id = e.item_id where e.candidato_id = $1 and i.estacao_id = $2 and e.estado = 'finalizada')
       where usuario_id = $1 and estacao_id = $2`, [x.candidato_id, x.estacao_id]);
-    res.json({ nota: c.nota, max: c.max, nota_original: x.nota_original ?? x.nota, criticos_falhos: c.checklist.criticos_falhos });
+    res.json({ nota: c.nota, max: c.max, nota_original: Number(x.nota_original ?? x.nota), criticos_falhos: c.checklist.criticos_falhos });
   }));
 
   /* ---------------- cartões de revisão da estação ---------------- */

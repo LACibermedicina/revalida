@@ -68,7 +68,7 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
   async function carregar(id) {
     const e = (await q('select id,titulo,area,duracao_min,origem,status,script_ator,instrucoes_candidato,cenario,conceitos,incertos,criado_por,semente,atualizado_em,sintese,objetivos,perfil_paciente,diagnostico_alvo from estacoes where id=$1', [id])).rows[0];
     if (!e) return null;
-    e.pep = (await q('select secao,ordem,descricao,criterio,pontos_total,pontos_parcial,critico from pep_itens where estacao_id=$1 order by ordem', [id])).rows;
+    e.pep = (await q('select secao,ordem,descricao,criterio,pontos_total::float8 pontos_total,pontos_parcial::float8 pontos_parcial,critico from pep_itens where estacao_id=$1 order by ordem', [id])).rows;
     e.materiais = (await q('select id,ordem,tipo,titulo,conteudo,gatilho from estacao_materiais where estacao_id=$1 order by ordem', [id])).rows;
     return e;
   }
@@ -201,8 +201,10 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
     for (const [i, bruto] of p.estacoes.entries()) {
       const v = validarEstacao(bruto, { completa: true });
       if (!v.ok) { resultado.push({ posicao: i, titulo: String(bruto?.titulo ?? '').slice(0, 120), ok: false, erros: v.erros.slice(0, 5) }); continue; }
-      const id = await inserir({ estacao: v.estacao, origem: 'importada', status, usuarioId: req.usuario.id });
-      resultado.push({ posicao: i, titulo: v.estacao.titulo, ok: true, id });
+      // pacote que declara trechos incertos (ex.: importado do caderno INEP) entra como rascunho, nunca aprovado direto
+      const incertos = Array.isArray(bruto.incertos) ? bruto.incertos.filter((x) => typeof x === 'string').slice(0, 20) : [];
+      const id = await inserir({ estacao: v.estacao, origem: 'importada', status: incertos.length ? 'rascunho' : status, usuarioId: req.usuario.id, incertos });
+      resultado.push({ posicao: i, titulo: v.estacao.titulo, ok: true, id, incertos });
     }
     res.status(201).json({ status, importadas: resultado.filter((r) => r.ok).length, rejeitadas: resultado.filter((r) => !r.ok).length, resultado });
   }));

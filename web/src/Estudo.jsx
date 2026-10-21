@@ -364,21 +364,22 @@ function Revisao({ id, token, api, aoVoltar }) {
 }
 
 /* ======================= diretrizes ======================= */
+const CATEG = { ministerio: 'Ministério da Saúde', oms: 'OMS', sociedade: 'Sociedade de especialidade', outra: '' };
 function Diretrizes({ token, usuario, api }) {
-  const [lista, setLista] = useState(null); const [f, setF] = useState({ titulo: '', fonte: '', url: '', area: '', texto: '' }); const [msg, setMsg] = useState('');
+  const [lista, setLista] = useState(null); const [f, setF] = useState({ titulo: '', fonte: '', url: '', area: '', texto: '', categoria: 'ministerio', obrigatoria: false }); const [msg, setMsg] = useState('');
   const pode = ['moderador', 'admin', 'root'].includes(usuario?.papel_app);
   const carregar = useCallback(() => api('/api/diretrizes', { token }).then(setLista).catch((e) => setMsg(e.message)), [api, token]);
   useEffect(() => { carregar(); }, [carregar]);
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
   const salvar = async (ev) => {
     ev.preventDefault(); setMsg('');
-    try { await api('/api/diretrizes', { metodo: 'POST', token, corpo: { ...f, area: f.area || undefined, url: f.url || undefined } }); setF({ titulo: '', fonte: '', url: '', area: '', texto: '' }); setMsg('Diretriz cadastrada.'); carregar(); } catch (e) { setMsg(e.message); }
+    try { await api('/api/diretrizes', { metodo: 'POST', token, corpo: { ...f, area: f.area || undefined, url: f.url || undefined } }); setF({ titulo: '', fonte: '', url: '', area: '', texto: '', categoria: 'ministerio', obrigatoria: false }); setMsg('Diretriz cadastrada.'); carregar(); } catch (e) { setMsg(e.message); }
   };
   return (
     <>
       <p className="sub">A IA só trata como norma o texto cadastrado aqui (protocolos e cadernos do Ministério da Saúde, por exemplo). O que não tiver diretriz sai marcado "sem diretriz de referência".</p>
       {lista && lista.length === 0 && <p className="sub">Nenhuma diretriz cadastrada.</p>}
-      {lista?.map((d) => <div key={d.id} className="es-linha es-bloco"><span><strong>{d.titulo}</strong><br /><em>{d.fonte || 'sem fonte informada'}{d.area ? ` · ${AREAS[d.area]}` : ''} · {Math.round(d.tamanho / 1000)} mil caracteres</em></span></div>)}
+      {lista?.map((d) => <div key={d.id} className="es-linha es-bloco"><span><strong>{d.titulo}</strong><br /><em>{d.obrigatoria ? '★ exigida pela administração · ' : ''}{CATEG[d.categoria] ?? ''}{d.categoria && d.categoria !== 'outra' ? ' · ' : ''}{d.fonte || 'sem fonte informada'}{d.area ? ` · ${AREAS[d.area]}` : ''} · {Math.round(d.tamanho / 1000)} mil caracteres</em></span></div>)}
       {pode ? (
         <form className="es-bloco" onSubmit={salvar}>
           <h3>Cadastrar diretriz</h3>
@@ -386,6 +387,10 @@ function Diretrizes({ token, usuario, api }) {
           <div className="es-grade">
             <label className="campo"><span>Fonte</span><input value={f.fonte} maxLength={200} onChange={set('fonte')} placeholder="Ministério da Saúde, 2022" /></label>
             <label className="campo"><span>Área</span><select value={f.area} onChange={set('area')}><option value="">Todas</option>{Object.entries(AREAS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+          </div>
+          <div className="es-grade">
+            <label className="campo"><span>Tipo da fonte</span><select value={f.categoria} onChange={set('categoria')}>{Object.entries(CATEG).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+            <label className="ca-chk"><input type="checkbox" checked={f.obrigatoria} onChange={(e) => setF((x) => ({ ...x, obrigatoria: e.target.checked }))} />Bibliografia exigida (a análise das estações usa primeiro)</label>
           </div>
           <label className="campo"><span>Link (opcional)</span><input value={f.url} maxLength={400} onChange={set('url')} placeholder="https://…" /></label>
           <label className="campo"><span>Texto da diretriz</span><textarea style={{ minHeight: 180 }} value={f.texto} maxLength={60000} onChange={set('texto')} required placeholder="Cole aqui o trecho do protocolo que deve valer como norma." /></label>

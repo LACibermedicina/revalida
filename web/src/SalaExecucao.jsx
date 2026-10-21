@@ -6,6 +6,8 @@ import { criarTranscritor, podeTranscrever } from './transcricao.js';
 import { detectarPedidos } from './pedidos.js';
 
 const TIPO_CARTA = { laboratorial: 'Exame laboratorial', imagem: 'Imagem', biopsia: 'Biópsia', laudo: 'Laudo', outro: 'Material' };
+const SITUACAO = { acerto: ['Acerto', '✓'], parcial: ['Parcial', '◐'], erro: ['Erro', '✕'], confusao: ['Confusão de termo', '⇄'], omissao: ['Não falou', '∅'] };
+const CATEG = { ministerio: 'Ministério da Saúde', oms: 'OMS', sociedade: 'Sociedade de especialidade', outra: 'Referência' };
 const SUGESTAO = { sim: 'Sim', parcial: 'Parcial', nao: 'Não' };
 const lerConsentimento = () => { try { return localStorage.getItem('rv_transcricao_ok') === '1'; } catch { return false; } };
 const guardarConsentimento = () => { try { localStorage.setItem('rv_transcricao_ok', '1'); } catch { /* sem storage */ } };
@@ -14,7 +16,7 @@ const guardarConsentimento = () => { try { localStorage.setItem('rv_transcricao_
 export function useAoVivo({ execId, ativo, api, token, intervaloMs = 4000, analiseMs = 20000 }) {
   const [segmentos, setSegmentos] = useState([]);
   const [sugestoes, setSugestoes] = useState({});
-  const [info, setInfo] = useState({ fonte: null, aviso: '', ocupado: false, em: null });
+  const [info, setInfo] = useState({ fonte: null, aviso: '', ocupado: false, em: null, resumo: null });
   const ref = useRef({ analisados: 0, ocupado: false, segs: 0 });
 
   const analisar = useCallback(async () => {
@@ -24,13 +26,13 @@ export function useAoVivo({ execId, ativo, api, token, intervaloMs = 4000, anali
       const r = await api(`/api/execucoes/${execId}/analise-ao-vivo`, { metodo: 'POST', token });
       ref.current.analisados = r.segmentos ?? 0;
       setSugestoes(Object.fromEntries((r.itens ?? []).map((x) => [x.pep_item_id, x])));
-      setInfo({ fonte: r.fonte, aviso: r.aviso ?? '', ocupado: false, em: Date.now() });
+      setInfo({ fonte: r.fonte, aviso: r.aviso ?? '', ocupado: false, em: Date.now(), resumo: r.resumo ?? null });
     } catch (e) { setInfo((i) => ({ ...i, ocupado: false, aviso: e.codigo === 'AGUARDE' ? i.aviso : e.message })); }
     finally { ref.current.ocupado = false; }
   }, [api, token, execId]);
 
   useEffect(() => {
-    setSegmentos([]); setSugestoes({}); setInfo({ fonte: null, aviso: '', ocupado: false, em: null }); ref.current = { analisados: 0, ocupado: false, segs: 0 };
+    setSegmentos([]); setSugestoes({}); setInfo({ fonte: null, aviso: '', ocupado: false, em: null, resumo: null }); ref.current = { analisados: 0, ocupado: false, segs: 0 };
     if (!ativo || !execId) return undefined;
     let vivo = true;
     const buscar = () => api(`/api/execucoes/${execId}/transcricao`, { token }).then((r) => { if (vivo) { setSegmentos(r.segmentos); ref.current.segs = r.segmentos.length; } }).catch(() => {});
@@ -126,12 +128,46 @@ export function FalaDoCandidato({ segmentos, info, aoAnalisar }) {
   );
 }
 
-export function Sugestao({ s, aoUsar }) {
+/** Sugestão por item, discreta: uma linha; "ver análise" abre equivalência com o critério, onde errou/confundiu e a referência. */
+export function Sugestao({ s, aoUsar, resumo }) {
   if (!s) return null;
+  const sit = SITUACAO[s.situacao];
+  const ref = s.referencia ? resumo?.referencias?.find((r) => r.ref === s.referencia) : null;
+  const detalhe = s.equivalencia || s.feedback || s.termo_confuso || ref;
   return (
     <span className={`sl-sug r-${s.resultado}${s.confiavel === false ? ' fraca' : ''}`} data-testid="sugestao">
-      Fala sugere: <b>{SUGESTAO[s.resultado]}</b>{s.evidencia ? <> · “{s.evidencia}”</> : null}
+      Fala sugere: <b>{SUGESTAO[s.resultado]}</b>{sit && <i className={`sl-sit s-${s.situacao}`} title={sit[0]}>{sit[1]} {sit[0]}</i>}{s.evidencia ? <> · “{s.evidencia}”</> : null}
       {s.confiavel !== false && <button type="button" className="ln" onClick={() => aoUsar(s.resultado)}>usar</button>}
+      {detalhe && (
+        <details className="sl-det" data-testid="sugestao-detalhe">
+          <summary>ver análise</summary>
+          {s.equivalencia && <p><b>Equivalência com o critério:</b> {s.equivalencia}</p>}
+          {s.termo_confuso && <p><b>Termo:</b> {s.termo_confuso}</p>}
+          {s.feedback && <p><b>Feedback:</b> {s.feedback}</p>}
+          {ref && <p className="sl-ref"><b>Referência:</b> {ref.titulo}{ref.fonte ? ` — ${ref.fonte}` : ''}{ref.obrigatoria ? ' ★' : ''}{ref.url ? <> · <a href={ref.url} target="_blank" rel="noreferrer noopener">abrir</a></> : null}</p>}
+          {!ref && s.feedback && <p className="sub">Sem referência cadastrada para este ponto: segue o consenso clínico geral. Confira na bibliografia.</p>}
+        </details>
+      )}
     </span>
+  );
+}
+
+/** Menu discreto do avaliador: desempenho geral, pontos fortes e fracos e a bibliografia usada (só para quem avalia). */
+export function AnaliseDaFala({ info }) {
+  const r = info.resumo;
+  if (!r || !info.fonte) return null;
+  return (
+    <details className="sl-analise" data-testid="analise-fala">
+      <summary>Análise da fala · {info.fonte === 'ia' ? 'IA' : 'palavras do item'}</summary>
+      {r.desempenho && <p>{r.desempenho}</p>}
+      {r.pontos_fortes?.length > 0 && <><h5>Pontos fortes</h5><ul>{r.pontos_fortes.map((x) => <li key={x}>{x}</li>)}</ul></>}
+      {r.pontos_fracos?.length > 0 && <><h5>Pontos fracos</h5><ul>{r.pontos_fracos.map((x) => <li key={x}>{x}</li>)}</ul></>}
+      {r.sugestoes?.length > 0 && <><h5>Sugestões</h5><ul>{r.sugestoes.map((x) => <li key={x}>{x}</li>)}</ul></>}
+      <h5>Bibliografia</h5>
+      {r.referencias?.length ? <ul>{r.referencias.map((x) => <li key={x.ref}><b>{x.ref}</b> {x.titulo}{x.fonte ? ` — ${x.fonte}` : ''}{x.categoria && CATEG[x.categoria] ? ` (${CATEG[x.categoria]})` : ''}{x.obrigatoria ? ' ★ exigida' : ''}</li>)}</ul>
+        : <p className="sub">Nenhuma bibliografia cadastrada para esta estação: a administração pode cadastrar na aba Estudo › Diretrizes. Até lá o feedback segue o consenso clínico geral.</p>}
+      {r.fontes_gerais?.length > 0 && <p className="sub">Onde conferir: {r.fontes_gerais.join('; ')}.</p>}
+      {r.referencias_invalidas > 0 && <p className="sub">{r.referencias_invalidas} citação(ões) da IA fora da bibliografia foram descartadas.</p>}
+    </details>
   );
 }

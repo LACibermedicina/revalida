@@ -14,6 +14,7 @@ import { registrarSalas, criarPresenca, traduzirErro } from './salas.js';
 import { criarIA } from './ia.js';
 import { registrarEstacoes } from './estacoes.js';
 import { registrarEstudo } from './estudo.js';
+import { registrarCatalogo } from './catalogo.js';
 import { registrarExecucao } from './execucao.js';
 import { gerarCodigoInstalacao, reconhecerInstalacaoExistente, registrarInstalacao, registrarManutencao } from './instalacao.js';
 import { emailValido, MSG_SENHA, senhaValida, sha256 } from './seguranca.js';
@@ -40,6 +41,7 @@ app.use(cors());
 // Importação de PDF/imagem (até 8 MB em base64) e de pacotes .rvpack precisa de corpo maior que o padrão. Exige login ANTES de ler o corpo
 // (ninguém sem sessão consegue fazer o servidor processar 12 MB) e só vale para essas duas rotas.
 app.use(['/api/estacoes/importar-arquivo', '/api/estacoes/importar-pacote'], (req, res, prox) => autenticar(req, res, prox), express.json({ limit: '12mb' }));
+app.use('/api/catalogo/importar-ebook', (req, res, prox) => autenticar(req, res, prox), express.json({ limit: '10mb' }));
 app.use(/^\/api\/execucoes\/[0-9a-f-]{36}\/audio$/, (req, res, prox) => autenticar(req, res, prox), express.json({ limit: '3mb' }));   // trecho de áudio (reserva de transcrição)
 app.use(express.json({ limit: '200kb' }));
 
@@ -91,6 +93,7 @@ const execucao = registrarExecucao(app, { q, autenticar, ia, difundir });
 registrarSalas(app, { q, autenticar, agora, cfg, difundir, presenca, aoFinalizar: execucao.analisarFinal });
 registrarEstacoes(app, { q, autenticar, ia, emitir: emitirSala });
 registrarEstudo(app, { q, autenticar, ia });
+registrarCatalogo(app, { q, autenticar });
 registrarInstalacao(app, { q, bcrypt, cfg, agora, emailer, codigo: () => codigoInstalacao, segredoJwt: SEGREDO, producao: process.env.NODE_ENV === 'production' });
 registrarManutencao(app, { q, autenticar, bcrypt, novoCodigo, cfg });
 

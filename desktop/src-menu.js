@@ -7,6 +7,9 @@ export const COMANDOS = {
   exportar: { tela: 'estacoes', aba: 'exportar' },
   minhasEstacoes: { tela: 'estacoes', aba: 'lista' },
   ciclos: { tela: 'ciclos' },
+  catalogo: { tela: 'catalogo', aba: 'estacoes' },
+  temasProva: { tela: 'catalogo', aba: 'temas' },
+  importarCaderno: { tela: 'catalogo', aba: 'importar' },
   trilha: { tela: 'estudo', aba: 'trilha' },
   cartoes: { tela: 'estudo', aba: 'cartoes' },
   mapa3d: { tela: 'estudo', aba: 'mapa' },
@@ -37,6 +40,7 @@ export function montarMenu({ enviar, servidorAtivo, trocarServidor, recarregar }
       cmd('Minhas estações', 'minhasEstacoes'),
     ] },
     { label: 'Ciclos', submenu: [cmd('Salas e ciclos', 'ciclos', 'CmdOrCtrl+L')] },
+    { label: 'Catálogo', submenu: [cmd('Catálogo de estações', 'catalogo'), cmd('Temas por ano', 'temasProva'), cmd('Importar caderno INEP', 'importarCaderno')] },
     { label: 'Estudo', submenu: [
       cmd('Trilha de aprendizagem', 'trilha', 'CmdOrCtrl+T'),
       cmd('Cartões (repetição espaçada)', 'cartoes', 'CmdOrCtrl+K'),

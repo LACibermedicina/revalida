@@ -70,8 +70,17 @@ export async function candidatosPorPrioridade(q, prioridade, usuarioId) {
 /** Diretrizes cadastradas que mencionam o tema (título ou texto) na área; até 3, com texto limitado. */
 export async function diretrizesDoTema(q, { nome, area }) {
   const n = nomeOk(nome); if (n.length < 3) return [];
-  const r = await q(`select id, titulo, fonte, url, left(texto, 3500) texto from diretrizes
+  const r = await q(`select id, titulo, fonte, url, categoria, obrigatoria, left(texto, 3500) texto from diretrizes
       where (titulo ilike '%'||$1||'%' or texto ilike '%'||$1||'%') and ($2::text is null or area is null or area = $2)
-      order by (titulo ilike '%'||$1||'%') desc, criado_em desc limit 3`, [n.replace(/[%_\\]/g, ' '), AREAS.includes(area) ? area : null]);
+      order by obrigatoria desc, (titulo ilike '%'||$1||'%') desc, criado_em desc limit 3`, [n.replace(/[%_\\]/g, ' '), AREAS.includes(area) ? area : null]);
   return r.rows;
+}
+
+/** Bibliografia para conferir uma estação: as da administração (obrigatórias da área) primeiro, depois as que citam o tema. Máx. 5. */
+export async function referenciasDaEstacao(q, { titulo, diagnostico_alvo, area }) {
+  const vistos = new Map();
+  for (const nome of [diagnostico_alvo, titulo].filter(Boolean)) for (const d of await diretrizesDoTema(q, { nome, area })) vistos.set(d.id, d);
+  const obr = (await q(`select id, titulo, fonte, url, categoria, obrigatoria, left(texto, 3500) texto from diretrizes where obrigatoria and (area is null or area = $1) order by criado_em desc limit 3`, [AREAS.includes(area) ? area : null])).rows;
+  for (const d of obr) vistos.set(d.id, d);
+  return [...vistos.values()].sort((a, b) => Number(b.obrigatoria) - Number(a.obrigatoria)).slice(0, 5).map((d, i) => ({ ...d, ref: `R${i + 1}` }));
 }
