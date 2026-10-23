@@ -135,8 +135,9 @@ app.post('/api/auth/registrar', async (req, res) => {
 
 /* ---------------- estações e PEP ---------------- */
 
-app.get('/api/estacoes', autenticar, async (_req, res) => {
-  const r = await q(`select id, titulo, area, duracao_min, origem, status from estacoes where status='aprovada' order by area, titulo`);
+app.get('/api/estacoes', autenticar, async (req, res) => {
+  const r = await q(`select e.id, e.titulo, e.area, e.duracao_min, e.origem, e.status, e.dificuldade, coalesce(u.vezes_realizada,0)::int vezes_realizada, u.ultima_em
+      from estacoes e left join usuario_estacao u on u.estacao_id = e.id and u.usuario_id = $1 where e.status='aprovada' order by e.area, e.titulo`, [req.usuario.id]);
   res.json(r.rows);
 });
 

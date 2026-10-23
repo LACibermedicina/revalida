@@ -8,7 +8,7 @@ import { traduzirErro, calcularNota } from './salas.js';
 import { diasParaReteste } from './estudo-logica.js';
 import { garantirTema, diretrizesDoTema } from './temas.js';
 import { referenciasDaEstacao } from './temas.js';
-import { FONTES_GERAIS, analisarHeuristica, cartoesDoPEP, compararComMarcacao, compararSecoes, juntarTranscricao, pontosFortesEFracos, porSecao, sugestoesDeItens } from './analise-transcricao.js';
+import { FONTES_GERAIS, agruparPorMinuto, notaAutomatica, analisarHeuristica, cartoesDoPEP, compararComMarcacao, compararSecoes, juntarTranscricao, pontosFortesEFracos, porSecao, sugestoesDeItens } from './analise-transcricao.js';
 
 const ERROS_IA = { IA_NAO_CONFIGURADA: 503, IA_CHAVE_INVALIDA: 502, IA_LIMITE: 429, IA_DEMORA: 504, IA_FALHA: 502, IA_ESQUEMA: 502 };
 const MAX_SEGMENTOS = 3000;
@@ -161,7 +161,13 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
   }));
 
   /** Chamada ao finalizar: a análise final nasce da transcrição completa (que já parou de crescer). */
-  async function analisarFinal(execId) {
+  const emAnalise = new Map();
+  /** Uma só análise final por estação, mesmo que o fim e o painel peçam ao mesmo tempo. */
+  function analisarFinal(execId) {
+    if (!emAnalise.has(execId)) emAnalise.set(execId, analisarFinalBruta(execId).finally(() => emAnalise.delete(execId)));
+    return emAnalise.get(execId);
+  }
+  async function analisarFinalBruta(execId) {
     const x = await contexto(execId, '00000000-0000-0000-0000-000000000000');
     if (!x || x.estado !== 'finalizada') return null;
     const segmentos = (await q('select texto from transcricoes where execucao_id=$1 order by ordem', [x.id])).rows;
@@ -170,6 +176,32 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
     ultimaAoVivo.delete(x.id);
     return a;
   }
+
+  /* ---------------- autocorreção ao finalizar ---------------- */
+  // Nota que a transcrição sustenta, comparada com a marcação do avaliador. Não altera a nota: adotar é decisão do avaliador (revisao-nota).
+  app.get('/api/execucoes/:id/autocorrecao', autenticar, ID, rota(async (req, res) => {
+    const x = await contexto(req.params.id, U(req));
+    if (!x) return naoAchou(res);
+    if (x.papel !== 'candidato' && x.papel !== 'avaliador') return proibido(res);
+    if (x.estado !== 'finalizada') return res.status(409).json({ erro: 'A autocorreção acontece quando a estação termina.', codigo: 'EXECUCAO_NAO_FINALIZADA' });
+    const an = (await q('select fonte, itens, resumo, gerada_em from analises_transcricao where execucao_id=$1 and final=true', [x.id])).rows[0];
+    if (!an) { analisarFinal(x.id).catch(() => {}); return res.status(202).json({ estado: 'processando' }); }
+    const nSeg = (await q('select count(*)::int n from transcricoes where execucao_id=$1', [x.id])).rows[0].n;
+    const peps = await itensDaEstacao(x.estacao_id);
+    const parciais = new Map((await q('select id, pontos_parcial from pep_itens where estacao_id=$1 and pontos_parcial is not null', [x.estacao_id])).rows.map((r) => [r.id, Number(r.pontos_parcial)]));
+    const chk = (x.checklist?.itens ?? []).map((i) => ({ id: i.id, secao: i.secao, descricao: i.descricao, critico: Boolean(i.critico), resultado: i.resultado, pontos: Number(i.pontos), pontos_total: Number(i.pontos_total) }));
+    const base = chk.length ? chk : peps.map((p) => ({ id: p.id, secao: p.secao, descricao: p.descricao, critico: p.critico, resultado: 'nao', pontos: 0, pontos_total: p.pontos_total }));
+    const r = notaAutomatica(base, an.itens ?? [], parciais);
+    const nota = x.nota === null ? null : Number(x.nota);
+    const semFala = nSeg === 0;
+    const divergentes = r.itens.filter((i) => i.divergencia).length;
+    const seg = (await q('select t.ordem, t.texto, coalesce(t.inicio_ms, (extract(epoch from (t.criado_em - e.iniciada_em)) * 1000)::int) ms from transcricoes t join execucoes e on e.id = t.execucao_id where t.execucao_id=$1 order by t.ordem', [x.id])).rows;
+    res.json({ estado: 'pronta', fonte: an.fonte, gerada_em: an.gerada_em, sem_fala: semFala,
+      nota_automatica: semFala ? null : r.nota, nota_avaliador: nota, nota_original: x.nota_original === null ? null : Number(x.nota_original), maximo: r.max,
+      percentual_automatico: !semFala && r.max > 0 ? Math.round((r.nota / r.max) * 100) : null,
+      itens: r.itens, divergentes, marcas_sugeridas: semFala ? null : r.marcas, por_minuto: agruparPorMinuto(seg, r.itens),
+      resumo: an.resumo ?? {}, pode_adotar: x.papel === 'avaliador' && !semFala });
+  }));
 
   /* ---------------- painel de análise (depois da estação) ---------------- */
   const SECOES_HIST = `select item->>'secao' secao, sum((item->>'pontos')::numeric) pontos, sum((item->>'pontos_total')::numeric) maximo, count(distinct e.id)::int estacoes
@@ -183,7 +215,7 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
     if (x.estado !== 'finalizada') return res.status(409).json({ erro: 'A análise fica disponível depois que a estação termina.', codigo: 'EXECUCAO_NAO_FINALIZADA' });
     const peps = new Map((await itensDaEstacao(x.estacao_id)).map((i) => [i.id, i]));
     const itensChk = (x.checklist?.itens ?? []).map((i) => ({ id: i.id, secao: i.secao, descricao: i.descricao, critico: Boolean(i.critico), resultado: i.resultado, pontos: Number(i.pontos), pontos_total: Number(i.pontos_total), criterio: peps.get(i.id)?.criterio ?? '' }));
-    const segmentos = (await q('select ordem, texto, inicio_ms, fonte from transcricoes where execucao_id=$1 order by ordem', [x.id])).rows;
+    const segmentos = (await q('select t.ordem, t.texto, t.inicio_ms, t.fonte, coalesce(t.inicio_ms, (extract(epoch from (t.criado_em - e.iniciada_em)) * 1000)::int) ms from transcricoes t join execucoes e on e.id = t.execucao_id where t.execucao_id=$1 order by t.ordem', [x.id])).rows;
     let an = (await q('select fonte, itens, resumo, segmentos, gerada_em from analises_transcricao where execucao_id=$1 and final=true', [x.id])).rows[0];
     if (!an) { const a = await analisarFinal(x.id); an = a && { fonte: a.fonte, itens: a.itens, resumo: a.resumo, segmentos: segmentos.length }; }
     const itens = compararComMarcacao(itensChk, an?.itens ?? []);
@@ -208,10 +240,11 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
       execucao: { id: x.id, estacao_id: x.estacao_id, titulo: x.titulo, area: x.area, duracao_min: x.duracao_min, finalizada_em: x.finalizada_em,
         duracao_s: Math.round((new Date(x.finalizada_em) - new Date(x.iniciada_em)) / 1000), nota, nota_original: x.nota_original === null ? null : Number(x.nota_original), maximo, percentual },
       meu_papel: x.papel, pode_revisar_nota: x.papel === 'avaliador',
+      por_minuto: agruparPorMinuto(segmentos, itens.map((i) => ({ id: i.id, descricao: i.descricao, evidencia: i.sugestao?.evidencia, resultado_fala: i.sugestao && i.sugestao.confiavel !== false ? i.sugestao.resultado : null }))),
       transcricao: { segmentos, analise_fonte: an?.fonte ?? null, analisada_em: an?.gerada_em ?? null, rebaixados: an?.resumo?.rebaixados ?? 0 },
       itens, divergentes: itens.filter((i) => i.divergencia).length,
       secoes, fortes: fortesFracos.fortes, fracos: fortesFracos.fracos,
-      resumo: { pontos_fortes: an?.resumo?.pontos_fortes ?? [], pontos_fracos: an?.resumo?.pontos_fracos ?? [], sugestoes: an?.resumo?.sugestoes?.length ? an.resumo.sugestoes : sugestoesDeItens(itensChk) },
+      resumo: { desempenho: an?.resumo?.desempenho ?? '', referencias: an?.resumo?.referencias ?? [], fontes_gerais: an?.resumo?.fontes_gerais ?? [], sem_referencia: an?.resumo?.sem_referencia ?? null, pontos_fortes: an?.resumo?.pontos_fortes ?? [], pontos_fracos: an?.resumo?.pontos_fracos ?? [], sugestoes: an?.resumo?.sugestoes?.length ? an.resumo.sugestoes : sugestoesDeItens(itensChk) },
       comparacao: { recentes, tentativas, media_area: mesmaArea.length ? Math.round(mesmaArea.reduce((s, r) => s + r.percentual, 0) / mesmaArea.length) : null },
       lacunas, temas, cartoes_da_estacao: cartoes,
       trilha: montarTrilha({ titulo: x.titulo, temas, fracosItens, cartoes, reteste }),
@@ -254,7 +287,8 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
     if (!x) return naoAchou(res);
     if (x.papel !== 'candidato') return proibido(res);
     if (x.estado !== 'finalizada') return res.status(409).json({ erro: 'Os cartões saem depois que a estação termina.', codigo: 'EXECUCAO_NAO_FINALIZADA' });
-    const ids = Array.isArray(req.body?.itens) ? [...new Set(req.body.itens.filter(idValido))].slice(0, 20) : [];
+    const todos = req.body?.todos === true;     // a estação inteira: todos os itens do PEP
+    const ids = todos ? (await itensDaEstacao(x.estacao_id)).map((i) => i.id).slice(0, 40) : Array.isArray(req.body?.itens) ? [...new Set(req.body.itens.filter(idValido))].slice(0, 20) : [];
     if (ids.length === 0) return res.status(400).json({ erro: 'Escolha ao menos um ponto para revisar.' });
     const modo = req.body?.modo === 'ia' ? 'ia' : 'pep';
     const itens = (await itensDaEstacao(x.estacao_id)).filter((i) => ids.includes(i.id));

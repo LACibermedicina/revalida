@@ -162,3 +162,45 @@ export function cartoesDoPEP({ titulo }, itens) {
     verso: txt(`${i.descricao}${i.criterio ? `\nCritério: ${i.criterio}` : ''}`, 1200),
   }));
 }
+
+/* ---------------- autocorreção (nota sugerida pela fala) ---------------- */
+/**
+ * Nota que a fala sustenta, item a item. Item que a análise não conseguiu julgar (confiavel = false) mantém a marcação do avaliador:
+ * a fala nunca derruba nem levanta um ponto sem base.
+ */
+export function notaAutomatica(itensChecklist, sugestoes, parciais = new Map()) {
+  const s = new Map(sugestoes.map((x) => [x.pep_item_id, x]));
+  let nota = 0; let max = 0; const marcas = {}; const itens = [];
+  for (const i of itensChecklist) {
+    const sug = s.get(i.id); const usaFala = Boolean(sug && sug.confiavel !== false);
+    const resultado = usaFala ? sug.resultado : i.resultado;
+    const total = Number(i.pontos_total); const parcial = parciais.get(i.id);
+    const pts = resultado === 'sim' ? total : resultado === 'parcial' ? (parcial ?? total / 2) : 0;
+    nota += pts; max += total; marcas[i.id] = resultado;
+    itens.push({ id: i.id, secao: i.secao, descricao: i.descricao, critico: Boolean(i.critico), pontos_total: total, resultado_avaliador: i.resultado, pontos_avaliador: Number(i.pontos),
+      resultado_fala: usaFala ? sug.resultado : null, pontos_fala: pts, situacao: sug?.situacao ?? null, evidencia: sug?.evidencia ?? '', equivalencia: sug?.equivalencia ?? '',
+      termo_confuso: sug?.termo_confuso ?? '', feedback: sug?.feedback ?? '', referencia: sug?.referencia ?? '', justificativa: sug?.justificativa ?? '',
+      divergencia: usaFala && sug.resultado !== i.resultado ? (pesoRes[i.resultado] > pesoRes[sug.resultado] ? 'avaliador_mais_generoso' : 'avaliador_mais_rigoroso') : null });
+  }
+  const r2 = (n) => Math.round(n * 100) / 100;
+  return { nota: r2(nota), max: r2(max), marcas, itens };
+}
+
+/** Transcrição por minuto de estação: cada minuto lista o que foi dito e quais itens do PEP a fala daquele minuto sustenta. */
+export function agruparPorMinuto(segmentos, itensFala) {
+  const porMin = new Map();
+  for (const s of segmentos) {
+    const ms = Number.isFinite(s.ms) ? s.ms : 0;
+    const m = Math.floor(ms / 60000);
+    if (!porMin.has(m)) porMin.set(m, { minuto: m, segmentos: [], itens: [] });
+    porMin.get(m).segmentos.push({ ordem: s.ordem, texto: s.texto, ms });
+  }
+  for (const it of itensFala) {
+    if (!it.evidencia || it.resultado_fala === 'nao' || !it.resultado_fala) continue;
+    const ev = norm(it.evidencia); if (ev.length < 6) continue;
+    for (const g of porMin.values()) {
+      if (g.segmentos.some((s) => norm(s.texto).includes(ev) || ev.includes(norm(s.texto)))) { g.itens.push({ id: it.id, descricao: it.descricao, resultado: it.resultado_fala }); break; }
+    }
+  }
+  return [...porMin.values()].sort((a, b) => a.minuto - b.minuto);
+}

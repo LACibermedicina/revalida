@@ -18,6 +18,8 @@ export function criarAutenticar({ q, jwt, segredo }) {
     // papel vem do banco (não do token); sessao_versao muda ao trocar a senha ou bloquear
     if (!u || !u.ativo || u.sessao_versao !== dec.v) return res.status(401).json({ erro: 'Sessão expirada. Entre novamente.' });
     req.usuario = { id: u.id, nome: u.nome, papel_app: u.papel_app };
+    // presença: "online" = visto nos últimos 90 s; grava no máximo a cada 20 s por pessoa (nunca atrasa nem derruba a requisição)
+    Promise.resolve(q("update usuarios set visto_em = now() where id = $1 and (visto_em is null or visto_em < now() - interval '20 seconds')", [u.id])).catch(() => {});
     prox();
   });
 }

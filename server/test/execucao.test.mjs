@@ -255,3 +255,51 @@ test('análise ao vivo leva a bibliografia da administração (obrigatória prim
   assert.equal(r[0].titulo, 'Manejo da asma – PCDT'); assert.equal(r[0].texto, undefined, 'o texto da diretriz não sai para o navegador');
   assert.ok(a.corpo.resumo.fontes_gerais.length >= 2); assert.equal(a.corpo.resumo.sem_referencia, false);
 });
+
+test('autocorreção ao finalizar: nota que a fala sustenta × nota do avaliador, divergências, fala por minuto; adotar é decisão do avaliador', async () => {
+  ia.respostaAnalise = null;
+  const est = await estacao('Asma autocorreção'); const c = await iniciar(est);
+  await api('POST', `/api/execucoes/${c.execId}/transcricao`, c.bia, { texto: 'Boa tarde, quando começou a falta de ar?', inicio_ms: 5000 });
+  await api('POST', `/api/execucoes/${c.execId}/transcricao`, c.bia, { texto: 'Investigo tabagismo e uso de inalador.', inicio_ms: 65000 });
+  assert.equal((await api('GET', `/api/execucoes/${c.execId}/autocorrecao`, c.ana)).status, 409, 'antes do fim não há autocorreção');
+  const marcas = { [est.itens[0]]: 'sim' };   // o avaliador só marcou um item
+  assert.equal((await api('POST', `/api/execucoes/${c.execId}/finalizar`, c.ana, { marcas })).status, 200);
+  await tick(); await tick();
+  const a = await api('GET', `/api/execucoes/${c.execId}/autocorrecao`, c.ana);
+  assert.equal(a.status, 200); assert.equal(a.corpo.estado, 'pronta'); assert.equal(a.corpo.fonte, 'ia');
+  assert.equal(a.corpo.nota_avaliador, 1); assert.equal(a.corpo.nota_automatica, 5); assert.equal(a.corpo.maximo, 5);
+  assert.equal(a.corpo.divergentes, 3); assert.equal(a.corpo.pode_adotar, true);
+  assert.equal(a.corpo.itens.find((i) => i.id === est.itens[2]).divergencia, 'avaliador_mais_rigoroso');
+  assert.deepEqual(a.corpo.por_minuto.map((m) => m.minuto), [0, 1]);
+  assert.equal(a.corpo.marcas_sugeridas[est.itens[2]], 'sim');
+  const cand = await api('GET', `/api/execucoes/${c.execId}/autocorrecao`, c.bia);
+  assert.equal(cand.status, 200); assert.equal(cand.corpo.pode_adotar, false, 'o candidato vê, mas não adota');
+  assert.equal((await api('GET', `/api/execucoes/${c.execId}/autocorrecao`, c.caio)).status, 403);
+  assert.equal((await q('select nota::float n from execucoes where id=$1', [c.execId])).rows[0].n, 1, 'a nota segue sendo a do avaliador até ele adotar');
+  const adotar = await api('PUT', `/api/execucoes/${c.execId}/revisao-nota`, c.ana, { marcas: a.corpo.marcas_sugeridas });
+  assert.equal(adotar.status, 200); assert.equal(adotar.corpo.nota, 5); assert.equal(adotar.corpo.nota_original, 1);
+  // análise em andamento: 202 e depois pronta
+  await q('delete from analises_transcricao where execucao_id=$1', [c.execId]);
+  assert.equal((await api('GET', `/api/execucoes/${c.execId}/autocorrecao`, c.ana)).status, 202);
+  await tick(); await tick();
+  assert.equal((await api('GET', `/api/execucoes/${c.execId}/autocorrecao`, c.ana)).corpo.estado, 'pronta');
+});
+
+test('autocorreção sem fala não inventa nota; cartões da estação inteira; biblioteca de revisão pendente × executada', async () => {
+  ia.respostaAnalise = null;
+  const est = await estacao('Asma sem fala'); const c = await iniciar(est);
+  await api('POST', `/api/execucoes/${c.execId}/finalizar`, c.ana, { marcas: { [est.itens[0]]: 'sim', [est.itens[1]]: 'parcial' } });
+  await tick(); await tick();
+  const a = (await api('GET', `/api/execucoes/${c.execId}/autocorrecao`, c.ana)).corpo;
+  assert.equal(a.sem_fala, true); assert.equal(a.nota_automatica, null); assert.equal(a.pode_adotar, false); assert.equal(a.marcas_sugeridas, null);
+  const todos = await api('POST', `/api/estudo/execucoes/${c.execId}/cartoes`, c.bia, { todos: true, modo: 'pep' });
+  assert.equal(todos.status, 201); assert.equal(todos.corpo.total, 4, 'um cartão por item do PEP');
+  const bib = (await api('GET', '/api/estudo/biblioteca', c.bia)).corpo;
+  assert.equal(bib.total, 4); assert.equal(bib.pendentes, 4); assert.equal(bib.executadas, 0);
+  const g = bib.estacoes.find((x) => x.titulo === 'Asma sem fala'); assert.equal(g.cartoes.length, 4);
+  await api('POST', `/api/estudo/cartoes/${g.cartoes[0].id}/revisar`, c.bia, { qualidade: 4 });
+  const dep = (await api('GET', '/api/estudo/biblioteca?estado=executada', c.bia)).corpo;
+  assert.equal(dep.executadas, 1); assert.equal(dep.pendentes, 3);
+  assert.equal(dep.estacoes.find((x) => x.titulo === 'Asma sem fala').cartoes.length, 1, 'o filtro lista só as executadas');
+  assert.equal((await api('GET', '/api/estudo/biblioteca', c.caio)).corpo.total, 0, 'a biblioteca é de cada pessoa');
+});

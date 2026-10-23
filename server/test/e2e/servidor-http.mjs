@@ -117,7 +117,7 @@ export async function iniciar({ pastaWeb, porta = 0, instalado = true, extras = 
   iaFalsa.transcreverAudio = async function () { this.chamadas.push(['audio']); return { texto: 'trecho transcrito pela IA' }; };
   const execucao = registrarExecucao(app, { q, autenticar, ia: iaFalsa, difundir, intervaloAoVivoMs: 0 });
   registrarSalas(app, { q, autenticar, agora, cfg, difundir, aoFinalizar: execucao.analisarFinal });
-  app.get('/api/estacoes', autenticar, async (_rq, rs) => rs.json((await q(`select id, titulo, area, duracao_min, origem, status from estacoes where status='aprovada' order by area, titulo`)).rows));
+  app.get('/api/estacoes', autenticar, async (rq, rs) => rs.json((await q(`select e.id, e.titulo, e.area, e.duracao_min, e.origem, e.status, e.dificuldade, coalesce(u.vezes_realizada,0)::int vezes_realizada, u.ultima_em from estacoes e left join usuario_estacao u on u.estacao_id = e.id and u.usuario_id = $1 where e.status='aprovada' order by e.area, e.titulo`, [rq.usuario.id])).rows));
 
   const mkUser = async (nome, email, senha, papel = 'usuario') =>
     q('insert into usuarios (nome,email,senha_hash,papel_app) values ($1,$2,$3,$4)', [nome, email, await bcryptFalso.hash(senha), papel]);

@@ -123,6 +123,58 @@ await passo('guia de treino: níveis, roteiro universal, erros e semana (conteú
   await pa.locator('summary:has-text("Como montar a semana")').click(); assert.match(await pa.textContent('[data-testid="guia"]'), /Dia 7/);
 });
 
+await passo('mapa: filtros de complexidade, informações associadas e tipo de relação reduzem os temas listados', async () => {
+  await srv.q(`update estacoes set dificuldade='avançada' where id=$1`, [est]);
+  const p = await nova(sessao(ana, 'Ana Souza', 'usuario')); await aba(p, 'Mapa 3D'); await p.waitForSelector('canvas');
+  await p.locator('button:has-text("Ver como lista")').click(); await p.waitForSelector('[data-testid="lista-temas"] li');
+  const todos = await p.locator('[data-testid="lista-temas"] li').count(); assert.ok(todos >= 2);
+  await p.locator('[data-testid="filtros-mapa"] summary').click();
+  await p.locator('[data-testid="filtros-mapa"] button:has-text("Avançado")').click();
+  const avancados = await p.locator('[data-testid="lista-temas"] li').count();
+  assert.ok(avancados >= 2 && avancados < todos, `só os temas de nível avançado ficam (${avancados} de ${todos})`);
+  assert.ok((await p.locator('[data-testid="lista-temas"] li').allTextContents()).every((t) => /nível 3/.test(t)));
+  await p.locator('[data-testid="filtros-mapa"] button:has-text("Com cartões")').click(); await p.waitForTimeout(200);
+  assert.ok((await p.locator('[data-testid="lista-temas"] li').count()) <= avancados, 'somar filtros só reduz');
+  assert.match(await p.textContent('[data-testid="filtros-mapa"] summary'), /2 ativo/);
+  await p.locator('[data-testid="filtros-mapa"] button:has-text("Limpar filtros")').click();
+  assert.equal(await p.locator('[data-testid="lista-temas"] li').count(), todos);
+  await p.screenshot({ path: join(saida, 'estudo-mapa-filtros.png') });
+});
+
+await passo('biblioteca de revisão: cartões da estação, pendentes × executados', async () => {
+  const tema = (await srv.q(`select id from temas where nome='Crise convulsiva febril'`)).rows[0].id;
+  await srv.q(`insert into cartoes (tema_id, serie, frente, verso, origem, criado_por, estacao_id) values ($1,1,'Qual a conduta inicial na crise febril?','Proteger via aérea e tratar a febre.','pep',$2,$3), ($1,1,'Quando investigar meningite?','Sinais meníngeos ou crise complexa.','pep',$2,$3)`, [tema, ana.id, est]);
+  const p = await nova(sessao(ana, 'Ana Souza', 'usuario')); await aba(p, 'Biblioteca');
+  await p.waitForSelector('[data-testid="biblioteca"] .es-item');
+  assert.match(await p.textContent('[data-testid="biblioteca"]'), /2 pendente/);
+  await p.locator('[data-testid="biblioteca"] .es-item').first().click();
+  assert.match(await p.textContent('[data-testid="biblioteca"]'), /Proteger via aérea/);
+  await p.locator('[data-testid="biblioteca"] .es-ordem button:has-text("Executados")').click();
+  await p.waitForSelector('text=Nada aqui ainda');
+  await p.locator('[data-testid="biblioteca"] .es-ordem button:has-text("Pendentes")').click(); await p.waitForSelector('[data-testid="biblioteca"] .es-item');
+  await p.screenshot({ path: join(saida, 'estudo-biblioteca.png') });
+});
+
+await passo('início: 5 estações sugeridas pelo desempenho e a lista de estações disponíveis', async () => {
+  for (let i = 0; i < 6; i++) await srv.q(`insert into estacoes (titulo, area, status, duracao_min, dificuldade) values ($1,$2,'aprovada',10,$3)`, [`Disponível ${i}`, ['cirurgia', 'mfc', 'pediatria'][i % 3], ['básica', 'intermediária', 'avançada'][i % 3]]);
+  const c = await nav.newContext({ viewport: { width: 1280, height: 900 } });
+  await c.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  await c.addInitScript((x) => localStorage.setItem('rp-auth', JSON.stringify(x)), sessao(ana, 'Ana Souza', 'usuario'));
+  const p = await c.newPage(); p.on('pageerror', (e) => falhas.push(`erro de página: ${e.message}`));
+  await p.goto(srv.url); await p.waitForSelector('[data-testid="sugestoes"]');
+  await p.waitForSelector('[data-testid="sugestao-estacao"]');
+  assert.equal(await p.locator('[data-testid="sugestao-estacao"]').count(), 5);
+  assert.ok((await p.locator('[data-testid="sugestao-estacao"] .why').allTextContents()).every((t) => t.length > 5), 'cada sugestão diz o porquê');
+  await p.locator('button:has-text("Ver todas as estações disponíveis")').click(); await p.waitForSelector('[data-testid="estacoes-disponiveis"] li');
+  assert.ok((await p.locator('[data-testid="estacoes-disponiveis"] li').count()) >= 7);
+  await p.locator('[data-testid="estacoes-disponiveis"] select').selectOption('cirurgia');
+  assert.ok((await p.locator('[data-testid="estacoes-disponiveis"] li').count()) <= 2);
+  const antes = await p.locator('[data-testid="sugestao-estacao"] b').allTextContents();
+  await p.screenshot({ path: join(saida, 'inicio-sugestoes.png'), fullPage: true });
+  await p.locator('[data-testid="sugestao-estacao"]').first().click();
+  await p.waitForSelector('h2:has-text("Ciclos de estações")'); assert.ok(antes.length === 5);
+});
+
 await passo('celular: sem rolagem horizontal na trilha e no mapa', async () => {
   const p = await nova(sessao(ana, 'Ana Souza', 'usuario'), { w: 390, h: 800 });
   await p.waitForSelector('[data-testid="trilha"] li');

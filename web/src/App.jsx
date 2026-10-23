@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { criarSalaVideo } from './video.js';
 import Instalador from './Instalador.jsx';
@@ -7,6 +7,7 @@ import TelaCiclos from './Salas.jsx';
 import TelaEstudo from './Estudo.jsx';
 import TelaCatalogo from './Catalogo.jsx';
 import { Icone } from './Icones.jsx';
+import { ConvitesRecebidos } from './SalaExtras.jsx';
 import TelaAnalise from './Analise.jsx';
 import { gravarModo, podeTrocarVersao } from './dispositivo.js';
 
@@ -440,7 +441,7 @@ function SistemaRoot({ token }) {
 }
 
 /* ---------- PAINEL ---------- */
-function TelaPainel({ usuario, token, aoAbrirSala, aoCarregar, aoAnalise }) {
+function TelaPainel({ usuario, token, aoAbrirSala, aoCarregar, aoAnalise, aoPraticar }) {
   const [feitas, setFeitas] = useState([]);
   const [desempenho, setDesempenho] = useState(null);
   const [salas, setSalas] = useState([]);
@@ -450,9 +451,14 @@ function TelaPainel({ usuario, token, aoAbrirSala, aoCarregar, aoAnalise }) {
   const [papel, setPapel] = useState('avaliador_ator');
   const [codigo, setCodigo] = useState('');
   const [erro, setErro] = useState('');
+  const [sugestoes, setSugestoes] = useState(null);
+  const [filtroArea, setFiltroArea] = useState('');
+  const [verLista, setVerLista] = useState(false);
+  const carregarSugestoes = useCallback(() => api('/api/estudo/sugestoes-estacoes?n=5', { token }).then((r) => setSugestoes(r)).catch(() => setSugestoes({ sugestoes: [], total_disponiveis: 0 })), [token]);
 
   useEffect(() => {
     Promise.allSettled([
+      carregarSugestoes(),
       api('/api/desempenho', { token }).then(setDesempenho),
       api('/api/sessoes', { token }).then(setSalas),
       api('/api/estacoes', { token }).then((l) => { setEstacoes(l); if (l[0]) setEstacaoId(l[0].id); }),
@@ -504,6 +510,31 @@ function TelaPainel({ usuario, token, aoAbrirSala, aoCarregar, aoAnalise }) {
             <b>{fmtN(a.nota)}</b>
           </div>
         ))}
+      </div>
+
+      <div className="sec">Estações para treinar agora</div>
+      <div className="cartao sugestoes" data-testid="sugestoes" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {sugestoes === null ? <p className="sub">Escolhendo pelo seu desempenho…</p>
+          : sugestoes.sugestoes.length === 0 ? <p className="sub">Ainda não há estações aprovadas para sugerir.</p>
+            : sugestoes.sugestoes.map((e) => (
+              <button type="button" key={e.id} className="sug" data-testid="sugestao-estacao" onClick={() => aoPraticar?.(e.id)} title="Abrir nos ciclos para treinar">
+                <span><b>{e.titulo}</b><small>{NOMES_AREA[e.area] || e.area} · {e.duracao_min} min{e.dificuldade ? ` · ${e.dificuldade}` : ''}</small><small className="why">{e.motivo}</small></span>
+                <span className="tag espera">Treinar</span>
+              </button>
+            ))}
+        <div className="acoes">
+          <button type="button" className="btn mini" onClick={carregarSugestoes}>🔀 Sortear outras 5</button>
+          <button type="button" className="btn mini" aria-expanded={verLista} onClick={() => setVerLista((v) => !v)}>{verLista ? 'Esconder' : 'Ver todas as'} estações disponíveis ({estacoes.length})</button>
+        </div>
+        {verLista && (
+          <div className="disp" data-testid="estacoes-disponiveis">
+            <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)} aria-label="Filtrar por área"><option value="">Todas as áreas</option>{Object.entries(NOMES_AREA).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select>
+            <ul>{estacoes.filter((e) => !filtroArea || e.area === filtroArea).map((e) => (
+              <li key={e.id}><span><b>{e.titulo}</b><small>{NOMES_AREA[e.area] || e.area} · {e.duracao_min} min{e.dificuldade ? ` · ${e.dificuldade}` : ''}{e.vezes_realizada ? ` · feita ${e.vezes_realizada}×` : ' · ainda não feita'}</small></span>
+                <button type="button" className="btn mini" onClick={() => aoPraticar?.(e.id)}>Treinar</button></li>
+            ))}</ul>
+          </div>
+        )}
       </div>
 
       </div>
@@ -891,7 +922,10 @@ export default function App() {
   }, []);
 
   // versão desktop (Electron): os itens do menu nativo pedem uma tela; no navegador comum isso não existe
-  const [menuOculto, setMenuOculto] = useState(() => { try { return localStorage.getItem('rv_menu_oculto') === '1'; } catch { return false; } });
+  const [chaveCiclos, setChaveCiclos] = useState(0);
+  const [menuModo, setMenuModo] = useState(() => { try { const v = localStorage.getItem('rv_menu_modo'); return ['cheio', 'icones', 'oculto'].includes(v) ? v : (localStorage.getItem('rv_menu_oculto') === '1' ? 'oculto' : 'cheio'); } catch { return 'cheio'; } });
+  const menuOculto = menuModo === 'oculto';
+  const trocarMenu = (m) => { setMenuModo(m); try { localStorage.setItem('rv_menu_modo', m); } catch { /* sem storage */ } };
   useEffect(() => window.revalidaDesktop?.aoComando?.((c) => { if (c?.tela === 'estacoes') { setComando({ ...c, n: Date.now() }); setTela('estacoes'); } else if (c?.tela === 'estudo') { setComando({ ...c, n: Date.now() }); setTela('estudo'); } else if (c?.tela === 'catalogo') { setComando({ ...c, n: Date.now() }); setTela('catalogo'); } else if (c?.tela === 'ciclos') setTela('ciclos'); }), []);
 
   useEffect(() => {
@@ -936,7 +970,7 @@ export default function App() {
   } else if (tela === 'estacoes') {
     conteudo = <TelaEstacoes token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} comando={comando} />;
   } else if (tela === 'ciclos') {
-    conteudo = <TelaCiclos token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} sugestao={sugestao} aoAnalise={abrirAnalise} aoRevisar={() => { setComando({ tela: 'estudo', aba: 'erros', n: Date.now() }); setTela('estudo'); }} />;
+    conteudo = <TelaCiclos key={chaveCiclos} token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} sugestao={sugestao} aoAnalise={abrirAnalise} aoRevisar={() => { setComando({ tela: 'estudo', aba: 'erros', n: Date.now() }); setTela('estudo'); }} />;
   } else if (tela === 'estudo') {
     conteudo = <TelaEstudo token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} comando={comando} aoAnalise={abrirAnalise} aoPraticar={(id) => { setSugestao(id); setTela('ciclos'); }} />;
   } else if (tela === 'catalogo') {
@@ -951,20 +985,25 @@ export default function App() {
   } else if (tela === 'admin' && ehGestor) {
     conteudo = <TelaAdmin token={sessaoAuth.token} usuario={sessaoAuth.usuario} />;
   } else {
-    conteudo = <TelaPainel usuario={sessaoAuth.usuario} token={sessaoAuth.token} aoAbrirSala={abrirSala} aoAnalise={abrirAnalise} aoCarregar={() => window.__boot?.pronto()} />;
+    conteudo = <TelaPainel usuario={sessaoAuth.usuario} token={sessaoAuth.token} aoPraticar={(id) => { setSugestao(id); setChaveCiclos((k) => k + 1); setTela('ciclos'); }} aoAbrirSala={abrirSala} aoAnalise={abrirAnalise} aoCarregar={() => window.__boot?.pronto()} />;
   }
 
   return (
-    <div className={`app${menuOculto ? ' menu-oculto' : ''}`}>
+    <div className={`app${menuOculto ? ' menu-oculto' : ''}${menuModo === 'icones' ? ' menu-icones' : ''}`}>
       <div className="blobs" aria-hidden="true"><i className="blob b1" /><i className="blob b2" /><i className="blob b3" /><i className="blob b4" /></div>
       {instalado && sessaoAuth && !tokenSenha && sessaoAuth.senhaProvisoria && tela !== 'conta' && (
         <button type="button" className="faixa" onClick={() => setTela('conta')}>⚠ Sua senha é provisória. Toque para trocar.</button>
       )}
       {podeTrocarVersao(dispositivo) && <RelogioDeBolso />}
       {conteudo}
+      {instalado && sessaoAuth && !tokenSenha && <ConvitesRecebidos api={api} token={sessaoAuth.token} aoEntrar={(id) => { try { sessionStorage.setItem('rv_sala', id); } catch { /* sem storage */ } setChaveCiclos((k) => k + 1); setTela('ciclos'); }} />}
       {instalado && sessaoAuth && !tokenSenha && (
-        <button type="button" className="menu-alterna" aria-controls="menu-principal" aria-expanded={!menuOculto} aria-label={menuOculto ? 'Mostrar menu' : 'Ocultar menu'} title={menuOculto ? 'Mostrar menu' : 'Ocultar menu'}
-          onClick={() => setMenuOculto((v) => { const n = !v; try { localStorage.setItem('rv_menu_oculto', n ? '1' : '0'); } catch { /* sem storage */ } return n; })}><Icone nome="menu" /></button>
+        <div className="menu-alterna-grupo">
+          <button type="button" className="menu-alterna" aria-controls="menu-principal" aria-expanded={!menuOculto} aria-label={menuOculto ? 'Mostrar menu' : 'Ocultar menu'} title={menuOculto ? 'Mostrar menu' : 'Ocultar menu'}
+            onClick={() => trocarMenu(menuOculto ? 'cheio' : 'oculto')}><Icone nome="menu" /></button>
+          {!menuOculto && <button type="button" className="menu-texto" aria-pressed={menuModo === 'icones'} title={menuModo === 'icones' ? 'Mostrar o texto do menu' : 'Esconder o texto do menu'} aria-label={menuModo === 'icones' ? 'Mostrar o texto do menu' : 'Esconder o texto do menu'}
+            onClick={() => trocarMenu(menuModo === 'icones' ? 'cheio' : 'icones')}>{menuModo === 'icones' ? 'Aa' : 'A'}</button>}
+        </div>
       )}
       {instalado && sessaoAuth && !tokenSenha && (
         <nav className="nav" id="menu-principal" aria-label="Navegação" hidden={menuOculto}>

@@ -34,6 +34,12 @@ const ERROS = {
   PARTICIPANTE_INVALIDO: [409, 'Escolha outra pessoa para esse papel.'],
   CANDIDATO_NAO_AVALIA: [409, 'O candidato não pode ser o avaliador.'],
   SALA_ENCERRADA: [409, 'Esta sala foi encerrada.'],
+  NAO_E_CANDIDATO: [409, 'Você não é o candidato desta sala.'],
+  JA_NA_SALA: [409, 'Essa pessoa já está na sala.'],
+  CONVITE_PENDENTE: [409, 'Já existe um convite pendente para essa pessoa.'],
+  CONVITE_INEXISTENTE: [404, 'Convite não encontrado.'],
+  CONVITE_INATIVO: [409, 'Este convite já foi respondido ou cancelado.'],
+  CANDIDATO_OCUPADO: [409, 'Já há um candidato na sala. Entre como observador ou aguarde a vaga.'],
 };
 
 /** Traduz o erro do Postgres (função de regra) em { status, erro, codigo }; o que não for regra vira 500 genérico. */
@@ -129,7 +135,7 @@ export function registrarSalas(app, { q, autenticar, agora, cfg, difundir, prese
   const salaDe = async (req) => {
     const p = req.params;
     if (p.id && req.path.startsWith('/api/salas/')) return p.id;
-    const tabela = req.path.startsWith('/api/ciclos/') ? 'ciclos' : req.path.startsWith('/api/execucoes/') ? 'execucoes' : req.path.startsWith('/api/solicitacoes/') ? 'solicitacoes_papel' : null;
+    const tabela = req.path.startsWith('/api/ciclos/') ? 'ciclos' : req.path.startsWith('/api/execucoes/') ? 'execucoes' : req.path.startsWith('/api/solicitacoes/') ? 'solicitacoes_papel' : req.path.startsWith('/api/convites/') ? 'convites_sala' : null;
     if (!tabela) return null;
     return (await q(`select sala_id from ${tabela} where id=$1`, [p.id])).rows[0]?.sala_id ?? null;
   };
@@ -223,6 +229,56 @@ export function registrarSalas(app, { q, autenticar, agora, cfg, difundir, prese
       criticos_falhos: x.checklist?.criticos_falhos ?? null, itens: x.checklist?.itens ?? [],
       historico: hist.map((h) => ({ nota: h.nota === null ? null : Number(h.nota), em: h.finalizada_em })),
     } });
+  }));
+
+  /* ---------- cancelar estação, abandonar a vaga de candidato, convidar pessoas online ---------- */
+  // Cancelar não finaliza: sem nota, sem contagem de estações feitas e sem feedback; a estação pode ser refeita.
+  app.post('/api/execucoes/:id/cancelar', autenticar, validarId, agir('estacao_cancelada',
+    'rv_execucao_cancelar($1,$2,$3)', (req) => [req.params.id, U(req), req.body?.liberar_candidato === true]));
+  app.post('/api/salas/:id/candidato/abandonar', autenticar, validarId, agir('candidato_abandonou', 'rv_candidato_abandonar($1,$2)', (req) => [req.params.id, U(req)]));
+
+  // Quem avalia vê quem está online e ainda fora da sala (visto nos últimos 90 s). Só nome: nada de e-mail.
+  app.get('/api/salas/:id/online', autenticar, validarId, rota(async (req, res) => {
+    const s = (await q(`select s.admin_id, exists (select 1 from sala_participantes sp where sp.sala_id = s.id and sp.usuario_id = $2 and sp.e_avaliador and sp.saiu_em is null) av from salas s where s.id = $1`, [req.params.id, U(req)])).rows[0];
+    if (!s) return res.status(404).json({ erro: ERROS.SALA_INEXISTENTE[1], codigo: 'SALA_INEXISTENTE' });
+    if (s.admin_id !== U(req) && !s.av) return res.status(403).json({ erro: ERROS.NAO_PERMITIDO[1], codigo: 'NAO_PERMITIDO' });
+    const busca = String(req.query?.busca ?? '').trim().slice(0, 60).replace(/[%_\\]/g, ' ');
+    const r = await q(`select u.id, u.nome, exists (select 1 from convites_sala c where c.sala_id = $1 and c.convidado_id = u.id and c.estado = 'pendente') convidado
+        from usuarios u where u.ativo and u.id <> $2 and u.visto_em > now() - interval '90 seconds'
+         and not exists (select 1 from sala_participantes sp where sp.sala_id = $1 and sp.usuario_id = u.id and sp.saiu_em is null)
+         and ($3 = '' or u.nome ilike '%' || $3 || '%') order by u.nome limit 50`, [req.params.id, U(req), busca]);
+    res.json(r.rows);
+  }));
+  app.post('/api/salas/:id/convites', autenticar, validarId, rota(async (req, res) => {
+    const alvo = req.body?.usuario_id;
+    if (!idValido(alvo)) return res.status(400).json({ erro: 'Escolha uma pessoa online.' });
+    const ok = (await q(`select 1 from usuarios where id = $1 and ativo and visto_em > now() - interval '90 seconds'`, [alvo])).rows[0];
+    if (!ok) return res.status(409).json({ erro: 'Essa pessoa não está online agora.', codigo: 'NAO_ONLINE' });
+    try {
+      const r = (await q('select rv_convite_criar($1,$2,$3) as r', [req.params.id, U(req), alvo])).rows[0].r;
+      await difundir(req.params.id, 'convite_enviado', { ator: U(req) });
+      res.status(201).json(r);
+    } catch (e) { falha(res, e); }
+  }));
+  app.delete('/api/convites/:id', autenticar, validarId, rota(async (req, res) => {
+    try { await q('select rv_convite_cancelar($1,$2)', [req.params.id, U(req)]); const sala = await salaDe(req); if (sala) await difundir(sala, 'convite_cancelado', { ator: U(req) }); res.json({ ok: true }); } catch (e) { falha(res, e); }
+  }));
+  // Convites que recebi (pendentes). Mostra se a vaga de candidato está livre para eu poder escolher.
+  app.get('/api/convites', autenticar, rota(async (req, res) => {
+    const r = await q(`select c.id, c.sala_id, c.criado_em, u.nome convidante,
+        not exists (select 1 from sala_participantes sp where sp.sala_id = c.sala_id and sp.papel = 'candidato' and sp.saiu_em is null) vaga_candidato,
+        exists (select 1 from execucoes e where e.sala_id = c.sala_id and e.estado = 'em_andamento') estacao_em_andamento
+      from convites_sala c join usuarios u on u.id = c.convidante_id join salas s on s.id = c.sala_id
+     where c.convidado_id = $1 and c.estado = 'pendente' and s.estado = 'aberta' order by c.criado_em desc limit 20`, [U(req)]);
+    res.json(r.rows);
+  }));
+  app.post('/api/convites/:id/responder', autenticar, validarId, rota(async (req, res) => {
+    const papel = req.body?.papel === 'candidato' ? 'candidato' : 'observador';
+    try {
+      const r = (await q('select rv_convite_responder($1,$2,$3,$4) as r', [req.params.id, U(req), req.body?.aceitar === true, papel])).rows[0].r;
+      const sala = await salaDe(req); if (sala) await difundir(sala, r.estado === 'aceita' ? 'convite_aceito' : 'convite_recusado', { ator: U(req) });
+      res.json(r);
+    } catch (e) { falha(res, e); }
   }));
 
   app.post('/api/ciclos/:id/proximo', autenticar, validarId, agir('ciclo_proximo',

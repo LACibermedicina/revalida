@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { io } from 'socket.io-client';
 import { criarSalaVideo } from './video.js';
 import { CartasEstacao, TranscricaoCandidato, FalaDoCandidato, Sugestao, AnaliseDaFala, useAoVivo } from './SalaExecucao.jsx';
+import { Autocorrecao, ConvidarOnline } from './SalaExtras.jsx';
 import './salas.css';
 
 const PAPEL = { admin: 'Chefe', candidato: 'Candidato', observador: 'Observador' };
@@ -169,6 +170,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
   if (!est) return <div className="tela sl"><p className="sub" role="status">{erro || 'Entrando na sala…'}</p>{erro && <button className="btn mini" onClick={aoSair}>Voltar</button>}</div>;
 
   const souAdmin = meu === 'admin';
+  const podeConvidar = souAdmin || Boolean(est.participantes.find((p) => p.usuario_id === eu)?.e_avaliador);
   const emAndamento = Boolean(exe);
   const pendentes = fila.filter((i) => i.estado === 'pendente');
   const minhaSolicitacao = est.solicitacoes.find((s) => s.solicitante_id === eu);
@@ -235,9 +237,11 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
             )}
           </div>
         ))}
+        {podeConvidar && <ConvidarOnline salaId={salaId} convites={est.convites ?? []} api={api} token={token} aoMudou={carregar} />}
         {meu === 'observador' || (meu !== 'admin' && !minhaSolicitacao) ? (
           <div className="acoes">{PAPEIS_PEDIDO.filter(([p]) => p !== meu).map(([p, rot]) => <button key={p} className="btn mini" onClick={() => agir(`/api/salas/${salaId}/solicitacoes`, { papel: p })}>{rot}</button>)}</div>
         ) : null}
+        {meu === 'candidato' && !emAndamento && <div className="acoes"><button type="button" className="btn mini" onClick={() => agir(`/api/salas/${salaId}/candidato/abandonar`)}>Deixar de ser candidato (passo a observar)</button></div>}
         {minhaSolicitacao && <div className="sl-linha"><span>Seu pedido ({PAPEL[minhaSolicitacao.papel]}) aguarda resposta.</span><button className="btn mini" onClick={() => agir(`/api/solicitacoes/${minhaSolicitacao.id}/cancelar`)}>Cancelar</button></div>}
       </section>
 
@@ -275,6 +279,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
               <button className="btn" onClick={finalizar}>Finalizar estação</button>
             </>
           )}
+          <CancelarEstacao execId={exe.id} euAvalio={euAvalio} souCandidato={meu === 'candidato' && exe.candidato_id === eu} agir={agir} salaId={salaId} />
           {!euAvalio && <p className="sub">{meu === 'candidato' ? 'Conduza o atendimento. O avaliador registra o checklist.' : 'Acompanhe em silêncio.'}</p>}
         </section>
       )}
@@ -303,6 +308,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
               </div>
             </>
           ) : <p className="sub">Aguardando o chefe decidir o próximo passo. O vídeo continua aberto.</p>}
+          {(meu === 'candidato' || euAvaliou(ultima, est, eu)) && <Autocorrecao key={ultima.id} execId={ultima.id} api={api} token={token} aoAdotar={async () => { await carregar(); try { const r = await api(`/api/salas/${salaId}/ultima-execucao`, { token }); setUltima(r.ultima ?? null); } catch { /* mantém */ } }} />}
           {aoAnalise && (meu === 'candidato' || euAvaliou(ultima, est, eu)) && <button className="btn mini menta" onClick={() => aoAnalise(ultima.id)}>Ver análise completa da estação</button>}
           {meu === 'candidato' && aoRevisar && <button className="btn mini menta" onClick={aoRevisar}>Registrar o que faltou (revisão)</button>}
         </section>
@@ -335,6 +341,30 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
       ) : <p className="sub">Aguardando o chefe montar o ciclo.</p>}
 
       <button className="btn mini sl-sair" onClick={sair}>Sair da sala</button>
+    </div>
+  );
+}
+
+/** Cancelar não finaliza: não conta como feita e não gera nota nem feedback; a estação pode ser refeita. */
+function CancelarEstacao({ execId, euAvalio, souCandidato, agir, salaId }) {
+  const [passo, setPasso] = useState(0);
+  const [liberar, setLiberar] = useState(false);
+  if (!euAvalio && !souCandidato) return null;
+  const confirmar = async () => {
+    const r = souCandidato && !euAvalio ? await agir(`/api/salas/${salaId}/candidato/abandonar`) : await agir(`/api/execucoes/${execId}/cancelar`, { liberar_candidato: liberar });
+    if (r) setPasso(0);
+  };
+  return (
+    <div className="sl-cancelar" data-testid="cancelar-estacao">
+      {passo === 0
+        ? <button type="button" className="btn mini" onClick={() => setPasso(1)}>{euAvalio ? 'Cancelar estação…' : 'Abandonar estação…'}</button>
+        : (
+          <div role="alertdialog" aria-label="Confirmar cancelamento">
+            <p><b>{euAvalio ? 'Cancelar esta estação?' : 'Abandonar a estação?'}</b> Ela <u>não</u> conta como feita, não gera nota nem feedback e a fala transcrita é apagada. Poderá ser refeita.{!euAvalio && ' Você passa a observador.'}</p>
+            {euAvalio && <label className="sl-op"><input type="checkbox" checked={liberar} onChange={(e) => setLiberar(e.target.checked)} /> Tirar a pessoa do papel de candidato (passa a observador)</label>}
+            <div className="acoes"><button type="button" className="btn mini coral" onClick={confirmar}>Sim, {euAvalio ? 'cancelar' : 'abandonar'}</button><button type="button" className="btn mini" onClick={() => setPasso(0)}>Voltar</button></div>
+          </div>
+        )}
     </div>
   );
 }

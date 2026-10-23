@@ -80,3 +80,45 @@ export function agruparErros(lacunas, minimoTransversal = 3) {
   lista.sort((a, b) => b.estacoes - a.estacoes || b.total - a.total);
   return { transversais: lista.filter((g) => g.transversal), de_tema: lista.filter((g) => !g.transversal) };
 }
+
+/* ---------------- sugestão de estações ---------------- */
+const FATOR_DIF = { 'básica': 0.85, 'intermediária': 1, 'avançada': 1.2 };
+/**
+ * Peso de uma estação para o sorteio: temas em que a pessoa vai pior pesam mais (desempenho desconhecido = meio termo),
+ * o nível avançado pesa um pouco mais, e o que ela já fez bem recentemente pesa menos.
+ * `temas` = [{ desempenho: 0..1 | null }], `feita` = { vezes, melhor: 0..1 | null, dias: n desde a última } | null.
+ */
+export function pesoEstacao({ temas = [], dificuldade = null, feita = null }) {
+  const fraqueza = temas.length ? Math.max(...temas.map((t) => (t.desempenho === null || t.desempenho === undefined ? 0.5 : 1 - t.desempenho))) : 0.5;
+  let w = (0.3 + 6 * fraqueza * fraqueza) * (FATOR_DIF[dificuldade] ?? 1);
+  let motivo = fraqueza >= 0.6 ? 'Tema em que seu desempenho está baixo' : temas.some((t) => t.desempenho === null || t.desempenho === undefined) ? 'Tema ainda sem desempenho medido' : fraqueza >= 0.3 ? 'Tema a consolidar' : 'Manutenção de tema forte';
+  if (!feita || !feita.vezes) { w *= 1.25; motivo = `${motivo} · ainda não feita`; }
+  else {
+    if (feita.melhor !== null && feita.melhor >= 0.85) w *= 0.4;
+    if (feita.dias !== null && feita.dias < 3) w *= (feita.melhor !== null && feita.melhor < 0.6 ? 0.7 : 0.3);   // acabou de fazer bem: descansa; foi mal: continua candidata
+    motivo = `${motivo} · feita ${feita.vezes}×`;
+  }
+  return { peso: Math.max(0.05, w), motivo };
+}
+
+/** Sorteio ponderado sem repetição. `rng` injetável (testes). Dá no máximo `porArea` estações da mesma área, se houver variedade. */
+export function sortearPonderado(itens, n = 5, rng = Math.random, porArea = 2) {
+  const restantes = itens.map((x) => ({ ...x })); const saida = []; const cont = new Map();
+  while (saida.length < n && restantes.length) {
+    const aptos = restantes.filter((x) => (cont.get(x.area) ?? 0) < porArea);
+    const lote = aptos.length ? aptos : restantes;     // sem variedade suficiente, completa com o que há
+    const total = lote.reduce((s, x) => s + x.peso, 0);
+    let r = rng() * total; let esc = lote[lote.length - 1];
+    for (const x of lote) { r -= x.peso; if (r <= 0) { esc = x; break; } }
+    saida.push(esc); cont.set(esc.area, (cont.get(esc.area) ?? 0) + 1);
+    restantes.splice(restantes.indexOf(esc), 1);
+  }
+  return saida;
+}
+
+/** Complexidade do tema (1 a 3): a definida na base, senão a média da dificuldade das estações ligadas, senão pelo nº de ligações. */
+export function complexidadeDoTema({ definida = null, difMedia = null, grau = 0 }) {
+  if (definida) return definida;
+  if (difMedia !== null && difMedia !== undefined) return Math.min(3, Math.max(1, Math.round(difMedia)));
+  return grau >= 6 ? 3 : grau >= 3 ? 2 : 1;
+}

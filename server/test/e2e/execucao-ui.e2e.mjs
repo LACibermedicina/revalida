@@ -84,8 +84,8 @@ await passo('transcrição do candidato: pede permissão uma vez, grava só a fa
   await pm.locator('button:has-text("Iniciar transcrição")').click();
   await pm.waitForFunction(() => document.querySelector('[data-testid="transcricao-candidato"]')?.dataset.estado === 'ouvindo');
   await pm.evaluate(() => { window.__falar('Boa tarde, quando começou a falta de ar e a tosse?'); window.__falar('Investigo tabagismo e uso de inalador.'); window.__falar('Solicito uma gasometria arterial.'); });
-  await pm.waitForFunction(() => true); await pm.waitForTimeout(800);
-  const t = (await srv.q(`select texto, fonte from transcricoes where execucao_id=$1 order by ordem`, [execId])).rows;
+  let t = [];
+  for (let i = 0; i < 40 && t.length < 3; i++) { await pm.waitForTimeout(200); t = (await srv.q(`select texto, fonte from transcricoes where execucao_id=$1 order by ordem`, [execId])).rows; }
   assert.equal(t.length, 3); assert.equal(t[0].fonte, 'navegador'); assert.match(t[2].texto, /gasometria/);
   assert.equal(await pm.evaluate(() => localStorage.getItem('rv_transcricao_ok')), '1');
 });
@@ -103,6 +103,16 @@ await passo('avaliador vê a fala, o pedido detectado e libera a carta; o candid
   assert.equal(await pm.locator('[data-carta="material"]').count(), 1);
   assert.equal(await pm.locator('text=Radiografia').count(), 0, 'carta não liberada nem aparece');
   await pa.screenshot({ path: join(saida, 'exec-avaliador.png') });
+});
+
+await passo('avaliador vê as informações sob demanda organizadas por tipo, com progresso, e o enunciado do candidato em itens', async () => {
+  assert.ok((await pa.locator('[data-testid="cartas"] [data-grupo]').count()) >= 2, 'grupos por tipo (laboratório, imagem…)');
+  assert.match(await pa.textContent('[data-grupo="laboratorial"] summary'), /Exames laboratoriais/);
+  assert.match(await pa.textContent('[data-grupo="imagem"] summary'), /Estudos de imagem/);
+  assert.match(await pa.textContent('.sl-prog'), /1 de 2 liberadas/);
+  assert.match(await pa.textContent('[data-grupo="imagem"]'), /Ver o que será mostrado/);
+  assert.equal(await pm.locator('[data-grupo]').count(), 0, 'o candidato não vê os grupos nem o que está guardado');
+  await pa.screenshot({ path: join(saida, 'exec-cartas-estruturadas.png'), fullPage: true });
 });
 
 await passo('conferência do PEP pela fala: sugestões com trecho, o avaliador decide; a nota é a dele', async () => {
@@ -141,6 +151,16 @@ await passo('ao finalizar a transcrição para: o reconhecimento é desligado e 
   assert.equal(r.status, 409); assert.equal(r.corpo.codigo, 'TRANSCRICAO_ENCERRADA');
   assert.equal((await srv.q(`select count(*)::int n from transcricoes where execucao_id=$1`, [execId])).rows[0].n, antes);
   assert.equal((await srv.q(`select final from analises_transcricao where execucao_id=$1 and final`, [execId])).rows.length, 1, 'a análise final foi feita ao encerrar');
+});
+
+await passo('ao finalizar, a autocorreção pela transcrição aparece sozinha: nota pela fala × nota do avaliador, divergências e fala por minuto', async () => {
+  await pa.waitForSelector('[data-testid="autocorrecao"]', { timeout: 20000 });
+  const t = await pa.textContent('[data-testid="autocorrecao"]');
+  assert.match(t, /nota pela fala/); assert.match(t, /nota do avaliador/); assert.match(t, /diverg/);
+  assert.ok((await pa.locator('[data-testid="autocorrecao"] .sl-auto-div li').count()) >= 1, 'lista os itens divergentes com feedback');
+  await pa.locator('[data-testid="autocorrecao"] summary:has-text("Fala por minuto")').click();
+  assert.match(await pa.textContent('[data-testid="autocorrecao"] .sl-minutos'), /º minuto/);
+  await pa.screenshot({ path: join(saida, 'exec-autocorrecao.png'), fullPage: true });
 });
 
 await passo('painel de análise do candidato: resumo, seções, comparação, itens × fala e transcrição com trecho destacado', async () => {

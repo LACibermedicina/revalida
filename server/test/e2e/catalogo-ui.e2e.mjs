@@ -86,11 +86,18 @@ await passo('menu lateral: ocultar e mostrar, com a escolha lembrada ao recarreg
   await pa.locator('.menu-alterna').click(); await pa.waitForTimeout(200);
   assert.equal(await pa.locator('nav').isVisible(), false);
   assert.equal(await pa.locator('.menu-alterna').getAttribute('aria-expanded'), 'false');
-  assert.ok((await pa.locator('.tela').first().boundingBox()).width > 1100, 'o conteúdo ocupa a largura toda');
+  assert.ok((await pa.locator('.tela').first().boundingBox()).width > 900, 'o conteúdo ocupa a largura toda');
   await pa.screenshot({ path: join(saida, 'menu-oculto.png') });
   await pa.reload(); await pa.waitForSelector('.menu-alterna'); assert.equal(await pa.locator('nav').isVisible(), false);
   await pa.locator('.menu-alterna').click(); await pa.waitForTimeout(200);
   assert.equal(await pa.locator('nav').isVisible(), true);
+  // só ícones: o texto some e o menu estreita, a escolha também é lembrada
+  await pa.locator('.menu-texto').click(); await pa.waitForTimeout(200);
+  assert.ok((await pa.locator('nav').boundingBox()).width < 110, 'menu estreito');
+  assert.equal(await pa.locator('nav button:has-text("Estudo")').getAttribute('aria-current'), null);
+  await pa.screenshot({ path: join(saida, 'menu-so-icones.png'), clip: { x: 0, y: 0, width: 300, height: 800 } });
+  await pa.reload(); await pa.waitForSelector('.menu-texto'); assert.ok((await pa.locator('nav').boundingBox()).width < 110);
+  await pa.locator('.menu-texto').click(); await pa.waitForTimeout(200); assert.ok((await pa.locator('nav').boundingBox()).width > 150);
   await pa.locator('nav button:has-text("Estudo")').hover(); await pa.waitForTimeout(300);
   await pa.screenshot({ path: join(saida, 'menu-icones.png'), clip: { x: 0, y: 0, width: 300, height: 800 } });
 });

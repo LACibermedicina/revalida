@@ -26,3 +26,6 @@
 .an-trilha>li::before{content:counter(passo);position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;background:var(--mar);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700}
 .an-trilha>li>span{font-size:.88rem;color:var(--suave)}
 .an-lista .btn{min-height:40px}
+.an-minutos{list-style:none;padding:0;display:flex;flex-direction:column;gap:10px}.an-minutos h4{margin:0 0 4px}.an-minutos h4 small{font-weight:400;color:var(--suave)}
+.an-minutos ul{margin:0;padding-left:16px}.an-minutos time{font-variant-numeric:tabular-nums;color:var(--suave);font-size:.78rem;margin-right:4px}
+.an-fb{margin:4px 0;font-size:.9rem;padding:6px 10px;border-radius:10px;background:var(--sol-t)}

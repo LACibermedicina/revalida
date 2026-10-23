@@ -45,38 +45,89 @@ export function useAoVivo({ execId, ativo, api, token, intervaloMs = 4000, anali
   return { segmentos, sugestoes, info, analisar };
 }
 
-/** Descrição da estação, cenário e materiais liberados. O avaliador vê todos e libera; os demais só o já liberado. */
+const GRUPOS = [['laboratorial', 'Exames laboratoriais', '🧪'], ['imagem', 'Estudos de imagem', '🩻'], ['biopsia', 'Biópsia e anatomia patológica', '🔬'], ['laudo', 'Laudos', '📄'], ['outro', 'Outras informações', '📋']];
+
+/** Texto do enunciado em itens: linhas com marcador, "1." ou "a)" viram lista; o resto, parágrafo. */
+export function formatarTexto(corpo) {
+  const linhas = String(corpo ?? '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const blocos = []; let lista = null;
+  for (const l of linhas) {
+    const m = l.match(/^(?:[•\-*–]|\d{1,2}[.)]|[a-z][.)])\s+(.*)$/i);
+    if (m) { if (!lista) { lista = []; blocos.push({ lista }); } lista.push(m[1]); } else { lista = null; blocos.push({ p: l }); }
+  }
+  return blocos;
+}
+function Texto({ corpo }) {
+  return <>{formatarTexto(corpo).map((b, i) => (b.lista ? <ul key={i}>{b.lista.map((x, k) => <li key={k}>{x}</li>)}</ul> : <p key={i}>{b.p}</p>))}</>;
+}
+
+/**
+ * Descrição da estação, cenário e materiais liberados. O avaliador vê tudo organizado por tipo (laboratório, imagem, laudo…),
+ * com o que o candidato já pode ver e o que ainda está guardado, e libera cada item quando o candidato pede. Os demais só veem o já liberado.
+ */
 export function CartasEstacao({ execId, papel, api, token, segmentos = [], versao = 0 }) {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState('');
+  const [ocupado, setOcupado] = useState(false);
   const carregar = useCallback(() => api(`/api/execucoes/${execId}/cartas`, { token }).then((d) => { setDados(d); setErro(''); }).catch((e) => setErro(e.message)), [api, token, execId]);
   useEffect(() => { setDados(null); carregar(); const t = setInterval(carregar, 5000); return () => clearInterval(t); }, [carregar, versao]);
-  const liberar = async (mid) => {
-    try { await api(`/api/execucoes/${execId}/cartas/${mid}/liberar`, { metodo: 'POST', token }); await carregar(); } catch (e) { setErro(e.message); }
+  const liberar = async (ids) => {
+    setOcupado(true);
+    try { for (const mid of ids) await api(`/api/execucoes/${execId}/cartas/${mid}/liberar`, { metodo: 'POST', token }); await carregar(); } catch (e) { setErro(e.message); } finally { setOcupado(false); }
   };
   const pedidos = useMemo(() => new Set(dados && papel === 'avaliador' ? detectarPedidos(segmentos, dados.materiais) : []), [dados, papel, segmentos]);
   if (!dados) return erro ? <p className="aviso" role="alert">{erro}</p> : null;
   const avaliador = dados.papel === 'avaliador';
+  const mats = dados.materiais;
+  const liberados = mats.filter((m) => m.liberado).length;
+  const iniciais = dados.iniciais.map((c) => (
+    <article key={c.tipo} className={`sl-carta ini c-${c.tipo}`} data-carta={c.tipo}><h4>{c.titulo}</h4><Texto corpo={c.corpo} /></article>
+  ));
+  const cartaMat = (m) => {
+    const dica = pedidos.has(m.id) && !m.liberado;
+    return (
+      <article key={m.id} className={`sl-carta mat${m.liberado ? ' lib' : ''}${dica ? ' pedido' : ''}`} data-carta="material" data-liberado={m.liberado ? '1' : '0'}>
+        <h4>{m.titulo} <em>{TIPO_CARTA[m.tipo] ?? 'Material'}</em></h4>
+        {m.liberado || !avaliador ? <p>{m.conteudo}</p> : (
+          <details open={dica}><summary>Ver o que será mostrado</summary><p className="sl-bloq">{m.conteudo}</p></details>
+        )}
+        {avaliador && (
+          <div className="sl-carta-acoes">
+            <span className="sub">Libera quando pedirem: “{m.gatilho}”</span>
+            {dica && <strong className="sl-dica" role="status">Pedido detectado na fala</strong>}
+            {m.liberado ? <em className="sl-ok">Liberada</em> : <button type="button" className={`btn mini ${dica ? 'menta' : ''}`} disabled={ocupado} onClick={() => liberar([m.id])}>Liberar ao candidato</button>}
+          </div>
+        )}
+      </article>
+    );
+  };
   return (
     <div className="sl-cartas" aria-label="Cartas da estação" data-testid="cartas">
       {erro && <p className="aviso" role="alert">{erro}</p>}
-      {dados.iniciais.map((c) => (
-        <article key={c.tipo} className={`sl-carta ini c-${c.tipo}`} data-carta={c.tipo}><h4>{c.titulo}</h4><p>{c.corpo}</p></article>
-      ))}
-      {dados.materiais.map((m) => (
-        <article key={m.id} className={`sl-carta mat${m.liberado ? ' lib' : ''}`} data-carta="material" data-liberado={m.liberado ? '1' : '0'}>
-          <h4>{m.titulo} <em>{TIPO_CARTA[m.tipo] ?? 'Material'}</em></h4>
-          {m.liberado || avaliador ? <p className={m.liberado ? '' : 'sl-bloq'}>{m.conteudo}</p> : null}
-          {avaliador && (
-            <div className="sl-carta-acoes">
-              <span className="sub">Libera quando pedirem: “{m.gatilho}”</span>
-              {pedidos.has(m.id) && <strong className="sl-dica" role="status">Pedido detectado na fala</strong>}
-              {m.liberado ? <em className="sl-ok">Liberada</em> : <button type="button" className="btn mini menta" onClick={() => liberar(m.id)}>Liberar ao candidato</button>}
-            </div>
-          )}
-        </article>
-      ))}
-      {!avaliador && dados.materiais.length === 0 && <p className="sub">Exames e outros dados aparecem aqui quando o avaliador liberar.</p>}
+      {avaliador ? (
+        <>
+          <details className="sl-grupo" open><summary><span aria-hidden="true">👁</span> O candidato já vê <em>{iniciais.length} cartão(ões)</em></summary>{iniciais}</details>
+          {mats.length > 0 && <p className="sl-prog" role="status">Informações sob demanda: <b>{liberados}</b> de <b>{mats.length}</b> liberadas{pedidos.size > 0 ? ` · ${pedidos.size} pedido(s) detectado(s) na fala` : ''}</p>}
+          {GRUPOS.map(([tipo, nome, ic]) => {
+            const lista = mats.filter((m) => (GRUPOS.some(([t]) => t === m.tipo) ? m.tipo : 'outro') === tipo);
+            if (lista.length === 0) return null;
+            const pend = lista.filter((m) => !m.liberado);
+            return (
+              <details key={tipo} className="sl-grupo" open data-grupo={tipo}>
+                <summary><span aria-hidden="true">{ic}</span> {nome} <em>{lista.length - pend.length}/{lista.length} liberado(s)</em></summary>
+                {lista.map(cartaMat)}
+                {pend.length > 1 && <button type="button" className="btn mini" disabled={ocupado} onClick={() => liberar(pend.map((m) => m.id))}>Liberar todos deste grupo</button>}
+              </details>
+            );
+          })}
+        </>
+      ) : (
+        <>
+          {iniciais}
+          {mats.map(cartaMat)}
+          {mats.length === 0 && <p className="sub">Exames e outros dados aparecem aqui quando o avaliador liberar.</p>}
+        </>
+      )}
     </div>
   );
 }

@@ -3,14 +3,14 @@
 import { idValido, Limitador, rota } from './seguranca.js';
 import { ErroIA } from './ia.js';
 import { AREAS } from './estacao-esquema.js';
-import { CATEGORIAS, ERROS_TIPO, agruparErros, diasParaReteste, ordenarTrilha, proximoPasso, sm2 } from './estudo-logica.js';
+import { CATEGORIAS, ERROS_TIPO, agruparErros, complexidadeDoTema, pesoEstacao, sortearPonderado, diasParaReteste, ordenarTrilha, proximoPasso, sm2 } from './estudo-logica.js';
 import { desempenhoTemas, diretrizesDoTema, garantirTema, semearBase } from './temas.js';
 
 /** array do Postgres como literal ({a,b}): é a convenção do projeto (igual a salas.js) e funciona no node-pg e no psql dos testes */
 const lit = (l) => `{${l.join(',')}}`;
 const ERROS_IA = { IA_NAO_CONFIGURADA: 503, IA_CHAVE_INVALIDA: 502, IA_LIMITE: 429, IA_DEMORA: 504, IA_FALHA: 502, IA_ESQUEMA: 502 };
 
-export function registrarEstudo(app, { q, autenticar, ia, limitador = new Limitador({ max: 30, janelaMs: 3_600_000 }) }) {
+export function registrarEstudo(app, { q, autenticar, ia, rng = Math.random, limitador = new Limitador({ max: 30, janelaMs: 3_600_000 }) }) {
   const moderador = (u) => ['moderador', 'admin', 'root'].includes(u.papel_app);
   const admin = (u) => ['admin', 'root'].includes(u.papel_app);
   const ID = (req, res, prox) => (idValido(req.params.id) ? prox() : res.status(400).json({ erro: 'Identificador inválido.' }));
@@ -140,10 +140,56 @@ export function registrarEstudo(app, { q, autenticar, ia, limitador = new Limita
     const ts = await desempenhoTemas(q, U(req));
     const arestas = (await q('select de, para, tipo, peso::float peso, motivo from tema_relacoes')).rows;
     const comLigacao = new Set(arestas.flatMap((a) => [a.de, a.para]));
+    const grau = new Map(); for (const a of arestas) { grau.set(a.de, (grau.get(a.de) ?? 0) + 1); grau.set(a.para, (grau.get(a.para) ?? 0) + 1); }
+    const est = new Map((await q(`select et.tema_id, count(*)::int n, avg(case s.dificuldade when 'básica' then 1 when 'intermediária' then 2 when 'avançada' then 3 end)::float dif
+        from estacao_temas et join estacoes s on s.id = et.estacao_id where s.status='aprovada' group by 1`)).rows.map((r) => [r.tema_id, r]));
+    const def = new Map((await q('select id, complexidade from temas where complexidade is not null')).rows.map((r) => [r.id, r.complexidade]));
     // nós: os ligados + os já praticados; os temas da base sem nenhuma ligação ficam fora (poluiriam o mapa)
-    const nos = ts.filter((t) => comLigacao.has(t.id) || t.execucoes > 0 || t.cartoes_total > 0 || t.origem !== 'base').slice(0, 400);
+    const nos = ts.filter((t) => comLigacao.has(t.id) || t.execucoes > 0 || t.cartoes_total > 0 || t.origem !== 'base').slice(0, 400)
+      .map((t) => ({ ...t, ligacoes: grau.get(t.id) ?? 0, estacoes: est.get(t.id)?.n ?? 0, complexidade: complexidadeDoTema({ definida: def.get(t.id) ?? null, difMedia: est.get(t.id)?.dif ?? null, grau: grau.get(t.id) ?? 0 }) }));
     const vivos = new Set(nos.map((n) => n.id));
-    res.json({ nos, arestas: arestas.filter((a) => vivos.has(a.de) && vivos.has(a.para)) });
+    res.json({ nos, arestas: arestas.filter((a) => vivos.has(a.de) && vivos.has(a.para)), tipos: [...new Set(arestas.map((a) => a.tipo))].sort() });
+  }));
+
+  /* ---------- sugestão de estações e biblioteca de revisão ---------- */
+  // 5 estações aprovadas, sorteadas com peso: temas de pior desempenho e nível mais alto pesam mais; o que já foi bem feito, menos.
+  app.get('/api/estudo/sugestoes-estacoes', autenticar, rota(async (req, res) => {
+    await base();
+    const n = Math.min(10, Math.max(1, Number.parseInt(req.query?.n, 10) || 5));
+    const area = AREAS.includes(req.query?.area) ? req.query.area : null;
+    const ts = new Map((await desempenhoTemas(q, U(req))).map((t) => [t.id, t.desempenho]));
+    const lig = new Map();
+    for (const r of (await q('select et.estacao_id, et.tema_id from estacao_temas et')).rows) { if (!lig.has(r.estacao_id)) lig.set(r.estacao_id, []); lig.get(r.estacao_id).push({ desempenho: ts.get(r.tema_id) ?? null }); }
+    const feitas = new Map((await q(`select ue.estacao_id, ue.vezes_realizada vezes, ue.ultima_em,
+        (ue.melhor_nota / nullif((select sum(p.pontos_total) from pep_itens p where p.estacao_id = ue.estacao_id), 0))::float melhor
+      from usuario_estacao ue where ue.usuario_id = $1`, [U(req)])).rows.map((r) => [r.estacao_id, r]));
+    const cand = (await q(`select id, titulo, area, duracao_min, dificuldade from estacoes where status='aprovada' and ($1::text is null or area = $1)
+        and not exists (select 1 from execucoes e join ciclo_itens i on i.id = e.item_id where i.estacao_id = estacoes.id and e.candidato_id = $2 and e.estado = 'em_andamento')`, [area, U(req)])).rows;
+    const agora = Date.now();
+    const itens = cand.map((e) => {
+      const f = feitas.get(e.id);
+      const { peso, motivo } = pesoEstacao({ temas: lig.get(e.id) ?? [], dificuldade: e.dificuldade, feita: f ? { vezes: f.vezes, melhor: f.melhor === null ? null : Number(f.melhor), dias: f.ultima_em ? (agora - new Date(f.ultima_em).getTime()) / 86_400_000 : null } : null });
+      return { ...e, peso, motivo };
+    });
+    res.json({ total_disponiveis: cand.length, sugestoes: sortearPonderado(itens, n, rng).map(({ peso: _p, ...e }) => e) });
+  }));
+
+  // Cartões criados a partir das estações da pessoa, por estação: pendentes (nunca revisados ou vencidos) e executados.
+  app.get('/api/estudo/biblioteca', autenticar, rota(async (req, res) => {
+    const estado = ['pendente', 'executada'].includes(req.query?.estado) ? req.query.estado : null;
+    const r = await q(`select c.id, c.frente, c.verso, c.estacao_id, es.titulo estacao_titulo, t.nome tema,
+        case when p.cartao_id is null or p.proximo_em <= now() then 'pendente' else 'executada' end situacao, p.ultima_em, p.proximo_em, coalesce(p.acertos,0)::int acertos, coalesce(p.erros,0)::int erros
+      from cartoes c join estacoes es on es.id = c.estacao_id join temas t on t.id = c.tema_id
+      left join cartao_progresso p on p.cartao_id = c.id and p.usuario_id = $1
+     where c.criado_por = $1 order by es.titulo, c.criado_em limit 600`, [U(req)]);
+    const por = new Map();
+    for (const c of r.rows) {
+      if (!por.has(c.estacao_id)) por.set(c.estacao_id, { estacao_id: c.estacao_id, titulo: c.estacao_titulo, pendentes: 0, executadas: 0, cartoes: [] });
+      const g = por.get(c.estacao_id); if (c.situacao === 'pendente') g.pendentes++; else g.executadas++;
+      if (!estado || estado === c.situacao) g.cartoes.push({ id: c.id, frente: c.frente, verso: c.verso, tema: c.tema, situacao: c.situacao, ultima_em: c.ultima_em, proximo_em: c.proximo_em, acertos: c.acertos, erros: c.erros });
+    }
+    const estacoes = [...por.values()].filter((g) => !estado || g.cartoes.length);
+    res.json({ total: r.rows.length, pendentes: r.rows.filter((c) => c.situacao === 'pendente').length, executadas: r.rows.filter((c) => c.situacao === 'executada').length, estacoes });
   }));
 
   app.get('/api/estudo/temas/:id', autenticar, ID, rota(async (req, res) => {

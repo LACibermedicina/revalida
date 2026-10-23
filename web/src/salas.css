@@ -41,3 +41,40 @@
 .sl-sit{font-style:normal;font-weight:600;margin-left:6px;padding:0 6px;border-radius:8px;background:#fff8}.sl-sit.s-erro,.sl-sit.s-confusao{color:#b3261e}.sl-sit.s-acerto{color:#1b7a4a}
 .sl-det{display:block;margin-top:4px;font-size:.8rem}.sl-det summary{cursor:pointer;color:var(--mar,#1a6fd6)}.sl-det p{margin:3px 0}
 .sl-analise{margin:8px 0;font-size:.85rem;border:1px dashed #0002;border-radius:10px;padding:4px 10px}.sl-analise summary{cursor:pointer;font-weight:600;opacity:.8}.sl-analise h5{margin:8px 0 2px;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;opacity:.7}.sl-analise ul{margin:2px 0;padding-left:18px}
+/* cartas estruturadas (avaliador) */
+.sl-grupo{border:1px solid var(--borda);border-radius:16px;padding:6px 10px;background:var(--card)}
+.sl-grupo>summary{cursor:pointer;font-weight:700;padding:6px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.sl-grupo>summary em{font-style:normal;font-weight:500;font-size:.78rem;color:var(--suave);margin-left:auto}
+.sl-grupo .sl-carta{margin:6px 0}.sl-carta ul{margin:4px 0;padding-left:20px;font-size:.92rem;line-height:1.5}.sl-carta li{margin:2px 0}
+.sl-carta.pedido{border-color:var(--sol,#e0a800);box-shadow:0 0 0 3px #e0a80033}.sl-carta details summary{cursor:pointer;font-size:.82rem;color:var(--mar)}
+.sl-prog{margin:2px 0;font-size:.88rem}
+/* convites, cancelar, autocorreção */
+.sl-conv{margin-top:8px}.sl-conv-pend{list-style:none;margin:6px 0;padding:0;font-size:.88rem}.sl-conv-pend li{padding:3px 0}.sl-conv-pend em{color:var(--suave);font-style:normal}
+.sl-conv-lista ul{list-style:none;margin:6px 0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:240px;overflow:auto}.sl-conv-lista li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--borda);border-radius:12px}
+.sl-on{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--menta);margin-right:4px}
+.conv-rec{position:fixed;z-index:40;right:12px;top:12px;display:flex;flex-direction:column;gap:8px;max-width:min(360px,calc(100vw - 24px))}
+.conv-card{background:var(--card);border:1px solid var(--borda);border-radius:16px;padding:12px;box-shadow:0 10px 30px #0003}.conv-card p{margin:0 0 8px;font-size:.9rem}
+.sl-cancelar{margin-top:10px;border-top:1px dashed var(--borda);padding-top:8px;font-size:.88rem}
+.btn.coral{background:var(--coral);color:#fff}
+.sl-auto{margin:10px 0;border:1px solid var(--borda);border-radius:16px;padding:10px 12px;background:var(--card)}.sl-auto h4{margin:0 0 6px}.sl-auto h4 em{font-style:normal;font-size:.72rem;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--mar-t);margin-left:6px}
+.sl-auto-div{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:6px}.sl-auto-div li{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:12px;background:var(--mar-t);font-size:.88rem}.sl-auto-div li.d-avaliador_mais_generoso{background:var(--coral-t)}.sl-auto-div li.d-avaliador_mais_rigoroso{background:var(--menta-t)}
+.sl-minutos ol{margin:6px 0;padding-left:18px}.sl-minutos time{font-variant-numeric:tabular-nums;color:var(--suave);margin-right:6px;font-size:.78rem}.sl-minutos ul{margin:2px 0 4px;padding-left:16px;font-size:.88rem}
+/* cartas organizadas por tipo (avaliador) */
+.sl-grupo{border:1px solid var(--borda);border-radius:16px;padding:6px 10px;background:var(--card)}
+.sl-grupo>summary{cursor:pointer;font-weight:700;padding:6px 0;display:flex;gap:8px;align-items:center}.sl-grupo>summary em{font-style:normal;font-weight:500;font-size:.78rem;color:var(--suave);margin-left:auto}
+.sl-grupo[open]>summary{margin-bottom:6px}.sl-grupo .sl-carta{margin-bottom:8px}
+.sl-carta ul{margin:4px 0 0;padding-left:20px;font-size:.92rem;line-height:1.45}
+.sl-carta.pedido{border-color:var(--sol,#e6a700);box-shadow:0 0 0 3px #e6a70033}
+.sl-carta details summary{cursor:pointer;font-size:.82rem;color:var(--mar)}
+.sl-prog{font-size:.85rem;margin:2px 0;padding:6px 10px;border-radius:12px;background:var(--mar-t)}
+/* convites e cancelar */
+.sl-conv{display:flex;flex-direction:column;gap:6px;margin-top:6px}.sl-conv-pend,.sl-conv-lista ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.sl-conv-pend li,.sl-conv-lista li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--borda);border-radius:12px;font-size:.88rem}
+.sl-on{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--menta,#19c2a0);margin-right:4px}
+.conv-rec{position:fixed;z-index:40;top:12px;right:12px;display:flex;flex-direction:column;gap:8px;max-width:min(92vw,380px)}
+.conv-card{background:var(--card);border:1px solid var(--borda);border-radius:18px;padding:12px 14px;box-shadow:0 10px 30px #0003}.conv-card p{margin:0 0 8px;font-size:.9rem}
+.sl-cancelar{margin-top:8px}.sl-cancelar [role=alertdialog]{border:1px solid var(--coral,#e5484d);border-radius:14px;padding:10px 12px;background:var(--coral-t)}.sl-cancelar p{margin:0 0 6px;font-size:.88rem}
+.btn.coral{background:var(--coral,#e5484d);color:#fff}
+/* autocorreção */
+.sl-auto{margin-top:10px;border-top:1px dashed var(--borda);padding-top:8px}.sl-auto h4{margin:0 0 6px}.sl-auto h4 em{font-style:normal;font-weight:500;font-size:.75rem;color:var(--suave)}
+.sl-auto-div{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:6px}.sl-auto-div li{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:12px;background:var(--sol-t)}.sl-auto-div li.d-avaliador_mais_generoso{background:var(--coral-t)}.sl-auto-div li.d-avaliador_mais_rigoroso{background:var(--menta-t)}
+.sl-minutos ol{margin:6px 0;padding-left:18px}.sl-minutos time{font-variant-numeric:tabular-nums;color:var(--suave);font-size:.8rem;margin-right:4px}

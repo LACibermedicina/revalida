@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import { idValido, Limitador, rota } from './seguranca.js';
 import { ErroIA } from './ia.js';
 import { sincronizarTemas, candidatosPorPrioridade, diretrizesDoTema } from './temas.js';
-import { AREAS, FORMATO_PACOTE, MAX_ESTACOES_PACOTE, ESQUEMA_VERSAO, avisosDeCoerencia, validarEstacao } from './estacao-esquema.js';
+import { AREAS, DIFICULDADES, FORMATO_PACOTE, MAX_ESTACOES_PACOTE, ESQUEMA_VERSAO, avisosDeCoerencia, validarEstacao } from './estacao-esquema.js';
 
 const MIME_OK = { 'application/pdf': [0x25, 0x50, 0x44, 0x46], 'image/png': [0x89, 0x50, 0x4e, 0x47], 'image/jpeg': [0xff, 0xd8, 0xff] };
 export const MAX_ARQUIVO_BYTES = 8 * 1024 * 1024;
@@ -42,15 +42,15 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
   const ID = (req, res, prox) => (idValido(req.params.id) ? prox() : res.status(400).json({ erro: 'Identificador inválido.' }));
 
   /** Uma única instrução SQL (CTEs): a estação e seus filhos entram juntos ou não entram. */
-  async function inserir({ estacao, origem, status, usuarioId, semente = null, incertos = [] }) {
+  async function inserir({ estacao, origem, status, usuarioId, semente = null, incertos = [], dificuldade = null }) {
     const sql = `with e as (
-        insert into estacoes (titulo, area, duracao_min, origem, status, script_ator, instrucoes_candidato, cenario, conceitos, esquema_versao, criado_por, semente, incertos, sintese, objetivos, perfil_paciente, diagnostico_alvo)
-        values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,${ESQUEMA_VERSAO},$10,$11,$12::jsonb,$15,$16::jsonb,$17,$18) returning id),
+        insert into estacoes (titulo, area, duracao_min, origem, status, script_ator, instrucoes_candidato, cenario, conceitos, esquema_versao, criado_por, semente, incertos, sintese, objetivos, perfil_paciente, diagnostico_alvo, dificuldade)
+        values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,${ESQUEMA_VERSAO},$10,$11,$12::jsonb,$15,$16::jsonb,$17,$18,$19) returning id),
       ${SQL_FILHOS('(select id from e)').replace('$PEP', '$13').replace('$MAT', '$14')}
       select id from e`;
     const r = await q(sql, [estacao.titulo, estacao.area, estacao.duracao_min, origem, status, estacao.script_ator, estacao.instrucoes_candidato, estacao.cenario,
       JSON.stringify(estacao.conceitos), usuarioId, semente, JSON.stringify(incertos), JSON.stringify(estacao.pep), JSON.stringify(estacao.materiais),
-      estacao.sintese, JSON.stringify(estacao.objetivos), estacao.perfil_paciente, estacao.diagnostico_alvo]);
+      estacao.sintese, JSON.stringify(estacao.objetivos), estacao.perfil_paciente, estacao.diagnostico_alvo, DIFICULDADES.includes(dificuldade) ? dificuldade : null]);
     await sincronizarTemas(q, r.rows[0].id);
     return r.rows[0].id;
   }
@@ -155,7 +155,7 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
       const r = await ia.gerarEstacao({ area: b.area || undefined, subtema, dificuldade: b.dificuldade, instrucoes: b.instrucoes, candidatosTema,
         cenario: str(b.cenario), perfil: str(b.perfil), queixa: str(b.queixa), diagnostico_alvo: str(b.diagnostico_alvo), objetivos: Array.isArray(b.objetivos) ? b.objetivos.filter((o) => typeof o === 'string') : [],
         diretrizes: await diretrizesDoTema(q, { nome: str(b.diagnostico_alvo) || subtema, area: b.area || undefined }) });
-      const id = await inserir({ estacao: r.estacao, origem: 'ia', status: 'rascunho', usuarioId: req.usuario.id, semente: r.sorteio.semente });
+      const id = await inserir({ estacao: r.estacao, origem: 'ia', status: 'rascunho', usuarioId: req.usuario.id, semente: r.sorteio.semente, dificuldade: r.sorteio.dificuldade });
       res.status(201).json({ id, estacao: r.estacao, avisos: r.avisos, sorteados: r.sorteio.sorteados, semente: r.sorteio.semente });
     } catch (e) { erroIA(res, e); }
   }));
@@ -172,7 +172,7 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
       const r = await ia.variarEstacao({ base: conteudo, mudancas: { perfil: str(b.perfil), cenario: str(b.cenario), diagnostico_alvo: str(b.diagnostico_alvo), dificuldade: str(b.dificuldade), instrucoes: str(b.instrucoes), abordagem: str(b.abordagem),
           foco: Array.isArray(b.foco) ? b.foco.filter((f) => typeof f === 'string').slice(0, 8) : [] },
         diretrizes: await diretrizesDoTema(q, { nome: str(b.diagnostico_alvo) || base.diagnostico_alvo || base.titulo, area: base.area }) });
-      const id = await inserir({ estacao: r.estacao, origem: 'ia', status: 'rascunho', usuarioId: req.usuario.id });
+      const id = await inserir({ estacao: r.estacao, origem: 'ia', status: 'rascunho', usuarioId: req.usuario.id, dificuldade: DIFICULDADES.includes(str(b.dificuldade)) ? str(b.dificuldade) : base.dificuldade });
       res.status(201).json({ id, estacao: r.estacao, avisos: r.avisos, base_id: base.id });
     } catch (e) { erroIA(res, e); }
   }));

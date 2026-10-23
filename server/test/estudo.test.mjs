@@ -6,7 +6,7 @@ import { registrarSalas } from '../src/salas.js';
 import { registrarEstudo } from '../src/estudo.js';
 import { registrarEstacoes } from '../src/estacoes.js';
 import { sincronizarTemas } from '../src/temas.js';
-import { sm2, ordenarTrilha, agruparErros, proximoPasso, desempenhoTema, diasParaReteste } from '../src/estudo-logica.js';
+import { pesoEstacao, sortearPonderado, complexidadeDoTema, sm2, ordenarTrilha, agruparErros, proximoPasso, desempenhoTema, diasParaReteste } from '../src/estudo-logica.js';
 import { sortearCampos, validarEstacao } from '../src/estacao-esquema.js';
 import { promptCartoes, validarCartoes, validarExpansao, validarResumo } from '../src/estudo-ia.js';
 import { montarPromptGerar } from '../src/ia.js';
@@ -269,4 +269,53 @@ test('bloco misto: alterna as áreas e exige ao menos 2 estações aprovadas', a
   assert.equal(b.length, 3);
   const areas = (await q('select id, area from estacoes where id = any($1::uuid[])', [`{${b.join(',')}}`])).rows; const por = new Map(areas.map((x) => [x.id, x.area]));
   assert.equal(new Set(b.map((x) => por.get(x))).size, 3, 'três áreas diferentes em sequência');
+});
+
+/* ---------------- sugestão de 5 estações e filtros do mapa ---------------- */
+test('peso da estação: tema fraco e nível avançado pesam mais; o que já foi bem feito (ou feito há pouco) pesa menos', () => {
+  const fraco = pesoEstacao({ temas: [{ desempenho: 0.2 }], dificuldade: 'intermediária' });
+  const forte = pesoEstacao({ temas: [{ desempenho: 0.95 }], dificuldade: 'intermediária' });
+  assert.ok(fraco.peso > forte.peso * 3); assert.match(fraco.motivo, /desempenho está baixo/);
+  assert.ok(pesoEstacao({ temas: [{ desempenho: 0.2 }], dificuldade: 'avançada' }).peso > fraco.peso);
+  assert.ok(pesoEstacao({ temas: [{ desempenho: 0.2 }], dificuldade: 'avançada' }).peso > pesoEstacao({ temas: [{ desempenho: 0.2 }], dificuldade: 'básica' }).peso);
+  const feita = pesoEstacao({ temas: [{ desempenho: 0.2 }], dificuldade: 'intermediária', feita: { vezes: 2, melhor: 0.9, dias: 1 } });
+  assert.ok(feita.peso < fraco.peso / 5); assert.match(feita.motivo, /feita 2×/);
+  assert.match(pesoEstacao({ temas: [{ desempenho: null }] }).motivo, /sem desempenho medido/);
+  assert.ok(pesoEstacao({ temas: [] }).peso > 0, 'estação sem tema ainda entra no sorteio');
+});
+
+test('sorteio ponderado: sem repetição, respeita o peso, limita a mesma área e completa quando falta variedade', () => {
+  const itens = [{ id: 'a', area: 'x', peso: 100 }, { id: 'b', area: 'x', peso: 100 }, { id: 'c', area: 'x', peso: 100 }, { id: 'd', area: 'y', peso: 1 }, { id: 'e', area: 'z', peso: 1 }];
+  const s = sortearPonderado(itens, 4, () => 0.3);
+  assert.equal(new Set(s.map((x) => x.id)).size, 4); assert.ok(s.filter((x) => x.area === 'x').length <= 2, 'no máximo 2 da mesma área');
+  assert.equal(sortearPonderado(itens.slice(0, 3), 5, () => 0.5).length, 3, 'sem variedade, completa com o que há');
+  let pesada = 0; let n = 0; let seed = 7; const rng = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (let i = 0; i < 400; i++) { n++; if (sortearPonderado([{ id: 'p', area: 'x', peso: 9 }, { id: 'l', area: 'y', peso: 1 }], 1, rng)[0].id === 'p') pesada++; }
+  assert.ok(pesada / n > 0.8 && pesada / n < 0.97, `a de peso 9 sai ~90% (saiu ${pesada / n})`);
+  assert.equal(complexidadeDoTema({ definida: 3, difMedia: 1 }), 3); assert.equal(complexidadeDoTema({ difMedia: 2.4 }), 2);
+  assert.deepEqual([0, 3, 6].map((g) => complexidadeDoTema({ grau: g })), [1, 2, 3]);
+});
+
+test('HTTP: sugestões — 5 estações aprovadas, priorizando o tema fraco; filtros do mapa trazem complexidade e tipos', async () => {
+  const admin = await uid('Adm'); const cand = await uid('Cand');
+  const fracaId = await estacao('Sugestão fraca', 'pediatria', ['Bronquiolite sug'], { itens: 3 });
+  const fortes = [];
+  for (let i = 0; i < 8; i++) fortes.push(await estacao(`Sugestão forte ${i}`, i % 2 ? 'cirurgia' : 'clinica_medica', [`Tema forte ${i}`], { itens: 3 }));
+  await q(`update estacoes set dificuldade='avançada' where id=$1`, [fracaId]);
+  await executar(admin, cand, fracaId, ['nao', 'nao', 'nao']);
+  for (const f of fortes.slice(0, 4)) await executar(admin, cand, f, ['sim', 'sim', 'sim']);
+  const r = (await api('GET', '/api/estudo/sugestoes-estacoes', cand)).corpo;
+  assert.equal(r.sugestoes.length, 5); assert.equal(new Set(r.sugestoes.map((x) => x.id)).size, 5);
+  assert.ok(r.sugestoes.every((x) => x.titulo && x.motivo && x.peso === undefined));
+  assert.ok(r.total_disponiveis >= 9);
+  // o tema fraco aparece bem mais do que o acaso (3 de N) ao longo de várias consultas
+  const acaso = 3 / r.total_disponiveis;
+  let vezes = 0; for (let i = 0; i < 40; i++) if ((await api('GET', '/api/estudo/sugestoes-estacoes?n=3', cand)).corpo.sugestoes.some((x) => x.id === fracaId)) vezes++;
+  assert.ok(vezes / 40 > Math.min(0.9, acaso * 2.5), `estação do tema fraco apareceu ${vezes}/40 (acaso ${(acaso * 40).toFixed(1)})`);
+  const ped = (await api('GET', '/api/estudo/sugestoes-estacoes?area=pediatria&n=10', cand)).corpo.sugestoes;
+  assert.ok(ped.length >= 1 && ped.every((x) => x.area === 'pediatria') && ped.some((x) => x.id === fracaId), 'filtro por área');
+  const g = (await api('GET', '/api/estudo/grafo', cand)).corpo;
+  assert.ok(g.nos.every((n) => [1, 2, 3].includes(n.complexidade) && Number.isInteger(n.ligacoes) && Number.isInteger(n.estacoes)));
+  assert.equal(g.nos.find((n) => n.nome === 'Bronquiolite sug').complexidade, 3, 'vem da dificuldade da estação ligada');
+  assert.ok(Array.isArray(g.tipos));
 });

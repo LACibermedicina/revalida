@@ -292,3 +292,25 @@ html[data-layout=largo] .nav{padding-top:68px}
 html[data-layout=largo] .app.menu-oculto{grid-template-columns:minmax(0,1fr);grid-template-areas:"faixa" "tela"}
 html[data-layout=largo] .app.menu-oculto .tela{padding-left:72px}
 html[data-layout=largo] .nav button span.ni{font-size:inherit}
+
+/* ===== menu: só ícones (esconde o texto) ===== */
+.app.menu-icones .nav button{font-size:0}
+.app.menu-icones .nav button .ni{font-size:initial}
+html[data-layout=largo] .app.menu-icones{grid-template-columns:76px minmax(0,1fr)}
+html[data-layout=largo] .app.menu-icones .nav{padding-left:8px;padding-right:8px}
+html[data-layout=largo] .app.menu-icones .nav button{justify-content:center;padding:0;gap:0}
+
+/* ===== escala adaptada ao aparelho: nem enorme nem minúscula ===== */
+html{font-size:clamp(15px,.35vw + 14px,17px)}
+html[data-layout=largo] .tela{max-width:1040px}
+html[data-layout=largo] .app{max-width:min(1320px,96vw)}
+@media (max-width:420px){html{font-size:15px}.tela{padding-left:16px;padding-right:16px}}
+@media (min-width:1600px){html{font-size:17px}}
+.menu-alterna-grupo{display:contents}
+.menu-texto{position:fixed;right:58px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:30;height:40px;min-width:40px;padding:0 10px;border-radius:20px;border:1px solid var(--borda);background:color-mix(in srgb,var(--card) 92%,transparent);font-weight:800;cursor:pointer;color:var(--suave)}
+html[data-layout=largo] .menu-texto{position:absolute;left:58px;right:auto;top:14px;bottom:auto}
+html[data-layout=largo] .app.menu-icones .menu-alterna{left:18px}html[data-layout=largo] .app.menu-icones .menu-texto{left:14px;top:62px}
+html[data-layout=largo] .app.menu-icones .nav{padding-top:112px}
+.sug{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border:1px solid var(--borda);border-radius:16px;background:var(--bg);cursor:pointer;font:inherit;color:inherit;transition:transform .15s,box-shadow .15s}
+.sug:hover{transform:translateY(-1px);box-shadow:0 6px 16px #0001}.sug small{display:block;color:var(--suave);font-size:.78rem}.sug .why{color:var(--mar)}
+.disp ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto}.disp li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border-radius:12px;background:var(--bg)}.disp small{display:block;color:var(--suave);font-size:.78rem}

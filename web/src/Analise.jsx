@@ -77,8 +77,8 @@ export default function TelaAnalise({ execId, token, api, aoVoltar, aoPraticar, 
   const trechos = itens.map((i) => i.sugestao?.evidencia).filter(Boolean);
   const acao = (nome, fn) => async () => { setOcupado(nome); setMsg({ t: '', e: false }); try { await fn(); } catch (x) { setMsg({ t: x.message, e: true }); } finally { setOcupado(''); } };
 
-  const gerarCartoes = (modo) => acao(`cartoes-${modo}`, async () => {
-    const r = await api(`/api/estudo/execucoes/${execId}/cartoes`, { metodo: 'POST', token, corpo: { itens: [...sel], modo } });
+  const gerarCartoes = (modo, todos = false) => acao(`cartoes-${modo}${todos ? '-todos' : ''}`, async () => {
+    const r = await api(`/api/estudo/execucoes/${execId}/cartoes`, { metodo: 'POST', token, corpo: todos ? { todos: true, modo } : { itens: [...sel], modo } });
     setCartoes(r); setMsg({ t: r.total ? `${r.total} cartão(ões) criado(s) e já na sua repetição espaçada${r.sem_diretriz ? ' (sem diretriz de referência: confira o conteúdo)' : ''}.` : (r.aviso || 'Nada novo para criar.'), e: false });
     carregar();
   });
@@ -110,6 +110,7 @@ export default function TelaAnalise({ execId, token, api, aoVoltar, aoPraticar, 
           <div><h4>Pontos fortes</h4>{(d.resumo.pontos_fortes.length ? d.resumo.pontos_fortes : d.fortes.map((s) => `${s.secao} (${s.percentual}%)`)).map((t) => <p key={t} className="an-forte">✔ {t}</p>)}{!d.resumo.pontos_fortes.length && !d.fortes.length && <p className="sub">Nenhuma seção acima de 80% desta vez.</p>}</div>
           <div><h4>A melhorar</h4>{(d.resumo.pontos_fracos.length ? d.resumo.pontos_fracos : d.fracos.map((s) => `${s.secao} (${s.percentual}%)`)).map((t) => <p key={t} className="an-fraco">✘ {t}</p>)}{!d.resumo.pontos_fracos.length && !d.fracos.length && <p className="sub">Nenhuma seção abaixo de 60%.</p>}</div>
         </div>
+        {d.resumo.desempenho && <p data-testid="desempenho-ia">{d.resumo.desempenho}</p>}
         <h4>Sugestões</h4>
         <ul>{d.resumo.sugestoes.map((s) => <li key={s}>{s}</li>)}</ul>
         <p className="sub">{d.transcricao.analise_fonte === 'ia' ? 'Resumo e conferência feitos por IA a partir da transcrição' : d.transcricao.analise_fonte ? 'Conferência feita por palavras do item (IA indisponível)' : 'Sem transcrição'}; confira sempre com o PEP oficial.</p>
@@ -146,6 +147,9 @@ export default function TelaAnalise({ execId, token, api, aoVoltar, aoPraticar, 
             </div>
             {i.sugestao?.evidencia && <blockquote>“{i.sugestao.evidencia}”</blockquote>}
             {i.sugestao?.justificativa && <p className="sub">{i.sugestao.justificativa}</p>}
+            {i.sugestao?.equivalencia && <p className="sub"><b>Equivalência com o critério:</b> {i.sugestao.equivalencia}</p>}
+            {i.sugestao?.termo_confuso && <p className="sub"><b>Termo:</b> {i.sugestao.termo_confuso}</p>}
+            {i.sugestao?.feedback && <p className="an-fb"><b>Feedback:</b> {i.sugestao.feedback}{i.sugestao.referencia && d.resumo.referencias?.find((r) => r.ref === i.sugestao.referencia) ? <em> — {d.resumo.referencias.find((r) => r.ref === i.sugestao.referencia).titulo}</em> : null}</p>}
             {i.criterio && <p className="sub">Critério: {i.criterio}</p>}
             {revisando && (
               <span className="an-rev" role="group" aria-label={`Nova marcação: ${i.descricao}`}>
@@ -163,7 +167,10 @@ export default function TelaAnalise({ execId, token, api, aoVoltar, aoPraticar, 
         <h3>Transcrição da fala ({d.transcricao.segmentos.length} trecho{d.transcricao.segmentos.length === 1 ? '' : 's'})</h3>
         {d.transcricao.segmentos.length === 0
           ? <p className="sub">Esta estação não teve fala transcrita. A conferência pela fala só funciona com a transcrição ligada.</p>
-          : <ol className="an-fala">{d.transcricao.segmentos.map((s) => <li key={s.ordem}><Destaque texto={s.texto} trechos={trechos} /></li>)}</ol>}
+          : <ol className="an-fala an-minutos" data-testid="fala-por-minuto">{(d.por_minuto?.length ? d.por_minuto : [{ minuto: 0, segmentos: d.transcricao.segmentos.map((x) => ({ ...x, ms: 0 })), itens: [] }]).map((m) => (
+            <li key={m.minuto}><h4>{m.minuto}º minuto <small>{m.segmentos.length} trecho(s)</small></h4>
+              <ul>{m.segmentos.map((x) => <li key={x.ordem}><time>{fmt(Math.floor((x.ms || 0) / 1000))}</time> <Destaque texto={x.texto} trechos={trechos} /></li>)}</ul>
+              {m.itens.length > 0 && <p className="sub">Itens do checklist sustentados neste minuto: {m.itens.map((i) => i.descricao).join('; ')}</p>}</li>))}</ol>}
         {d.transcricao.rebaixados > 0 && <p className="sub" role="note">{d.transcricao.rebaixados} ponto(s) que a IA deu como feitos foram rebaixados por não terem trecho correspondente na fala.</p>}
         <p className="sub">A transcrição parou quando a estação foi encerrada.</p>
       </section>
@@ -175,7 +182,9 @@ export default function TelaAnalise({ execId, token, api, aoVoltar, aoPraticar, 
             <li><b>Cartões de revisão</b><span>Um cartão por ponto escolhido, ligado a esta estação e ao tema, na sua repetição espaçada.</span>
               <div className="acoes"><button type="button" className="btn mini menta" disabled={!!ocupado || escolhidos.length === 0} onClick={gerarCartoes('pep')}>Cartões do checklist</button>
                 <button type="button" className="btn mini" disabled={!!ocupado || escolhidos.length === 0} onClick={gerarCartoes('ia')}>{ocupado === 'cartoes-ia' ? 'Gerando…' : 'Cartões por IA'}</button>
-                {cartoes?.tema_id && cartoes.total > 0 && aoCartoes && <button type="button" className="btn mini" onClick={() => aoCartoes(cartoes.tema_id)}>Estudar agora</button>}</div></li>
+                <button type="button" className="btn mini" disabled={!!ocupado} onClick={gerarCartoes('pep', true)}>Cartões da estação inteira</button>
+                {cartoes?.tema_id && cartoes.total > 0 && aoCartoes && <button type="button" className="btn mini" onClick={() => aoCartoes(cartoes.tema_id)}>Estudar agora</button>}
+                {aoCartoes && <button type="button" className="btn mini" onClick={() => aoCartoes(null, 'biblioteca')}>Biblioteca de revisão</button>}</div></li>
             <li><b>Resumo específico</b><span>{d.temas[0] ? `Gere um resumo de “${d.temas[0].nome}” com foco em: ${escolhidos[0]?.descricao ?? 'seus pontos fracos'}.` : 'Cadastre ou gere o tema desta estação no mapa.'}</span>
               {d.temas[0] && aoCartoes && <div className="acoes"><button type="button" className="btn mini" onClick={() => aoCartoes(d.temas[0].id, 'mapa')}>Abrir no mapa</button></div>}</li>
             <li><b>Refazer agora</b><span>A correção termina com uma nova tentativa, sem consultar o checklist.</span>
