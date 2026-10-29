@@ -18,6 +18,7 @@ import { registrarSalas } from '../../src/salas.js';
 import { registrarEstudo } from '../../src/estudo.js';
 import { registrarCatalogo } from '../../src/catalogo.js';
 import { registrarExecucao } from '../../src/execucao.js';
+import { registrarPainel } from '../../src/painel.js';
 import { analisarHeuristica, validarAnalise } from '../../src/analise-transcricao.js';
 import { sortearCampos, validarEstacao } from '../../src/estacao-esquema.js';
 
@@ -58,6 +59,10 @@ export async function iniciar({ pastaWeb, porta = 0, instalado = true, extras = 
     if (!(await part(rq.params.id, rq.usuario.id))) await q('insert into sessao_participantes (sessao_id, usuario_id, papel) values ($1,$2,$3)', [rq.params.id, rq.usuario.id, papel]);
     rs.json({ papel: (await part(rq.params.id, rq.usuario.id)).papel });
   });
+  app.get('/api/sessoes', autenticar, async (rq, rs) => rs.json((await q(`select s.id, s.status, s.modo, e.titulo, e.area, sp.papel,
+      (select count(*)::int from sessao_participantes p2 where p2.sessao_id=s.id and p2.papel='observador') as observadores
+    from sessao_participantes sp join sessoes s on s.id = sp.sessao_id join estacoes e on e.id = s.estacao_id where sp.usuario_id=$1 order by s.criado_em desc limit 20`, [rq.usuario.id])).rows));
+  registrarPainel(app, { q, autenticar });   // o Início depende dele, também no modo sem extras
   app.get('/api/sessoes/:id', autenticar, async (rq, rs) => {
     const p = await part(rq.params.id, rq.usuario.id);
     if (!p) return rs.status(403).json({ erro: 'Você não está nesta sala.' });
@@ -74,23 +79,24 @@ export async function iniciar({ pastaWeb, porta = 0, instalado = true, extras = 
     configurado() { return this.on; }, modelo: () => 'ia-falsa', ordem: () => ['gemini'], testar: async () => [],
     async gerarEstacao(p = {}) {
       this.chamadas.push(['gerar', p]); if (this.atrasoMs) await new Promise((r) => setTimeout(r, this.atrasoMs)); if (this.falha) throw this.falha;
-      const sorteio = sortearCampos(p, 42);
+      const sorteio = sortearCampos(p, 42); this.n = (this.n ?? 0) + 1;   // cada geração é um caso novo (a deduplicação barra conteúdo idêntico)
       const e = validarEstacao({ titulo: `Gerada: ${sorteio.subtema}`, area: sorteio.area, duracao_min: 10,
         instrucoes_candidato: 'Você atende o paciente na unidade. Conduza o caso e explique a conduta.', cenario: 'Unidade de saúde.',
-        script_ator: 'Paciente colaborativo; responda apenas ao que for perguntado; libere os exames quando solicitados.',
+        script_ator: `Paciente colaborativo; responda apenas ao que for perguntado; libere os exames quando solicitados. Caso ${this.n}.`,
         pep: [{ secao: 'Anamnese', descricao: 'Pergunta sobre o início dos sintomas', pontos_total: 1 }, { secao: 'Exame', descricao: 'Solicita o exame adequado', pontos_total: 2, critico: true }, { secao: 'Conduta', descricao: 'Orienta e prescreve corretamente', pontos_total: 1.5 }],
         materiais: [{ tipo: 'laboratorial', titulo: 'Hemograma', conteudo: 'Hb 9,8 g/dL', gatilho: 'solicitar hemograma' }], conceitos: ['anemia'] }).estacao;
       return { estacao: e, avisos: [], sorteio };
     },
     async variarEstacao({ base, mudancas }) {
       this.chamadas.push(['variar', mudancas]); if (this.atrasoMs) await new Promise((r) => setTimeout(r, this.atrasoMs)); if (this.falha) throw this.falha;
-      const e = validarEstacao({ ...base, titulo: `Variação: ${base.titulo}`.slice(0, 120), perfil_paciente: mudancas.perfil || base.perfil_paciente }).estacao;
+      const e = validarEstacao({ ...base, titulo: `Variação: ${base.titulo}`.slice(0, 120), perfil_paciente: mudancas.perfil || base.perfil_paciente, script_ator: `${base.script_ator} Variação: ${mudancas.perfil || mudancas.cenario || 'outra abordagem'}.` }).estacao;
       return { estacao: e, avisos: [] };
     },
     async extrairDeArquivo(a) {
       this.chamadas.push(['extrair', a.mime]); if (this.atrasoMs) await new Promise((r) => setTimeout(r, this.atrasoMs)); if (this.falha) throw this.falha;
+      this.n = (this.n ?? 0) + 1;
       const e = validarEstacao({ titulo: 'Importada do PDF', area: 'cirurgia', duracao_min: 8, instrucoes_candidato: 'Atenda o paciente com dor abdominal e conduza.', cenario: 'Pronto-socorro.',
-        script_ator: 'Paciente com dor em fossa ilíaca direita há 12 horas, náuseas.',
+        script_ator: `Paciente com dor em fossa ilíaca direita há 12 horas, náuseas. Leitura ${this.n}.`,
         pep: [{ secao: 'Anamnese', descricao: 'Caracteriza a dor', pontos_total: 1 }, { secao: 'Exame', descricao: 'Realiza exame abdominal', pontos_total: 2 }, { secao: 'Conduta', descricao: 'Indica cirurgia', pontos_total: 2 }], materiais: [], conceitos: [] }).estacao;
       return { estacao: e, incertos: ['titulo', 'pep[1].pontos_total'], avisos: [] };
     },
@@ -117,7 +123,7 @@ export async function iniciar({ pastaWeb, porta = 0, instalado = true, extras = 
   iaFalsa.transcreverAudio = async function () { this.chamadas.push(['audio']); return { texto: 'trecho transcrito pela IA' }; };
   const execucao = registrarExecucao(app, { q, autenticar, ia: iaFalsa, difundir, intervaloAoVivoMs: 0 });
   registrarSalas(app, { q, autenticar, agora, cfg, difundir, aoFinalizar: execucao.analisarFinal });
-  app.get('/api/estacoes', autenticar, async (rq, rs) => rs.json((await q(`select e.id, e.titulo, e.area, e.duracao_min, e.origem, e.status, e.dificuldade, coalesce(u.vezes_realizada,0)::int vezes_realizada, u.ultima_em from estacoes e left join usuario_estacao u on u.estacao_id = e.id and u.usuario_id = $1 where e.status='aprovada' order by e.area, e.titulo`, [rq.usuario.id])).rows));
+  app.get('/api/estacoes', autenticar, async (rq, rs) => rs.json((await q(`select e.id, e.titulo, e.area, e.duracao_min, e.origem, e.status, e.dificuldade, (e.criado_por = $1) minha, coalesce(u.vezes_realizada,0)::int vezes_realizada, u.ultima_em from estacoes e left join usuario_estacao u on u.estacao_id = e.id and u.usuario_id = $1 where e.status='aprovada' order by e.area, e.titulo`, [rq.usuario.id])).rows));
 
   const mkUser = async (nome, email, senha, papel = 'usuario') =>
     q('insert into usuarios (nome,email,senha_hash,papel_app) values ($1,$2,$3,$4)', [nome, email, await bcryptFalso.hash(senha), papel]);

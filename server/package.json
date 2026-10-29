@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "test": "node --test test/servidor.test.mjs test/instalacao-video.test.mjs test/salas.test.mjs test/salas-http.test.mjs test/ia.test.mjs test/estacoes.test.mjs test/config-ia.test.mjs test/estudo.test.mjs test/execucao.test.mjs test/catalogo.test.mjs test/sala-convites.test.mjs",
+    "test": "node --test test/servidor.test.mjs test/instalacao-video.test.mjs test/salas.test.mjs test/salas-http.test.mjs test/ia.test.mjs test/estacoes.test.mjs test/config-ia.test.mjs test/estudo.test.mjs test/execucao.test.mjs test/catalogo.test.mjs test/painel.test.mjs test/sala-convites.test.mjs",
     "reinstalar": "node src/cli-reinstalar.js",
     "test:e2e": "node test/e2e/web.e2e.mjs && node test/e2e/instalador-video.e2e.mjs && node test/e2e/dispositivo.e2e.mjs && node test/e2e/ciclo-instalacao.e2e.mjs && node test/e2e/adaptativo.e2e.mjs && node test/e2e/estacoes-ui.e2e.mjs && node test/e2e/salas-ui.e2e.mjs && node test/e2e/estudo-ui.e2e.mjs && node test/e2e/execucao-ui.e2e.mjs && node test/e2e/catalogo-ui.e2e.mjs && node test/e2e/convites-ui.e2e.mjs"
   },

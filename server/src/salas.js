@@ -21,6 +21,7 @@ const ERROS = {
   PAPEL_INVALIDO: [400, 'Papel inválido.'],
   ITEM_INVALIDO: [400, 'Esse item não pertence ao ciclo.'],
   ESTACAO_INEXISTENTE: [400, 'Alguma estação informada não existe.'],
+  ESTACAO_NA_FILA: [409, 'Alguma dessas estações já está na fila deste ciclo. Confirme se quer repetir a prática.'],
   EXECUCAO_EM_ANDAMENTO: [409, 'Já existe uma estação em andamento nesta sala.'],
   CICLO_ATIVO: [409, 'Já existe um ciclo ativo. Encerre ou pause o atual primeiro.'],
   CICLO_INATIVO: [409, 'Este ciclo não está ativo.'],
@@ -171,8 +172,20 @@ export function registrarSalas(app, { q, autenticar, agora, cfg, difundir, prese
 
   app.post('/api/salas/:id/ciclos', autenticar, validarId, agir('ciclo_criado',
     'rv_ciclo_criar($1,$2,$3::uuid[],$4)', (req) => { const l = ids(req.body?.estacoes); return l && [req.params.id, U(req), l, grupo(req.body?.grupo)]; }));
-  app.post('/api/ciclos/:id/itens', autenticar, validarId, agir('itens_adicionados',
-    'rv_ciclo_itens_adicionar($1,$2,$3::uuid[],$4)', (req) => { const l = ids(req.body?.estacoes); return l && [req.params.id, U(req), l, grupo(req.body?.grupo)]; }));
+  // Estação que já está na fila: avisa quais são (com a situação de cada uma) e só repete se o pedido confirmar (repetir: true).
+  const adicionarItens = agir('itens_adicionados',
+    'rv_ciclo_itens_adicionar($1,$2,$3::uuid[],$4,$5)', (req) => { const l = ids(req.body?.estacoes); return l && [req.params.id, U(req), l, grupo(req.body?.grupo), req.body?.repetir === true]; });
+  app.post('/api/ciclos/:id/itens', autenticar, validarId, rota(async (req, res, prox) => {
+    const l = ids(req.body?.estacoes);
+    const admin = l && req.body?.repetir !== true && (await q('select 1 from ciclos c join salas s on s.id = c.sala_id where c.id = $1 and s.admin_id = $2', [req.params.id, U(req)])).rows[0];
+    if (admin) { // só o administrador da sala vê os títulos da fila
+      const ja = (await q(`select i.estacao_id id, t.titulo, i.posicao,
+          coalesce((select e.estado from execucoes e where e.item_id = i.id order by e.iniciada_em desc limit 1), 'na_fila') situacao
+        from ciclo_itens i join estacoes t on t.id = i.estacao_id where i.ciclo_id = $1 and i.estacao_id = any($2::uuid[]) order by i.posicao`, [req.params.id, l])).rows;
+      if (ja.length) return res.status(409).json({ erro: ja.length === 1 ? `"${ja[0].titulo}" já está na fila deste ciclo. Deseja duplicar a prática dela?` : `${ja.length} dessas estações já estão na fila deste ciclo. Deseja duplicar a prática delas?`, codigo: 'ESTACAO_NA_FILA', repetidas: ja });
+    }
+    return adicionarItens(req, res, prox);
+  }));
   app.patch('/api/ciclos/:id/itens/:item/liberar', autenticar, validarId, agir('item_liberado',
     'rv_item_liberar($1,$3,$2,$4)', (req) => typeof req.body?.liberada === 'boolean' ? [req.params.id, U(req), req.params.item, req.body.liberada] : null));
 

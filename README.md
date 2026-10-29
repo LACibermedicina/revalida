@@ -198,7 +198,7 @@ Gerar por IA aceita os campos do modelo (área, cenário, perfil, queixa, diagn�
 - **Cartões de revisão** dos pontos que você escolher: ficam ligados à estação, aparecem em Estudo → Cartões e entram na repetição espaçada.
 - **Outra abordagem**: a IA cria uma estação nova (rascunho) com o mesmo conteúdo, dando ênfase aos pontos escolhidos.
 
-## Catálogo de estações (aba 📋 Catálogo)
+## Catálogo de estações (agora aba Catálogo INEP dentro de Estações)
 - **Estações**: 426 estações de referência (`server/data/catalogo.json`, vindas da planilha anexada) com origem (INEP / INEP modificada / sem INEP), área, procedimento e didática. Cada pessoa marca estudo (não estudada / estudando / dominada), prioridade e anotações; **Gerar estação** cria um rascunho por IA a partir do item e o vincula (**Abrir estação** depois).
 - **Temas por ano**: matriz de 168 temas das provas práticas 2011–2025.1 (`server/data/temas-provas.json`), ordenada por frequência.
 - **Importar caderno** (moderador/admin): envia o texto de um caderno INEP; cada estação com pontuação por item vira rascunho num `.rvpack`, com relatório. Nada é publicado: o que o leitor não confirma (soma do PEP ≠ 10, roteiro do ator ausente) fica em `incertos` e entra como rascunho para conferência.
@@ -219,3 +219,23 @@ Gerar por IA aceita os campos do modelo (área, cenário, perfil, queixa, diagn�
 - **Mapa 3D**: filtros por complexidade (da dificuldade das estações ligadas ou do nº de ligações), desempenho, tipo de relação, informações associadas (estações, cartões, lacunas) e vizinhança do tema escolhido.
 - **Início**: 5 estações sugeridas por sorteio ponderado (temas de pior desempenho e nível avançado pesam mais; o que foi bem feito há pouco pesa menos, no máximo 2 da mesma área) e a lista de todas as estações disponíveis.
 - **Menu**: completo, só ícones ou oculto (lembrado no aparelho); a escala do texto se ajusta ao tamanho da tela.
+
+
+## Menu simplificado, painel visual e estações sem duplicidade
+
+- **Menu**: Início · Ciclos (salas e prática) · Estações · Estudo · Admin (só administração) · Conta. Toda função mora em um deles; o Início só mostra e leva ao lugar certo.
+- **Início** (`web/src/Painel.jsx`, dados de `GET /api/painel`): nota média, estações feitas, cartões a revisar, salas abertas, evolução, desempenho por área, sugestões de treino e salas. Quem avalia vê também **Como avaliador**: estação ao vivo (atalho para acompanhar a fala em tempo real) e as últimas avaliadas, com botão **Liberar transcrição / Retirar**.
+- **Estações** é um painel só: *Disponíveis* (todas as aprovadas, com busca e filtros), *Minhas* (rascunhos, revisão, exportação), *Catálogo INEP*, *Temas por ano* e, para a moderação, *Em revisão* (antes ficava no Admin). Nova, Gerar com IA e Importar (arquivo, pacote .rvpack e caderno INEP em texto) saem do mesmo topo. A criação/entrada de sala existe só em Ciclos.
+- **Transcrição**: o avaliador acompanha a fala em tempo real na sala. O candidato só relê depois do fim **e** se o avaliador liberar (`POST /api/execucoes/:id/transcricao/liberar`, reversível). Sem liberação o candidato recebe a análise (acertos e lacunas) sem nenhum trecho literal (segmentos, fala por minuto e evidências).
+- **Duplicidade** (`server/src/assinatura.js`, colunas `titulo_norm` e `conteudo_hash`, migração 011): conteúdo idêntico (ignora título, caixa, acentos e pontuação) é sempre recusado, apontando a estação existente; título repetido é recusado na criação/edição manual (com título sugerido) e recebe sufixo ` (2)` quando vem de IA, variação, arquivo ou pacote. Pacote reimportado informa quais já existiam. A comparação só enxerga estações aprovadas, as suas e (moderação) todas.
+- **Estação já na fila**: adicionar ao ciclo uma estação que já está nele devolve `409 ESTACAO_NA_FILA` com a situação de cada uma; a interface oferece *Duplicar a prática*, *Adicionar só as outras* ou desistir (`repetir: true` confirma; a regra também vale no banco). Sala por link (`/api/sessoes`) avisa igual (`ESTACAO_JA_ABERTA`).
+- Limite: estações antigas ganham a assinatura na subida do servidor; rascunhos alheios não são comparados (para não revelar que existem).
+
+## Barra de ferramentas da sala, quadros móveis e leitura facilitada
+
+- **Sala**: barra de ferramentas fixa no topo (não rola com o conteúdo) com ícones de vídeo, câmera, microfone, participantes, pedidos, estação, transcrição, checklist, fim e fila. Os ícones se reordenam por arrastar e soltar (ou Alt + setas); a ordem fica guardada no navegador e o layout se adapta ao redimensionar (rótulos somem em telas estreitas). Botão ↺ restaura a ordem.
+- **Conteúdo da estação** (roteiro, cenário, materiais) passa por `TextoEstacao`: títulos, listas, pares "Rótulo: valor" e destaque de medidas (mmHg, bpm, mg, °C, %).
+- **Temas** (Estudo, Trilha e Catálogo): clicar no tema abre um quadro flutuante (arrastável, minimizável; vira folha inferior no celular) com contexto, anos em prova, desempenho, resumo, diretrizes e temas relacionados, além de "Criar cards do argumento".
+- **Cards que aprofundam**: a IA recebe foco, pontos selecionados e a instrução de aprofundar (critério, por que importa, conduta, sinais de alarme, pergunta de raciocínio). Na Trilha há "Criar card do argumento" ao lado de "Cartões".
+- **Análise**: índice de quadros resumidos; abertos, podem ser movidos, minimizados e fechados. A opção "Ver o conteúdo em sequência" empilha todos os quadros; desligada, volta ao formato compacto. Preferências ficam no navegador.
+- **Excluir estações**: botão "Excluir" em Minhas (qualquer status) e em Disponíveis (dono ou admin). Estação já usada em sala/ciclo responde `EM_USO` e deve voltar para rascunho.

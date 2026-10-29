@@ -164,7 +164,24 @@ test('painel: depois do fim traz comparação transcrição × avaliador, seçõ
   const p = (await api('GET', `/api/estudo/execucoes/${c.execId}/analise`, c.bia)).corpo;
   assert.deepEqual([p.execucao.nota, p.execucao.maximo, p.execucao.percentual, p.meu_papel, p.pode_revisar_nota], [3, 5, 60, 'candidato', false]);
   assert.deepEqual(p.itens.map((i) => i.divergencia), [null, 'avaliador_mais_rigoroso', 'avaliador_mais_generoso', null]);
-  assert.equal(p.divergentes, 2); assert.equal(p.transcricao.segmentos.length, 1); assert.equal(p.transcricao.analise_fonte, 'ia');
+  assert.equal(p.divergentes, 2); assert.equal(p.transcricao.analise_fonte, 'ia');
+  // a fala literal só chega ao candidato quando o avaliador libera; a análise (acertos e lacunas) chega sempre
+  assert.deepEqual([p.transcricao.segmentos.length, p.transcricao.oculta, p.transcricao.total, p.transcricao.liberada], [0, true, 1, false]);
+  assert.ok(p.por_minuto.every((m) => m.segmentos.length === 0) && p.itens.every((i) => !i.evidencia && !i.sugestao?.evidencia), 'sem trechos literais');
+  assert.equal((await api('GET', `/api/execucoes/${c.execId}/transcricao`, c.bia)).corpo.codigo, 'TRANSCRICAO_NAO_LIBERADA');
+  assert.equal((await api('POST', `/api/execucoes/${c.execId}/transcricao/liberar`, c.bia, { liberada: true })).status, 403, 'candidato não se autolibera');
+  assert.equal((await api('POST', `/api/execucoes/${c.execId}/transcricao/liberar`, c.caio, { liberada: true })).status, 403, 'observador não libera');
+  assert.equal((await api('POST', `/api/execucoes/${c.execId}/transcricao/liberar`, c.ana, { liberada: 'sim' })).status, 400);
+  assert.equal((await api('POST', `/api/execucoes/${c.execId}/transcricao/liberar`, c.ana, { liberada: true })).status, 200);
+  const lib = (await api('GET', `/api/estudo/execucoes/${c.execId}/analise`, c.bia)).corpo;
+  assert.deepEqual([lib.transcricao.segmentos.length, lib.transcricao.oculta, lib.transcricao.liberada], [1, false, true]);
+  assert.ok(lib.por_minuto.some((m) => m.segmentos.length > 0), 'por minuto volta com o texto');
+  assert.equal((await api('GET', `/api/execucoes/${c.execId}/transcricao`, c.bia)).corpo.segmentos.length, 1);
+  assert.equal((await api('GET', `/api/estudo/execucoes/${c.execId}/analise`, c.ana)).corpo.pode_liberar_transcricao, true);
+  assert.equal((await api('POST', `/api/execucoes/${c.execId}/transcricao/liberar`, c.ana, { liberada: false })).status, 200, 'o avaliador pode retirar');
+  assert.equal((await api('GET', `/api/estudo/execucoes/${c.execId}/analise`, c.bia)).corpo.transcricao.segmentos.length, 0);
+  assert.equal((await api('GET', `/api/execucoes/${c.execId}/transcricao`, c.ana)).corpo.segmentos.length, 1, 'o avaliador sempre vê');
+  assert.equal((await api('POST', `/api/execucoes/${c.execId}/transcricao/liberar`, c.ana, { liberada: true })).status, 200); // deixa liberada para os testes seguintes
   const conduta = p.secoes.find((s) => s.secao === 'Conduta'); const anam = p.secoes.find((s) => s.secao === 'Anamnese');
   assert.deepEqual([anam.percentual, anam.media_historica, conduta.percentual, conduta.media_historica], [50, 100, 67, 100], 'contra o histórico (a estação anterior foi 100%)');
   assert.ok(p.fracos.some((s) => s.secao === 'Anamnese'));
@@ -302,4 +319,20 @@ test('autocorreção sem fala não inventa nota; cartões da estação inteira; 
   assert.equal(dep.executadas, 1); assert.equal(dep.pendentes, 3);
   assert.equal(dep.estacoes.find((x) => x.titulo === 'Asma sem fala').cartoes.length, 1, 'o filtro lista só as executadas');
   assert.equal((await api('GET', '/api/estudo/biblioteca', c.caio)).corpo.total, 0, 'a biblioteca é de cada pessoa');
+});
+
+test('liberar a transcrição: só depois do fim; autocorreção do candidato não cita a fala enquanto não liberada', async () => {
+  ia.respostaAnalise = null;
+  const est = await estacao('Asma liberação'); const c = await iniciar(est);
+  await api('POST', `/api/execucoes/${c.execId}/transcricao`, c.bia, { texto: 'Boa tarde, quando começou a falta de ar?', inicio_ms: 5000 });
+  assert.equal((await api('POST', `/api/execucoes/${c.execId}/transcricao/liberar`, c.ana, { liberada: true })).status, 409, 'durante a estação não libera');
+  assert.equal((await api('GET', `/api/execucoes/${c.execId}/transcricao`, c.bia)).status, 403, 'candidato não relê durante a estação');
+  assert.equal((await api('GET', `/api/execucoes/${c.execId}/transcricao`, c.ana)).corpo.segmentos.length, 1, 'o avaliador acompanha em tempo real');
+  await api('POST', `/api/execucoes/${c.execId}/finalizar`, c.ana, { marcas: { [est.itens[0]]: 'sim' } }); await tick(); await tick();
+  const oculta = (await api('GET', `/api/execucoes/${c.execId}/autocorrecao`, c.bia)).corpo;
+  assert.equal(oculta.transcricao_liberada, false);
+  assert.ok(oculta.por_minuto.every((m) => m.segmentos.length === 0) && oculta.itens.every((i) => !i.evidencia), 'nada literal para o candidato');
+  assert.ok((await api('GET', `/api/execucoes/${c.execId}/autocorrecao`, c.ana)).corpo.por_minuto.some((m) => m.segmentos.length > 0), 'avaliador vê');
+  await api('POST', `/api/execucoes/${c.execId}/transcricao/liberar`, c.ana, { liberada: true });
+  assert.ok((await api('GET', `/api/execucoes/${c.execId}/autocorrecao`, c.bia)).corpo.por_minuto.some((m) => m.segmentos.length > 0));
 });

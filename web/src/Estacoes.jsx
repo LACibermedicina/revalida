@@ -2,6 +2,8 @@
 // Serve a versão web e a desktop (o Electron abre esta mesma tela; os diálogos de arquivo são os do próprio navegador).
 // Tudo que vem da IA ou de arquivo entra como RASCUNHO e só vira estação depois que a pessoa revisa e publica.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CatalogoLista, CatalogoTemas, ImportarCaderno } from './Catalogo.jsx';
+import QuadroTema from './QuadroTema.jsx';
 import './estacoes.css';
 
 const AREAS = [['clinica_medica', 'Clínica Médica'], ['cirurgia', 'Cirurgia'], ['ginecologia_obstetricia', 'Ginecologia e Obstetrícia'], ['pediatria', 'Pediatria'], ['mfc', 'Medicina de Família e Comunidade']];
@@ -30,8 +32,85 @@ function Campo({ rotulo, incerto, children }) {
 function Espera({ children }) { return <div className="est-espera" role="status"><i className="est-giro" aria-hidden="true" />{children}</div>; }
 
 /* ======================= tela principal ======================= */
-export default function TelaEstacoes({ token, usuario, api, comando }) {
+const NOME_STATUS = { rascunho: 'rascunho', revisao: 'em revisão', aprovada: 'aprovada' };
+/** Estação igual já existe: diz qual, e oferece o caminho certo (usar o título sugerido ou praticar a que já existe). */
+function AvisoDuplicada({ dup, aoUsarTitulo, aoPraticar }) {
+  if (!dup) return null;
+  const ex = dup.existente;
+  return (
+    <div className="aviso est-largo" role="alert" data-testid="aviso-duplicada">
+      <b>{dup.tipo === 'conteudo' ? 'Esta estação já existe' : 'Este título já é usado por outra estação'}:</b> «{ex.titulo}» ({NOME_STATUS[ex.status] ?? ex.status}).
+      {dup.tipo === 'conteudo' ? ' O conteúdo é idêntico; para criar outra, mude o caso (paciente, cenário ou conduta).' : ' Use um título diferente.'}
+      <div className="acoes" style={{ marginTop: 8 }}>
+        {dup.tipo === 'titulo' && dup.sugestao_titulo && aoUsarTitulo && <button type="button" className="btn mini" onClick={() => aoUsarTitulo(dup.sugestao_titulo)}>Usar «{dup.sugestao_titulo}»</button>}
+        {ex.status === 'aprovada' && aoPraticar && <button type="button" className="btn mini menta" onClick={() => aoPraticar(ex.id)}>Praticar a que já existe</button>}
+      </div>
+    </div>
+  );
+}
+const comoDup = (x) => (x?.dados?.existente ? { tipo: x.dados.tipo, existente: x.dados.existente, sugestao_titulo: x.dados.sugestao_titulo } : null);
+
+function Disponiveis({ token, api, usuario, aoPraticar, aoAbrir }) {
+  const [lista, setLista] = useState(null);
+  const [f, setF] = useState({ busca: '', area: '', dificuldade: '' });
+  useEffect(() => { api('/api/estacoes', { token }).then(setLista).catch(() => setLista([])); }, [api, token]);
+  const moderador = ['moderador', 'admin', 'root'].includes(usuario.papel_app);
+  const admin = ['admin', 'root'].includes(usuario.papel_app);
+  const [aviso, setAviso] = useState({ t: '', e: false });
+  const excluir = async (e) => {
+    if (!window.confirm(`Excluir a estação “${e.titulo}”? Isso não pode ser desfeito.`)) return;
+    try { await api(`/api/estacoes/${e.id}`, { metodo: 'DELETE', token }); setLista((l) => (l ?? []).filter((x) => x.id !== e.id)); setAviso({ t: `Estação “${e.titulo}” excluída.`, e: false }); }
+    catch (x) { setAviso({ t: x.message, e: true }); }
+  };
+  const vistas = useMemo(() => {
+    const b = f.busca.trim().toLowerCase();
+    return (lista ?? []).filter((e) => (!f.area || e.area === f.area) && (!f.dificuldade || (e.dificuldade ?? 'intermediária') === f.dificuldade) && (!b || e.titulo.toLowerCase().includes(b)));
+  }, [lista, f]);
+  return (
+    <div data-testid="estacoes-disponiveis" className="est-disp">
+      <div className="est-grade">
+        <label className="campo"><span>Área</span><select value={f.area} aria-label="Filtrar por área" onChange={(e) => setF({ ...f, area: e.target.value })}><option value="">Todas</option>{AREAS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+        <label className="campo"><span>Dificuldade</span><select value={f.dificuldade} onChange={(e) => setF({ ...f, dificuldade: e.target.value })}><option value="">Todas</option>{DIFICULDADES.map((d) => <option key={d} value={d}>{d}</option>)}</select></label>
+      </div>
+      <label className="campo"><span>Buscar</span><input type="search" value={f.busca} placeholder="título da estação" onChange={(e) => setF({ ...f, busca: e.target.value })} /></label>
+      <p className="sub" aria-live="polite">{lista ? `${vistas.length} de ${lista.length} estações aprovadas` : 'Carregando…'}</p>
+      {aviso.t && <div className={`msg${aviso.e ? ' e' : ''}`} role={aviso.e ? 'alert' : 'status'} data-testid="aviso-exclusao">{aviso.t}</div>}
+      <ul className="est-lista-disp">
+        {vistas.map((e) => (
+          <li key={e.id} className="est-item"><div className="corpo"><b>{e.titulo}</b>
+            <span className="sub">{nomeArea(e.area)} · {e.duracao_min} min{e.dificuldade ? ` · ${e.dificuldade}` : ''}{e.vezes_realizada ? ` · feita ${e.vezes_realizada}×` : ' · ainda não feita'}</span></div>
+            <div className="acoes">{moderador && <button type="button" className="btn mini" onClick={() => aoAbrir(e.id)}>Abrir</button>}
+              <button type="button" className="btn mini menta" onClick={() => aoPraticar?.(e.id)}>Praticar</button>
+              {(e.minha || admin) && <button type="button" className="btn mini coral" data-testid="excluir-estacao" aria-label={`Excluir ${e.titulo}`} onClick={() => excluir(e)}>Excluir</button>}</div></li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** Fila da moderação: quem pode aprovar vê aqui, junto das demais estações (antes ficava escondida no painel de administração). */
+function EmRevisao({ token, api, aoAbrir }) {
+  const [lista, setLista] = useState(null); const [erro, setErro] = useState('');
+  const carregar = useCallback(() => api('/api/admin/estacoes?status=revisao', { token }).then(setLista).catch((e) => { setLista([]); setErro(e.message); }), [api, token]);
+  useEffect(() => { carregar(); }, [carregar]);
+  const mudar = async (id, status) => { setErro(''); try { await api(`/api/admin/estacoes/${id}/status`, { metodo: 'POST', token, corpo: { status } }); await carregar(); } catch (e) { setErro(e.message); } };
+  return (
+    <div data-testid="estacoes-revisao">
+      {erro && <div className="msg e" role="alert">{erro}</div>}
+      {lista && lista.length === 0 && <p className="sub">Nenhuma estação aguardando revisão.</p>}
+      {(lista ?? []).map((e) => (
+        <div className="cartao item-adm" key={e.id}><b>{e.titulo}</b><small>{nomeArea(e.area)} · {e.origem} · {e.duracao_min} min</small>
+          <div className="acoes"><button type="button" className="btn mini" onClick={() => aoAbrir(e.id)}>Abrir</button>
+            <button type="button" className="btn mini menta" onClick={() => mudar(e.id, 'aprovada')}>Aprovar</button>
+            <button type="button" className="btn mini" onClick={() => mudar(e.id, 'rascunho')}>Devolver</button></div></div>))}
+    </div>
+  );
+}
+
+export default function TelaEstacoes({ token, usuario, api, comando, aoPraticar }) {
   const [vista, setVista] = useState('lista');             // lista | gerar | importar | editor
+  const moderador = ['moderador', 'admin', 'root'].includes(usuario.papel_app);
+  const [aba, setAba] = useState('disponiveis');           // disponiveis | minhas | catalogo | temas | revisao
   const [lista, setLista] = useState(null);
   const [ia, setIa] = useState(null);
   const [marcadas, setMarcadas] = useState(new Set());
@@ -39,10 +118,19 @@ export default function TelaEstacoes({ token, usuario, api, comando }) {
   const [nota, setNota] = useState('');
   const [msg, setMsg] = useState({ t: '', e: false });
   const dicaExportar = useRef(null);
+  const [quadro, setQuadro] = useState(null);   // tema aberto no quadro móvel (catálogo)
 
   const carregar = useCallback(async () => {
     try { setLista(await api('/api/estacoes/minhas', { token })); } catch (e) { setLista([]); setMsg({ t: e.message, e: true }); }
   }, [api, token]);
+  const excluirMinha = async (x) => {
+    if (!window.confirm(`Excluir a estação “${x.titulo}”? Isso não pode ser desfeito.`)) return;
+    try {
+      await api(`/api/estacoes/${x.id}`, { metodo: 'DELETE', token });
+      setMarcadas((m) => { const n = new Set(m); n.delete(x.id); return n; });
+      setMsg({ t: `Estação “${x.titulo}” excluída.`, e: false }); await carregar();
+    } catch (err) { setMsg({ t: err.message, e: true }); }
+  };
   useEffect(() => { carregar(); api('/api/ia/estado', { token }).then(setIa).catch(() => setIa({ configurado: false })); }, [api, token, carregar]);
 
   // pedidos vindos do menu da versão desktop
@@ -50,8 +138,9 @@ export default function TelaEstacoes({ token, usuario, api, comando }) {
     if (comando?.abrir) { setEditorId(comando.abrir); setNota(comando.nota ?? ''); setVista('editor'); return; }
     if (!comando?.aba) return;
     if (comando.aba === 'novo') { setEditorId('novo'); setNota(''); setVista('editor'); }
-    else if (comando.aba === 'exportar') { setVista('lista'); setMarcadas(new Set((lista ?? []).map((x) => x.id))); setTimeout(() => dicaExportar.current?.focus?.(), 50); }
-    else if (['gerar', 'importar', 'lista'].includes(comando.aba)) setVista(comando.aba);
+    else if (comando.aba === 'exportar') { setVista('lista'); setAba('minhas'); setMarcadas(new Set((lista ?? []).map((x) => x.id))); setTimeout(() => dicaExportar.current?.focus?.(), 50); }
+    else if (['gerar', 'importar'].includes(comando.aba)) setVista(comando.aba);
+    else if (['disponiveis', 'minhas', 'catalogo', 'temas', 'revisao', 'lista'].includes(comando.aba)) { setVista('lista'); setAba(comando.aba === 'lista' ? 'minhas' : comando.aba); }
   }, [comando?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const abrir = (id, texto = '') => { setEditorId(id); setNota(texto); setVista('editor'); };
@@ -66,10 +155,11 @@ export default function TelaEstacoes({ token, usuario, api, comando }) {
   };
   const voltar = () => { setVista('lista'); carregar(); };
 
-  if (vista === 'gerar') return <Gerar token={token} api={api} ia={ia} aoPronta={(id, txt) => abrir(id, txt)} aoVoltar={voltar} />;
-  if (vista === 'importar') return <Importar token={token} api={api} ia={ia} aoAbrir={(id, txt) => abrir(id, txt)} aoVoltar={voltar} />;
-  if (vista === 'editor') return <Editor key={editorId} id={editorId} token={token} usuario={usuario} api={api} nota={nota} aoVoltar={voltar} aoExportar={(id) => exportar([id])} aoAbrir={abrir} ia={ia} />;
+  if (vista === 'gerar') return <Gerar token={token} api={api} ia={ia} aoPraticar={aoPraticar} aoPronta={(id, txt) => abrir(id, txt)} aoVoltar={voltar} />;
+  if (vista === 'importar') return <Importar token={token} usuario={usuario} api={api} ia={ia} aoPraticar={aoPraticar} aoAbrir={(id, txt) => abrir(id, txt)} aoVoltar={voltar} />;
+  if (vista === 'editor') return <Editor key={editorId} id={editorId} token={token} usuario={usuario} api={api} nota={nota} aoVoltar={voltar} aoExportar={(id) => exportar([id])} aoAbrir={abrir} ia={ia} aoPraticar={aoPraticar} />;
 
+  const abas = [['disponiveis', 'Disponíveis'], ['minhas', 'Minhas'], ['catalogo', 'Catálogo INEP'], ['temas', 'Temas por ano'], ...(moderador ? [['revisao', 'Em revisão']] : [])];
   return (
     <div className="tela est-tela">
       <div className="est-topo"><h2>Estações</h2>
@@ -79,51 +169,65 @@ export default function TelaEstacoes({ token, usuario, api, comando }) {
           <button type="button" className="btn mini" onClick={() => setVista('importar')}>Importar</button>
         </div>
       </div>
-      <p className="sub">Crie do zero, gere por IA ou importe. Tudo que vem de IA ou de arquivo entra como rascunho e só vira estação depois da sua revisão.</p>
-      <div className="est-topo">
-        <span className="sub">{lista ? `${lista.length} estaç${lista.length === 1 ? 'ão' : 'ões'}` : 'Carregando…'}</span>
-        <button type="button" ref={dicaExportar} className="btn mini" disabled={marcadas.size === 0} onClick={() => exportar([...marcadas])}>Exportar selecionadas ({marcadas.size})</button>
+      <div className="ca-abas" role="tablist" aria-label="Seções das estações">
+        {abas.map(([k, n]) => <button key={k} type="button" role="tab" aria-selected={aba === k} className={aba === k ? 'on' : ''} onClick={() => setAba(k)}>{n}{k === 'minhas' && lista ? ` (${lista.length})` : ''}</button>)}
       </div>
-      <div className={`msg${msg.e ? ' e' : ''}`} role="status">{msg.t}</div>
-      {lista && lista.length === 0 && <div className="cartao"><p className="sub">Você ainda não criou nenhuma estação. Comece por <b>Gerar com IA</b> ou <b>Nova</b>.</p></div>}
-      <div className="est-lista">
-        {(lista ?? []).map((x) => {
-          const [oc, ot] = ORIGEM[x.origem] ?? ['manual', x.origem];
-          const [sc, st] = STATUS[x.status] ?? ['rasc', x.status];
-          return (
-            <div className="est-item" key={x.id}>
-              <input type="checkbox" checked={marcadas.has(x.id)} onChange={() => alternar(x.id)} aria-label={`Selecionar ${x.titulo}`} />
-              <div className="corpo">
-                <button type="button" className="abrir" onClick={() => abrir(x.id)}>{x.titulo}</button>
-                <span className="sub">{nomeArea(x.area)} · {x.duracao_min} min</span>
-                <div className="est-tags">
-                  <span className={`tag ${oc}`}>{ot}</span><span className={`tag ${sc}`}>{st}</span>
-                  {x.incertos > 0 && <span className="tag conf">{x.incertos} a conferir</span>}
+      {aba === 'disponiveis' && <Disponiveis token={token} api={api} usuario={usuario} aoPraticar={aoPraticar} aoAbrir={abrir} />}
+      {aba === 'catalogo' && <div className="ca-tela"><CatalogoLista token={token} api={api} aoAbrir={abrir} aoTema={setQuadro} /></div>}
+      {aba === 'temas' && <div className="ca-tela"><CatalogoTemas token={token} api={api} aoTema={setQuadro} /></div>}
+      {quadro && <QuadroTema key={quadro.nome} {...quadro} token={token} api={api} aoFechar={() => setQuadro(null)} aoPraticar={aoPraticar} />}
+      {aba === 'revisao' && moderador && <EmRevisao token={token} api={api} aoAbrir={abrir} />}
+      {aba === 'minhas' && (<>
+        <p className="sub">Tudo que vem de IA ou de arquivo entra como rascunho e só vira estação depois da sua revisão.</p>
+        <div className="est-topo">
+          <span className="sub">{lista ? `${lista.length} estaç${lista.length === 1 ? 'ão' : 'ões'}` : 'Carregando…'}</span>
+          <button type="button" ref={dicaExportar} className="btn mini" disabled={marcadas.size === 0} onClick={() => exportar([...marcadas])}>Exportar selecionadas ({marcadas.size})</button>
+        </div>
+        <div className={`msg${msg.e ? ' e' : ''}`} role="status">{msg.t}</div>
+        {lista && lista.length === 0 && <div className="cartao"><p className="sub">Você ainda não criou nenhuma estação. Comece por <b>Gerar com IA</b> ou <b>Nova</b>.</p></div>}
+        <div className="est-lista">
+          {(lista ?? []).map((x) => {
+            const [oc, ot] = ORIGEM[x.origem] ?? ['manual', x.origem];
+            const [sc, st] = STATUS[x.status] ?? ['rasc', x.status];
+            return (
+              <div className="est-item" key={x.id}>
+                <input type="checkbox" checked={marcadas.has(x.id)} onChange={() => alternar(x.id)} aria-label={`Selecionar ${x.titulo}`} />
+                <div className="corpo">
+                  <button type="button" className="abrir" onClick={() => abrir(x.id)}>{x.titulo}</button>
+                  <span className="sub">{nomeArea(x.area)} · {x.duracao_min} min</span>
+                  <div className="est-tags">
+                    <span className={`tag ${oc}`}>{ot}</span><span className={`tag ${sc}`}>{st}</span>
+                    {x.incertos > 0 && <span className="tag conf">{x.incertos} a conferir</span>}
+                  </div>
                 </div>
+                {x.status === 'aprovada' && aoPraticar && <button type="button" className="btn mini menta" onClick={() => aoPraticar(x.id)}>Praticar</button>}
+                <button type="button" className="btn mini coral" data-testid="excluir-estacao" aria-label={`Excluir ${x.titulo}`} onClick={() => excluirMinha(x)}>Excluir</button>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </>)}
     </div>
   );
 }
 
 /* ======================= gerar por IA ======================= */
-function Gerar({ token, api, ia, aoPronta, aoVoltar }) {
+function Gerar({ token, api, ia, aoPronta, aoVoltar, aoPraticar }) {
   const [f, setF] = useState({ area: '', subtema: '', dificuldade: '', instrucoes: '', prioridade: '', cenario: '', perfil: '', queixa: '', diagnostico_alvo: '', objetivos: '' });
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState('');
+  const [dup, setDup] = useState(null);
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
   const gerar = async () => {
-    setErro(''); setOcupado(true);
+    setErro(''); setDup(null); setOcupado(true);
     try {
       const { objetivos, ...resto } = f;
       const r = await api('/api/estacoes/gerar', { metodo: 'POST', token, corpo: { ...resto, objetivos: objetivos.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 6) } });
       const rot = { area: 'a área', subtema: 'o tema', dificuldade: 'a dificuldade' };
       const sorteados = (r.sorteados ?? []).map((k) => rot[k]).filter(Boolean);
-      aoPronta(r.id, sorteados.length ? `O sistema sorteou ${sorteados.join(', ')} porque você deixou em branco. Revise tudo antes de publicar.` : 'Revise tudo antes de publicar.');
-    } catch (e) { setErro(e.message); } finally { setOcupado(false); }
+      const aviso = r.titulo_ajustado ? ` Já existia uma estação com esse título; esta ficou como «${r.titulo_ajustado}».` : '';
+      aoPronta(r.id, (sorteados.length ? `O sistema sorteou ${sorteados.join(', ')} porque você deixou em branco. Revise tudo antes de publicar.` : 'Revise tudo antes de publicar.') + aviso);
+    } catch (e) { setDup(comoDup(e)); setErro(comoDup(e) ? '' : e.message); } finally { setOcupado(false); }
   };
   const semIA = ia && !ia.configurado;
   return (
@@ -156,6 +260,7 @@ function Gerar({ token, api, ia, aoPronta, aoVoltar }) {
           <textarea value={f.instrucoes} maxLength={2000} onChange={set('instrucoes')} placeholder="Ex.: paciente idoso, atendimento na UPA, com exame de imagem para liberar." /></label>
         {ocupado && <Espera>Gerando a estação… isso pode levar até um minuto.</Espera>}
         <div className="msg e" role="alert">{erro}</div>
+        <AvisoDuplicada dup={dup} aoPraticar={aoPraticar} />
         <button type="button" className="btn menta" disabled={ocupado || semIA} onClick={gerar}>{ocupado ? 'Gerando…' : 'Gerar estação'}</button>
         <p className="est-ajuda">O texto é gerado por IA e pode conter erros clínicos. Ele fica como rascunho até você conferir e publicar.</p>
       </div>
@@ -164,15 +269,16 @@ function Gerar({ token, api, ia, aoPronta, aoVoltar }) {
 }
 
 /* ======================= importar ======================= */
-function Importar({ token, api, ia, aoAbrir, aoVoltar }) {
+function Importar({ token, usuario, api, ia, aoAbrir, aoVoltar, aoPraticar }) {
   const [ocupado, setOcupado] = useState('');
   const [erro, setErro] = useState('');
   const [rel, setRel] = useState(null);
   const [sobre, setSobre] = useState(false);
+  const [dup, setDup] = useState(null);
 
   const tratar = async (file) => {
     if (!file) return;
-    setErro(''); setRel(null);
+    setErro(''); setRel(null); setDup(null);
     const ext = file.name.split('.').pop().toLowerCase();
     try {
       if (ext === 'rvpack' || ext === 'json') {
@@ -186,7 +292,7 @@ function Importar({ token, api, ia, aoAbrir, aoVoltar }) {
         const r = await api('/api/estacoes/importar-arquivo', { metodo: 'POST', token, corpo: { mime: MIME_POR_EXT[ext], base64: await lerBase64(file) } });
         aoAbrir(r.id, r.incertos?.length ? `A IA marcou ${r.incertos.length} campo(s) que não leu com segurança (em amarelo). Compare com o original antes de publicar.` : 'Compare com o original antes de publicar.');
       } else throw new Error('Formato não aceito. Use .rvpack, PDF, PNG, JPEG ou WEBP.');
-    } catch (e) { setErro(e.message); } finally { setOcupado(''); }
+    } catch (e) { setDup(comoDup(e)); setErro(comoDup(e) ? '' : e.message); } finally { setOcupado(''); }
   };
   const soltar = (e) => { e.preventDefault(); setSobre(false); tratar(e.dataTransfer.files?.[0]); };
 
@@ -203,13 +309,17 @@ function Importar({ token, api, ia, aoAbrir, aoVoltar }) {
       </div>
       {ocupado && <Espera>{ocupado}</Espera>}
       <div className="msg e" role="alert">{erro}</div>
+      <AvisoDuplicada dup={dup} aoPraticar={aoPraticar} />
+      {['moderador', 'admin', 'root'].includes(usuario?.papel_app) && (
+        <details className="cartao est-form" data-testid="importar-caderno"><summary><b>Caderno INEP em texto</b> (moderação)</summary><div className="ca-tela"><ImportarCaderno token={token} usuario={usuario} api={api} /></div></details>
+      )}
       {rel && (
         <div className="cartao est-form" role="status">
-          <b>{rel.importadas} importada(s), {rel.rejeitadas} rejeitada(s).</b>
+          <b>{rel.importadas} importada(s), {rel.duplicadas ?? 0} já existia(m), {rel.rejeitadas - (rel.duplicadas ?? 0)} rejeitada(s).</b>
           <span className="sub">{rel.status === 'aprovada' ? 'Entraram como aprovadas (importação de administrador).' : 'Entraram na fila de revisão da moderação.'}</span>
           <ul className="est-relatorio">
             {rel.resultado.map((r) => (
-              <li key={r.posicao} className={r.ok ? '' : 'erro'}><span>{r.ok ? '✔' : '✘'}</span><div>{r.titulo || '(sem título)'}{!r.ok && <small>{r.erros.join(' · ')}</small>}</div></li>
+              <li key={r.posicao} className={r.ok ? '' : r.duplicada ? 'dup' : 'erro'}><span>{r.ok ? '✔' : r.duplicada ? '＝' : '✘'}</span><div>{r.titulo || '(sem título)'}{r.titulo_ajustado && <small>título já existia: ficou «{r.titulo_ajustado}»</small>}{r.duplicada && <small>já existe «{r.existente?.titulo}»{r.tipo === 'conteudo' ? ' (conteúdo idêntico)' : ' (mesmo título)'} — não foi repetida</small>}{!r.ok && !r.duplicada && <small>{r.erros.join(' · ')}</small>}</div></li>
             ))}
           </ul>
         </div>
@@ -263,7 +373,7 @@ function Variacao({ base, token, api, ia, aoAbrir }) {
   );
 }
 
-function Editor({ id, token, usuario, api, nota, aoVoltar, aoExportar, aoAbrir, ia }) {
+function Editor({ id, token, usuario, api, nota, aoVoltar, aoExportar, aoAbrir, ia, aoPraticar }) {
   const novo = id === 'novo';
   const [e, setE] = useState(novo ? VAZIA : null);
   const [meta, setMeta] = useState({ id: novo ? null : id, status: 'rascunho', origem: 'manual', criado_por: usuario?.id });
@@ -272,6 +382,7 @@ function Editor({ id, token, usuario, api, nota, aoVoltar, aoExportar, aoAbrir, 
   const [msg, setMsg] = useState({ t: '', e: false, d: [] });
   const [ocupado, setOcupado] = useState(false);
   const [conferi, setConferi] = useState(false);
+  const [dup, setDup] = useState(null);
 
   useEffect(() => {
     if (novo) return;
@@ -298,7 +409,7 @@ function Editor({ id, token, usuario, api, nota, aoVoltar, aoExportar, aoAbrir, 
   const addMat = () => setE((x) => ({ ...x, materiais: [...x.materiais, { tipo: 'laboratorial', titulo: '', gatilho: '', conteudo: '' }] }));
   const delMat = (i) => setE((x) => ({ ...x, materiais: x.materiais.filter((_, j) => j !== i) }));
 
-  const falha = (x) => setMsg({ t: x.message, e: true, d: x.detalhes ?? [] });
+  const falha = (x) => { setDup(comoDup(x)); setMsg({ t: comoDup(x) ? '' : x.message, e: true, d: x.detalhes ?? [] }); };
   const salvar = async () => {
     const corpo = paraServidor(e);
     if (corpo.pep.some((p) => Number.isNaN(p.pontos_total) || Number.isNaN(p.pontos_parcial))) throw Object.assign(new Error('Confira os pontos do checklist: use números.'), { detalhes: [] });
@@ -307,7 +418,7 @@ function Editor({ id, token, usuario, api, nota, aoVoltar, aoExportar, aoAbrir, 
     const r = await api('/api/estacoes', { metodo: 'POST', token, corpo });
     setMeta((m) => ({ ...m, id: r.id })); return r.id;
   };
-  const acao = (fn) => async () => { setMsg({ t: '', e: false, d: [] }); setOcupado(true); try { await fn(); } catch (x) { falha(x); } finally { setOcupado(false); } };
+  const acao = (fn) => async () => { setMsg({ t: '', e: false, d: [] }); setDup(null); setOcupado(true); try { await fn(); } catch (x) { falha(x); } finally { setOcupado(false); } };
   const aoSalvar = acao(async () => { await salvar(); setMsg({ t: 'Rascunho salvo.', e: false, d: [] }); });
   const aoPublicar = acao(async () => {
     const eid = await salvar();
@@ -316,7 +427,7 @@ function Editor({ id, token, usuario, api, nota, aoVoltar, aoExportar, aoAbrir, 
     setMsg({ t: r.status === 'aprovada' ? 'Estação publicada.' : 'Enviada para a fila de revisão da moderação.', e: false, d: [] });
   });
   const aoExcluir = acao(async () => {
-    if (!window.confirm('Apagar este rascunho? Isso não pode ser desfeito.')) return;
+    if (!window.confirm('Excluir esta estação? Isso não pode ser desfeito.')) return;
     await api(`/api/estacoes/${meta.id}`, { metodo: 'DELETE', token }); aoVoltar();
   });
 
@@ -388,6 +499,7 @@ function Editor({ id, token, usuario, api, nota, aoVoltar, aoExportar, aoAbrir, 
 
       {avisos.length > 0 && <div className="aviso est-largo"><b>Confira:</b><ul className="est-avisos">{avisos.map((a, i) => <li key={i}>{a}</li>)}</ul></div>}
       <div className={`msg${msg.e ? ' e' : ''} est-largo`} role="status">{msg.t}</div>
+      <AvisoDuplicada dup={dup} aoPraticar={aoPraticar} aoUsarTitulo={(t) => { setE((x) => ({ ...x, titulo: t })); setDup(null); }} />
       {msg.d.length > 0 && <ul className="est-avisos est-largo" role="alert">{msg.d.map((d, i) => <li key={i}>{d}</li>)}</ul>}
 
       {exigeConferir && (
@@ -398,7 +510,7 @@ function Editor({ id, token, usuario, api, nota, aoVoltar, aoExportar, aoAbrir, 
         {!leitura && <button type="button" className="btn mini" disabled={ocupado} onClick={aoSalvar}>Salvar rascunho</button>}
         {!leitura && <button type="button" className="btn mini menta" disabled={ocupado || (exigeConferir && !conferi)} onClick={aoPublicar}>{publicaDireto ? 'Publicar' : 'Enviar para revisão'}</button>}
         {meta.id && <button type="button" className="btn mini" disabled={ocupado} onClick={() => aoExportar(meta.id)}>Exportar</button>}
-        {meta.id && meta.status !== 'aprovada' && !leitura && <button type="button" className="btn mini coral" disabled={ocupado} onClick={aoExcluir}>Apagar</button>}
+        {meta.id && !leitura && <button type="button" className="btn mini coral" disabled={ocupado} onClick={aoExcluir}>Excluir</button>}
       </div>
     </div>
   );

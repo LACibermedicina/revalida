@@ -13,6 +13,8 @@ import { registrarVideo } from './video.js';
 import { registrarSalas, criarPresenca, traduzirErro } from './salas.js';
 import { criarIA } from './ia.js';
 import { registrarEstacoes } from './estacoes.js';
+import { preencherAssinaturas } from './assinatura.js';
+import { registrarPainel } from './painel.js';
 import { registrarEstudo } from './estudo.js';
 import { registrarCatalogo } from './catalogo.js';
 import { registrarExecucao } from './execucao.js';
@@ -92,6 +94,8 @@ const ia = criarIA({ cfg });
 const execucao = registrarExecucao(app, { q, autenticar, ia, difundir });
 registrarSalas(app, { q, autenticar, agora, cfg, difundir, presenca, aoFinalizar: execucao.analisarFinal });
 registrarEstacoes(app, { q, autenticar, ia, emitir: emitirSala });
+registrarPainel(app, { q, autenticar });
+preencherAssinaturas(q).catch((e) => console.error('assinaturas das estações:', e.message)); // estações antigas ganham título/conteúdo normalizados
 registrarEstudo(app, { q, autenticar, ia });
 registrarCatalogo(app, { q, autenticar });
 registrarInstalacao(app, { q, bcrypt, cfg, agora, emailer, codigo: () => codigoInstalacao, segredoJwt: SEGREDO, producao: process.env.NODE_ENV === 'production' });
@@ -136,7 +140,7 @@ app.post('/api/auth/registrar', async (req, res) => {
 /* ---------------- estações e PEP ---------------- */
 
 app.get('/api/estacoes', autenticar, async (req, res) => {
-  const r = await q(`select e.id, e.titulo, e.area, e.duracao_min, e.origem, e.status, e.dificuldade, coalesce(u.vezes_realizada,0)::int vezes_realizada, u.ultima_em
+  const r = await q(`select e.id, e.titulo, e.area, e.duracao_min, e.origem, e.status, e.dificuldade, (e.criado_por = $1) minha, coalesce(u.vezes_realizada,0)::int vezes_realizada, u.ultima_em
       from estacoes e left join usuario_estacao u on u.estacao_id = e.id and u.usuario_id = $1 where e.status='aprovada' order by e.area, e.titulo`, [req.usuario.id]);
   res.json(r.rows);
 });
@@ -152,6 +156,9 @@ app.post('/api/sessoes', autenticar, async (req, res) => {
   const { estacaoId, modo } = req.body || {};
   const est = await q(`select id from estacoes where id=$1 and status='aprovada'`, [estacaoId]);
   if (!est.rows[0]) return res.status(400).json({ erro: 'Estação não encontrada.' });
+  // mesma estação já aberta por você: avisa (com a sala existente) e só cria outra se a pessoa confirmar
+  const aberta = (await q(`select id, status from sessoes where dono_id=$1 and estacao_id=$2 and status <> 'finalizada' order by criado_em desc limit 1`, [req.usuario.id, estacaoId])).rows[0];
+  if (aberta && req.body?.repetir !== true) return res.status(409).json({ erro: 'Você já tem uma sala aberta com esta estação. Deseja criar outra para duplicar a prática?', codigo: 'ESTACAO_JA_ABERTA', sessao_id: aberta.id });
   const papelDono = modo === 'solo' ? 'candidato' : 'avaliador_ator';
   const s = await q(
     `insert into sessoes (estacao_id, dono_id, modo) values ($1,$2,$3) returning id`,

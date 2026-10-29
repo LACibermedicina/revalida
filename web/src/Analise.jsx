@@ -2,6 +2,8 @@
 // comparação com outras estações, fala transcrita × marcação do avaliador, revisão da nota, cartões de revisão, trilha
 // e uma nova estação com outra abordagem. Abre a partir do Início, do fim da estação na sala e do caderno de erros.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PainelQuadros } from './Quadros.jsx';
+import './quadros.css';
 import './analise.css';
 
 const AREAS = { clinica_medica: 'Clínica Médica', cirurgia: 'Cirurgia', ginecologia_obstetricia: 'Ginecologia e Obstetrícia', pediatria: 'Pediatria', mfc: 'Medicina de Família e Comunidade' };
@@ -72,6 +74,11 @@ export default function TelaAnalise({ execId, token, api, aoVoltar, aoPraticar, 
 
   const { execucao: e, itens } = d;
   const euCandidato = d.meu_papel === 'candidato';
+  const alternarLiberacao = async () => {
+    setOcupado('liberar');
+    try { await api(`/api/execucoes/${execId}/transcricao/liberar`, { metodo: 'POST', token, corpo: { liberada: !d.transcricao.liberada } }); await carregar(); }
+    catch (x) { setMsg({ t: x.message, e: true }); } finally { setOcupado(''); }
+  };
   const alternar = (id) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const escolhidos = itens.filter((i) => sel.has(i.id));
   const trechos = itens.map((i) => i.sugestao?.evidencia).filter(Boolean);
@@ -92,20 +99,12 @@ export default function TelaAnalise({ execId, token, api, aoVoltar, aoPraticar, 
   });
   const iniciarRevisao = () => setRevisando(Object.fromEntries(itens.map((i) => [i.id, i.resultado])));
 
-  return (
-    <div className="tela an-tela" data-testid="painel-analise">
-      <div className="an-topo"><div><h2>{e.titulo}</h2><p className="sub">{AREAS[e.area] ?? e.area} · {data(e.finalizada_em)}</p></div><button type="button" className="ln" onClick={aoVoltar}>Voltar</button></div>
-      {msg.t && <div className={`msg${msg.e ? ' e' : ''}`} role={msg.e ? 'alert' : 'status'}>{msg.t}</div>}
-
-      <section className="an-kpis" aria-label="Resultado">
-        <div className={`an-kpi f-${faixa(e.percentual)}`}><b>{pts(e.nota)}</b><span>de {pts(e.maximo)} pts · {e.percentual ?? '—'}%</span>{e.nota_original !== null && <em>revisada (era {pts(e.nota_original)})</em>}</div>
-        <div className="an-kpi"><b>{fmt(e.duracao_s)}</b><span>de {e.duracao_min} min</span></div>
-        <div className="an-kpi"><b>{d.divergentes}</b><span>itens em que a fala e a marcação divergem</span></div>
-        <div className="an-kpi"><b>{d.comparacao.tentativas.length}</b><span>tentativa(s) nesta estação</span></div>
-      </section>
-
-      <section className="an-bloco" aria-label="Resumo de desempenho" data-testid="resumo">
-        <h3>Resumo de desempenho</h3>
+  const fortes = d.resumo.pontos_fortes.length ? d.resumo.pontos_fortes.length : d.fortes.length;
+  const fracos = d.resumo.pontos_fracos.length ? d.resumo.pontos_fracos.length : d.fracos.length;
+  const nTrechos = d.transcricao.total ?? d.transcricao.segmentos.length;
+  const quadros = [
+    { id: 'resumo', titulo: 'Resumo de desempenho', testid: 'resumo', resumo: `${fortes} ponto(s) forte(s) · ${fracos} a melhorar`, corpo: (
+      <>
         <div className="an-cols">
           <div><h4>Pontos fortes</h4>{(d.resumo.pontos_fortes.length ? d.resumo.pontos_fortes : d.fortes.map((s) => `${s.secao} (${s.percentual}%)`)).map((t) => <p key={t} className="an-forte">✔ {t}</p>)}{!d.resumo.pontos_fortes.length && !d.fortes.length && <p className="sub">Nenhuma seção acima de 80% desta vez.</p>}</div>
           <div><h4>A melhorar</h4>{(d.resumo.pontos_fracos.length ? d.resumo.pontos_fracos : d.fracos.map((s) => `${s.secao} (${s.percentual}%)`)).map((t) => <p key={t} className="an-fraco">✘ {t}</p>)}{!d.resumo.pontos_fracos.length && !d.fracos.length && <p className="sub">Nenhuma seção abaixo de 60%.</p>}</div>
@@ -114,28 +113,28 @@ export default function TelaAnalise({ execId, token, api, aoVoltar, aoPraticar, 
         <h4>Sugestões</h4>
         <ul>{d.resumo.sugestoes.map((s) => <li key={s}>{s}</li>)}</ul>
         <p className="sub">{d.transcricao.analise_fonte === 'ia' ? 'Resumo e conferência feitos por IA a partir da transcrição' : d.transcricao.analise_fonte ? 'Conferência feita por palavras do item (IA indisponível)' : 'Sem transcrição'}; confira sempre com o PEP oficial.</p>
-      </section>
-
-      <section className="an-bloco" aria-label="Seções" data-testid="secoes">
-        <h3>Por seção do checklist</h3>
+      </>
+    ) },
+    { id: 'secoes', titulo: 'Por seção do checklist', testid: 'secoes', resumo: `${d.secoes.length} seção(ões)${d.secoes.length ? `; pior: ${[...d.secoes].sort((a, b) => (a.percentual ?? 101) - (b.percentual ?? 101))[0].secao}` : ''}`, corpo: (
+      <>
         {d.secoes.map((s) => (
           <div key={s.secao} className="an-linha-barra"><span>{s.secao}</span><Barra valor={s.percentual} marca={s.media_historica} rotulo={s.secao} /><b>{s.percentual ?? '—'}%</b>{s.diferenca !== null && <em className={s.diferenca >= 0 ? 'sobe' : 'desce'}>{s.diferenca >= 0 ? '+' : ''}{s.diferenca} vs. média</em>}</div>
         ))}
         <p className="sub">A marca vertical é a sua média nessa seção nas outras estações.</p>
-      </section>
-
-      <section className="an-bloco" aria-label="Comparação entre estações" data-testid="comparacao">
-        <h3>Comparação com outras estações</h3>
+      </>
+    ) },
+    { id: 'comparacao', titulo: 'Comparação com outras estações', testid: 'comparacao', resumo: d.comparacao.media_area !== null ? `Sua média na área: ${d.comparacao.media_area}%` : `${d.comparacao.tentativas.length} tentativa(s)`, corpo: (
+      <>
         {d.comparacao.recentes.map((r) => (
           <div key={r.id} className={`an-linha-barra${r.atual ? ' atual' : ''}`}><span>{r.titulo}{r.atual ? ' (esta)' : ''}</span><Barra valor={r.percentual} marca={d.comparacao.media_area} rotulo={r.titulo} /><b>{r.percentual ?? '—'}%</b></div>
         ))}
         {d.comparacao.media_area !== null && <p className="sub">Marca: sua média nas outras estações de {AREAS[e.area] ?? e.area} ({d.comparacao.media_area}%).</p>}
         <h4>Evolução nesta estação</h4>
         <Tentativas lista={d.comparacao.tentativas} />
-      </section>
-
-      <section className="an-bloco" aria-label="Itens" data-testid="itens">
-        <h3>Itens do checklist × o que foi falado</h3>
+      </>
+    ) },
+    { id: 'itens', titulo: 'Itens do checklist × o que foi falado', testid: 'itens', largo: true, resumo: `${itens.length} itens · ${d.divergentes} divergência(s) · ${itens.filter((i) => i.resultado !== 'sim').length} a trabalhar`, corpo: (
+      <>
         <p className="sub">Marque os pontos que quer trabalhar: eles viram cartões de revisão, trilha e a nova estação.</p>
         {itens.map((i) => (
           <div key={i.id} className={`an-item r-${i.resultado}${i.divergencia ? ' div' : ''}`} data-item={i.id}>
@@ -161,23 +160,29 @@ export default function TelaAnalise({ execId, token, api, aoVoltar, aoPraticar, 
         ))}
         {d.pode_revisar_nota && !revisando && <button type="button" className="btn mini" onClick={iniciarRevisao}>Revisar a nota com base na fala</button>}
         {revisando && <div className="acoes"><button type="button" className="btn mini menta" disabled={!!ocupado} onClick={salvarRevisao}>Salvar nova nota</button><button type="button" className="btn mini" onClick={() => setRevisando(null)}>Cancelar</button></div>}
-      </section>
-
-      <section className="an-bloco" aria-label="Transcrição" data-testid="transcricao">
-        <h3>Transcrição da fala ({d.transcricao.segmentos.length} trecho{d.transcricao.segmentos.length === 1 ? '' : 's'})</h3>
-        {d.transcricao.segmentos.length === 0
-          ? <p className="sub">Esta estação não teve fala transcrita. A conferência pela fala só funciona com a transcrição ligada.</p>
-          : <ol className="an-fala an-minutos" data-testid="fala-por-minuto">{(d.por_minuto?.length ? d.por_minuto : [{ minuto: 0, segmentos: d.transcricao.segmentos.map((x) => ({ ...x, ms: 0 })), itens: [] }]).map((m) => (
-            <li key={m.minuto}><h4>{m.minuto}º minuto <small>{m.segmentos.length} trecho(s)</small></h4>
-              <ul>{m.segmentos.map((x) => <li key={x.ordem}><time>{fmt(Math.floor((x.ms || 0) / 1000))}</time> <Destaque texto={x.texto} trechos={trechos} /></li>)}</ul>
-              {m.itens.length > 0 && <p className="sub">Itens do checklist sustentados neste minuto: {m.itens.map((i) => i.descricao).join('; ')}</p>}</li>))}</ol>}
+      </>
+    ) },
+    { id: 'transcricao', titulo: `Transcrição da fala (${nTrechos} trecho${nTrechos === 1 ? '' : 's'})`, testid: 'transcricao', largo: true, resumo: d.transcricao.oculta ? 'Aguardando liberação do avaliador' : `${nTrechos} trecho(s) transcrito(s)`, corpo: (
+      <>
+        {d.pode_liberar_transcricao && (d.transcricao.total ?? 0) > 0 && (
+          <div className="acoes" data-testid="liberar-transcricao-analise">
+            <span className="sub">{d.transcricao.liberada ? 'O candidato pode reler esta transcrição.' : 'O candidato ainda não pode reler a transcrição.'}</span>
+            <button type="button" className={`btn mini${d.transcricao.liberada ? '' : ' menta'}`} disabled={!!ocupado} onClick={alternarLiberacao}>{d.transcricao.liberada ? 'Retirar a liberação' : 'Liberar transcrição ao candidato'}</button>
+          </div>)}
+        {d.transcricao.oculta
+          ? <p className="sub" data-testid="transcricao-oculta" role="note">{d.transcricao.total > 0 ? 'O avaliador ainda não liberou a transcrição da sua fala. A análise abaixo (acertos, lacunas e feedback) já está disponível; quando ele liberar, o texto aparece aqui, minuto a minuto.' : 'Esta estação não teve fala transcrita.'}</p>
+          : d.transcricao.segmentos.length === 0
+            ? <p className="sub">Esta estação não teve fala transcrita. A conferência pela fala só funciona com a transcrição ligada.</p>
+            : <ol className="an-fala an-minutos" data-testid="fala-por-minuto">{(d.por_minuto?.length ? d.por_minuto : [{ minuto: 0, segmentos: d.transcricao.segmentos.map((x) => ({ ...x, ms: 0 })), itens: [] }]).map((m) => (
+              <li key={m.minuto}><h4>{m.minuto}º minuto <small>{m.segmentos.length} trecho(s)</small></h4>
+                <ul>{m.segmentos.map((x) => <li key={x.ordem}><time>{fmt(Math.floor((x.ms || 0) / 1000))}</time> <Destaque texto={x.texto} trechos={trechos} /></li>)}</ul>
+                {m.itens.length > 0 && <p className="sub">Itens do checklist sustentados neste minuto: {m.itens.map((i) => i.descricao).join('; ')}</p>}</li>))}</ol>}
         {d.transcricao.rebaixados > 0 && <p className="sub" role="note">{d.transcricao.rebaixados} ponto(s) que a IA deu como feitos foram rebaixados por não terem trecho correspondente na fala.</p>}
         <p className="sub">A transcrição parou quando a estação foi encerrada.</p>
-      </section>
-
-      {euCandidato && (
-        <section className="an-bloco" aria-label="Revisão e trilha" data-testid="acoes">
-          <h3>Revisar e praticar ({escolhidos.length} ponto{escolhidos.length === 1 ? '' : 's'} escolhido{escolhidos.length === 1 ? '' : 's'})</h3>
+      </>
+    ) },
+    ...(euCandidato ? [{ id: 'acoes', titulo: `Revisar e praticar (${escolhidos.length} ponto${escolhidos.length === 1 ? '' : 's'} escolhido${escolhidos.length === 1 ? '' : 's'})`, testid: 'acoes', largo: true, resumo: 'Cartões, resumo, nova tentativa e nova estação', corpo: (
+      <>
           <ol className="an-trilha">
             <li><b>Cartões de revisão</b><span>Um cartão por ponto escolhido, ligado a esta estação e ao tema, na sua repetição espaçada.</span>
               <div className="acoes"><button type="button" className="btn mini menta" disabled={!!ocupado || escolhidos.length === 0} onClick={gerarCartoes('pep')}>Cartões do checklist</button>
@@ -195,8 +200,23 @@ export default function TelaAnalise({ execId, token, api, aoVoltar, aoPraticar, 
             <li><b>Voltar depois</b><span>{d.trilha.passos.find((p) => p.tipo === 'reteste')?.em ? `Reteste sugerido a partir de ${data(d.trilha.passos.find((p) => p.tipo === 'reteste').em)}.` : 'Reteste depois de alguns dias para confirmar a consolidação.'}</span></li>
           </ol>
           <p className="sub">{d.cartoes_da_estacao} cartão(ões) desta estação já estão na sua trilha de estudo.</p>
-        </section>
-      )}
+      </>
+    ) }] : []),
+  ];
+
+  return (
+    <div className="tela an-tela" data-testid="painel-analise">
+      <div className="an-topo"><div><h2>{e.titulo}</h2><p className="sub">{AREAS[e.area] ?? e.area} · {data(e.finalizada_em)}</p></div><button type="button" className="ln" onClick={aoVoltar}>Voltar</button></div>
+      {msg.t && <div className={`msg${msg.e ? ' e' : ''}`} role={msg.e ? 'alert' : 'status'}>{msg.t}</div>}
+
+      <section className="an-kpis" aria-label="Resultado">
+        <div className={`an-kpi f-${faixa(e.percentual)}`}><b>{pts(e.nota)}</b><span>de {pts(e.maximo)} pts · {e.percentual ?? '—'}%</span>{e.nota_original !== null && <em>revisada (era {pts(e.nota_original)})</em>}</div>
+        <div className="an-kpi"><b>{fmt(e.duracao_s)}</b><span>de {e.duracao_min} min</span></div>
+        <div className="an-kpi"><b>{d.divergentes}</b><span>itens em que a fala e a marcação divergem</span></div>
+        <div className="an-kpi"><b>{d.comparacao.tentativas.length}</b><span>tentativa(s) nesta estação</span></div>
+      </section>
+
+      <PainelQuadros chave="analise" quadros={quadros} abertosPadrao={['resumo']} />
     </div>
   );
 }

@@ -3,8 +3,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { criarSalaVideo } from './video.js';
+import TextoEstacao from './TextoEstacao.jsx';
+import FerramentasSala from './FerramentasSala.jsx';
 import { CartasEstacao, TranscricaoCandidato, FalaDoCandidato, Sugestao, AnaliseDaFala, useAoVivo } from './SalaExecucao.jsx';
-import { Autocorrecao, ConvidarOnline } from './SalaExtras.jsx';
+import { Autocorrecao, ConvidarOnline, LiberarTranscricao } from './SalaExtras.jsx';
 import './salas.css';
 
 const PAPEL = { admin: 'Chefe', candidato: 'Candidato', observador: 'Observador' };
@@ -16,6 +18,8 @@ const pts = (n) => (n === null || n === undefined ? '—' : Number(n).toLocaleSt
 const rotaToken = (id) => `/api/salas/${id}/agora-token`;
 
 /** Relógio que conta desde `inicio` (o relógio é do servidor: quem entra no meio vê o tempo certo). */
+const ROTULO_SITUACAO = { na_fila: 'ainda na fila', em_andamento: 'em andamento agora', pausada: 'pausada', finalizada: 'já feita neste ciclo', abandonada: 'cancelada' };
+
 function Relogio({ inicio, limiteMin }) {
   const [, forca] = useState(0);
   useEffect(() => { const t = setInterval(() => forca((n) => n + 1), 1000); return () => clearInterval(t); }, []);
@@ -159,7 +163,20 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
   };
   const alternarEscolha = (id) => setEscolhidas((l) => (l.includes(id) ? l.filter((x) => x !== id) : [...l, id]));
   const criarCiclo = async () => { if (await agir(`/api/salas/${salaId}/ciclos`, { estacoes: escolhidas, grupo: grupo || undefined })) { setEscolhidas([]); setGrupo(''); } };
-  const adicionar = async () => { if (await agir(`/api/ciclos/${ciclo.id}/itens`, { estacoes: escolhidas, grupo: grupo || undefined })) { setEscolhidas([]); setGrupo(''); } };
+  // Estação que já está na fila: o servidor avisa quais são; aqui a pessoa decide duplicar a prática, adicionar só as outras ou desistir.
+  const [repetidas, setRepetidas] = useState(null);
+  const adicionar = async (repetir = false) => {
+    setAviso(''); setRepetidas(null);
+    try {
+      await api(`/api/ciclos/${ciclo.id}/itens`, { metodo: 'POST', token, corpo: { estacoes: escolhidas, grupo: grupo || undefined, ...(repetir ? { repetir: true } : {}) } });
+      await carregar(); setEscolhidas([]); setGrupo('');
+    } catch (e) {
+      if (e.codigo === 'ESTACAO_NA_FILA' && e.dados?.repetidas) setRepetidas({ lista: e.dados.repetidas, msg: e.message });
+      else setAviso(e.message);
+      await carregar();
+    }
+  };
+  const soAsNovas = () => { const ja = new Set((repetidas?.lista ?? []).map((r) => r.id)); setEscolhidas((l) => l.filter((id) => !ja.has(id))); setRepetidas(null); };
 
   const porArea = useMemo(() => {
     const m = new Map();
@@ -174,13 +191,14 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
   const emAndamento = Boolean(exe);
   const pendentes = fila.filter((i) => i.estado === 'pendente');
   const minhaSolicitacao = est.solicitacoes.find((s) => s.solicitante_id === eu);
+  const naFila = new Set(fila.map((i) => i.titulo));
   const seletor = (
     <div className="sl-sel">
       {porArea.length === 0 && <p className="sub">Ainda não há estações aprovadas. Crie uma na aba ✏️ Criar.</p>}
       {porArea.map(([area, lista]) => (
         <fieldset key={area}><legend>{AREAS[area] ?? area}</legend>
           {lista.map((e) => (
-            <label key={e.id} className="sl-op"><input type="checkbox" checked={escolhidas.includes(e.id)} onChange={() => alternarEscolha(e.id)} /> {e.titulo} <em>{e.duracao_min} min</em></label>
+            <label key={e.id} className="sl-op"><input type="checkbox" checked={escolhidas.includes(e.id)} onChange={() => alternarEscolha(e.id)} /> {e.titulo} <em>{e.duracao_min} min</em>{naFila.has(e.titulo) && <span className="tag espera" title="Já está na fila deste ciclo">na fila</span>}</label>
           ))}
         </fieldset>
       ))}
@@ -190,15 +208,41 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
     </div>
   );
 
+  const irPara = (id) => {
+    const el = document.getElementById(id); if (!el) return;
+    if (el.tagName === 'DETAILS') el.open = true;
+    el.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    el.classList.add('sl-realce'); setTimeout(() => el.classList.remove('sl-realce'), 1500);
+  };
+  const pedidosPendentes = est.solicitacoes.filter((x) => x.solicitante_id !== eu).length;
+  // só aparecem as ferramentas que o papel e o momento permitem; a ordem escolhida pela pessoa é aplicada por cima (FerramentasSala)
+  const ferramentas = [
+    video.modo === null
+      ? { id: 'video', rotulo: 'Entrar no vídeo', curto: 'Vídeo', aoClicar: ligarVideo }
+      : { id: 'cam', rotulo: video.cam ? 'Desligar câmera' : 'Ligar câmera', curto: 'Câmera', ativo: video.cam, aoClicar: () => alternar('cam') },
+    ...(video.modo !== null ? [{ id: 'mic', rotulo: video.mic ? 'Silenciar microfone' : 'Ligar microfone', curto: 'Mic', ativo: video.mic, aoClicar: () => alternar('mic') }] : []),
+    ...(souAdmin ? [{ id: 'audio', rotulo: est.sala.audio_observadores ? 'Bloquear áudio dos observadores' : 'Liberar áudio dos observadores', curto: 'Áudio obs.', ativo: est.sala.audio_observadores, aoClicar: () => agir(`/api/salas/${salaId}/audio-observadores`, { liberado: !est.sala.audio_observadores }, 'PATCH') }] : []),
+    { id: 'pessoas', rotulo: 'Participantes', curto: 'Pessoas', aoClicar: () => irPara('sl-participantes') },
+    ...(podeConvidar ? [{ id: 'convidar', rotulo: 'Convidar pessoas online', curto: 'Convidar', aoClicar: () => irPara('sl-participantes') }] : []),
+    ...(pedidosPendentes > 0 && (meu === 'admin' || meu === 'candidato') ? [{ id: 'pedidos', rotulo: 'Pedidos de papel', curto: 'Pedidos', aviso: pedidosPendentes, aoClicar: () => irPara('sl-pedidos') }] : []),
+    ...(emAndamento ? [{ id: 'estacao', rotulo: 'Estação em andamento', curto: 'Estação', aoClicar: () => irPara('sl-estacao') },
+      { id: 'transcricao', rotulo: euAvalio ? 'Fala do candidato em tempo real' : 'Minha transcrição', curto: 'Fala', aoClicar: () => irPara(euAvalio ? 'sl-transcricao' : 'sl-estacao') }] : []),
+    ...(emAndamento && euAvalio && pep ? [{ id: 'checklist', rotulo: 'Checklist do PEP', curto: 'PEP', aoClicar: () => irPara('sl-checklist') }] : []),
+    ...(!emAndamento && ultima && ciclo ? [{ id: 'fim', rotulo: 'Resultado da estação', curto: 'Resultado', aoClicar: () => irPara('sl-fim') }] : []),
+    ...(ciclo ? [{ id: 'fila', rotulo: 'Fila do ciclo', curto: 'Fila', aoClicar: () => irPara('sl-fila') }] : []),
+    { id: 'codigo', rotulo: 'Copiar o código da sala', curto: 'Código', aoClicar: () => { navigator.clipboard?.writeText(salaId); setAviso('Código da sala copiado.'); } },
+  ];
+
   return (
     <div className="tela sl">
+      <FerramentasSala ferramentas={ferramentas} />
       <div className="sl-topo">
         <div><h2>Sala</h2><button className="sl-cod" onClick={() => navigator.clipboard?.writeText(salaId)} title="Copiar código">{salaId}</button></div>
         <span className={`sl-papel p-${meu}`} data-testid="meu-papel">{PAPEL[meu] ?? meu}</span>
       </div>
       {aviso && <p className="aviso" role="alert">{aviso}</p>}
 
-      <section className="sl-bloco" aria-label="Vídeo">
+      <section className="sl-bloco" id="sl-video" aria-label="Vídeo">
         <div className="sl-tiles">{Object.entries(tiles).map(([uid, t]) => <Tile key={uid} track={t.track} rotulo={t.local ? 'Você' : 'Participante'} />)}</div>
         {video.modo === null
           ? <button className="btn mini" onClick={ligarVideo}>Entrar no vídeo</button>
@@ -223,7 +267,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
         </section>
       )}
 
-      <section className="sl-bloco" aria-label="Participantes">
+      <section className="sl-bloco" id="sl-participantes" aria-label="Participantes">
         <h3>Participantes ({est.participantes.length})</h3>
         {est.participantes.map((p) => (
           <div key={p.usuario_id} className="sl-linha">
@@ -246,7 +290,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
       </section>
 
       {est.solicitacoes.filter((s) => s.solicitante_id !== eu).length > 0 && (meu === 'admin' || meu === 'candidato') && (
-        <section className="sl-bloco" aria-label="Pedidos de papel">
+        <section className="sl-bloco" id="sl-pedidos" aria-label="Pedidos de papel">
           <h3>Pedidos de papel</h3>
           {est.solicitacoes.filter((s) => s.solicitante_id !== eu).map((s) => (
             <div key={s.id} className="sl-linha"><span>{s.nome} quer ser {PAPEL[s.papel]?.toLowerCase()}</span>
@@ -256,17 +300,19 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
       )}
 
       {emAndamento && (
-        <section className="sl-bloco sl-exec" aria-label="Estação em andamento">
+        <section className="sl-bloco sl-exec" id="sl-estacao" aria-label="Estação em andamento">
           <h3>{exe.titulo}</h3>
           <p className="sub">Candidato: {nome(exe.candidato_id)} · Avalia: {nome(exe.avaliador_id)}</p>
           <Relogio inicio={exe.iniciada_em} limiteMin={pep?.duracao_min} />
           <CartasEstacao execId={exe.id} papel={euAvalio ? 'avaliador' : meu} api={api} token={token} segmentos={aoVivo.segmentos} />
+          <span id="sl-transcricao" />
           {meu === 'candidato' && exe.candidato_id === eu && <TranscricaoCandidato execId={exe.id} api={api} token={token} />}
           {euAvalio && <FalaDoCandidato segmentos={aoVivo.segmentos} info={aoVivo.info} aoAnalisar={aoVivo.analisar} />}
           {euAvalio && <AnaliseDaFala info={aoVivo.info} />}
           {euAvalio && pep && (
             <>
-              {pep.script_ator && <details><summary>Roteiro do ator</summary><p className="sub">{pep.script_ator}</p></details>}
+              <span id="sl-checklist" />
+              {pep.script_ator && <details><summary>Roteiro do ator</summary><TextoEstacao corpo={pep.script_ator} /></details>}
               {pep.itens.map((i) => (
                 <div key={i.id} className={`sl-pep${i.critico ? ' crit' : ''}`}>
                   <span>{i.descricao}{i.critico && <em> crítico</em>} <em>{pts(i.pontos_total)} pts</em></span>
@@ -285,7 +331,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
       )}
 
       {!emAndamento && ultima && ciclo && (
-        <section className="sl-bloco sl-fim" aria-label="Fim da estação" data-testid="fim-estacao">
+        <section className="sl-bloco sl-fim" id="sl-fim" aria-label="Fim da estação" data-testid="fim-estacao">
           <h3>Estação finalizada: {ultima.titulo}</h3>
           <div className="sl-stats">
             <div><b>{pts(ultima.nota)}</b><span>de {pts(ultima.max)} pts{ultima.percentual !== null && ` · ${ultima.percentual}%`}</span></div>
@@ -309,13 +355,14 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
             </>
           ) : <p className="sub">Aguardando o chefe decidir o próximo passo. O vídeo continua aberto.</p>}
           {(meu === 'candidato' || euAvaliou(ultima, est, eu)) && <Autocorrecao key={ultima.id} execId={ultima.id} api={api} token={token} aoAdotar={async () => { await carregar(); try { const r = await api(`/api/salas/${salaId}/ultima-execucao`, { token }); setUltima(r.ultima ?? null); } catch { /* mantém */ } }} />}
+          {euAvaliou(ultima, est, eu) && <LiberarTranscricao key={`lib-${ultima.id}`} execId={ultima.id} api={api} token={token} />}
           {aoAnalise && (meu === 'candidato' || euAvaliou(ultima, est, eu)) && <button className="btn mini menta" onClick={() => aoAnalise(ultima.id)}>Ver análise completa da estação</button>}
           {meu === 'candidato' && aoRevisar && <button className="btn mini menta" onClick={aoRevisar}>Registrar o que faltou (revisão)</button>}
         </section>
       )}
 
       {ciclo ? (
-        <section className="sl-bloco" aria-label="Fila do ciclo">
+        <section className="sl-bloco" id="sl-fila" aria-label="Fila do ciclo">
           <h3>Fila do ciclo</h3>
           {fila.length === 0 && <p className="sub">Nenhuma estação visível ainda.</p>}
           {fila.map((i) => (
@@ -330,7 +377,15 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
             </div>
           ))}
           {souAdmin && !emAndamento && !ultima && <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'encerrar' })}>Encerrar este ciclo</button>}
-          {souAdmin && (<><h4>Adicionar estações</h4>{seletor}<button className="btn mini" disabled={escolhidas.length === 0} onClick={adicionar}>Adicionar ao ciclo</button></>)}
+          {souAdmin && (<><h4>Adicionar estações</h4>{seletor}<button className="btn mini" disabled={escolhidas.length === 0} onClick={() => adicionar(false)}>Adicionar ao ciclo</button>
+            {repetidas && (
+              <div className="aviso" role="alert" data-testid="aviso-na-fila">
+                <b>{repetidas.msg}</b>
+                <ul>{repetidas.lista.map((r) => <li key={`${r.id}-${r.posicao}`}>«{r.titulo}» — {ROTULO_SITUACAO[r.situacao] ?? r.situacao} (posição {r.posicao})</li>)}</ul>
+                <div className="acoes"><button type="button" className="btn mini menta" onClick={() => adicionar(true)}>Duplicar a prática</button>
+                  {escolhidas.length > repetidas.lista.length && <button type="button" className="btn mini" onClick={soAsNovas}>Só as outras</button>}
+                  <button type="button" className="btn mini" onClick={() => setRepetidas(null)}>Cancelar</button></div>
+              </div>)}</>)}
         </section>
       ) : souAdmin ? (
         <section className="sl-bloco" aria-label="Novo ciclo">

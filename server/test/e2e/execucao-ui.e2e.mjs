@@ -25,7 +25,7 @@ writeFileSync(join(pub, 'index.html'), readFileSync(join(web, 'index.html'), 'ut
 const srv = await iniciar({ pastaWeb: pub });
 const nav = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const falhas = [];
-const passo = async (n, fn) => { try { await fn(); console.log('✔', n); } catch (e) { falhas.push(n); console.log('✘', n, '\n   ', process.env.DEBUG_UI ? e.message : e.message.split('\n')[0]); } };
+const passo = async (n, fn) => { try { await fn(); console.log('✔', n); } catch (e) { falhas.push(n); console.log('✘', n, '\n   ', process.env.DEBUG_UI ? e.message : e.message.split('\n').slice(0,4).join(' | ')); } };
 
 const u = async (email) => (await srv.q(`select id, sessao_versao from usuarios where email=$1`, [email])).rows[0];
 const ana = await u('ana@x.com'); const moda = await u('moda@x.com');
@@ -68,6 +68,7 @@ const abrir = async (s, { w = 1280, h = 900, voz = false } = {}) => {
 };
 
 let pm; let pa;
+const abrirTudo = async (p) => { await p.waitForSelector('[data-testid="painel-quadros"]'); const b = p.locator('[data-testid="painel-quadros"] button:has-text("Abrir todos")'); if (await b.count()) await b.click(); };
 await passo('ao iniciar, o candidato já vê a descrição e o cenário; nada de gabarito, gatilho ou carta não liberada', async () => {
   pm = await abrir(sModa, { voz: true });
   await pm.waitForSelector('[data-carta="descricao"]');
@@ -165,14 +166,17 @@ await passo('ao finalizar, a autocorreção pela transcrição aparece sozinha: 
 
 await passo('painel de análise do candidato: resumo, seções, comparação, itens × fala e transcrição com trecho destacado', async () => {
   await pm.waitForSelector('[data-testid="fim-estacao"]', { timeout: 15000 });
-  await pm.locator('button:has-text("Ver análise completa da estação")').click(); await pm.waitForSelector('[data-testid="painel-analise"]');
+  await pm.locator('button:has-text("Ver análise completa da estação")').click(); await pm.waitForSelector('[data-testid="painel-analise"]'); await abrirTudo(pm);
   assert.match(await pm.textContent('.an-kpis'), /de 5 pts/);
   if (process.env.DEBUG_UI) console.log(JSON.stringify((await srv.q(`select final, fonte, resumo from analises_transcricao where execucao_id=$1`, [execId])).rows), '\n', (await pm.textContent('[data-testid="resumo"]')).slice(0, 500), srv.ia.chamadas.slice(-6).map((c) => c[0]));
   assert.match(await pm.textContent('[data-testid="resumo"]'), /Verbalize droga, dose e via/);
   assert.equal(await pm.locator('[data-testid="secoes"] .an-linha-barra').count(), 2);
   assert.ok(await pm.locator('[data-testid="comparacao"] .an-linha-barra.atual').count(), 'comparação destaca a estação atual');
   assert.ok(await pm.locator('[data-testid="itens"] .an-item.div').count() >= 1, 'item em que a marcação passou a fala fica destacado');
-  assert.ok(await pm.locator('[data-testid="transcricao"] mark').count() >= 1, 'trecho da fala destacado');
+  // a fala literal só aparece quando o avaliador liberar; a análise (itens × fala, resumo) já está lá
+  assert.equal(await pm.locator('[data-testid="transcricao-oculta"]').count(), 1, 'transcrição escondida até a liberação');
+  assert.equal(await pm.locator('[data-testid="transcricao"] mark').count(), 0, 'nenhum trecho literal vaza');
+  assert.equal(await pm.locator('[data-testid="liberar-transcricao-analise"]').count(), 0, 'candidato não libera');
   assert.equal(await pm.locator('button:has-text("Revisar a nota")').count(), 0, 'só o avaliador revisa a nota');
   await pm.waitForTimeout(900); await pm.locator('[data-testid="painel-analise"]').screenshot({ path: join(saida, 'exec-analise.png') });
 });
@@ -190,7 +194,7 @@ await passo('cartões de revisão dos pontos escolhidos ficam ligados à estaç�
 
 await passo('nova estação com outra abordagem: a IA recebe os pontos escolhidos e o rascunho abre em Criar', async () => {
   await pm.locator('nav button:has-text("Início")').click(); await pm.waitForSelector('[data-testid="estacoes-feitas"]');
-  await pm.locator('[data-testid="estacoes-feitas"] button:has-text("Ver análise")').first().click(); await pm.waitForSelector('[data-testid="acoes"]');
+  await pm.locator('[data-testid="estacoes-feitas"] button:has-text("Ver análise")').first().click(); await abrirTudo(pm); await pm.waitForSelector('[data-testid="acoes"]');
   await pm.fill('input[placeholder^="Ex.: paciente chega pelo pronto-socorro"]', 'paciente chega pelo pronto-socorro');
   await pm.locator('button:has-text("Gerar nova estação")').click();
   await pm.waitForSelector('.est-editor'); assert.match(await pm.textContent('.aviso'), /outra abordagem/);
@@ -199,9 +203,30 @@ await passo('nova estação com outra abordagem: a IA recebe os pontos escolhido
   assert.match(await pm.getByLabel('Título', { exact: true }).first().inputValue(), /^Variação: Asma agudizada/);
 });
 
+await passo('o avaliador libera a transcrição pelo Início; o candidato passa a reler a fala minuto a minuto', async () => {
+  await pa.locator('nav button:has-text("Início")').click(); await pa.waitForSelector('[data-testid="painel-avaliador"]');
+  assert.match(await pa.textContent('[data-testid="painel-avaliador"]'), /Asma agudizada na UBS/);
+  assert.match(await pa.textContent('[data-testid="painel-avaliador"]'), /transcrição só com você/);
+  await pa.screenshot({ path: join(saida, 'exec-inicio-avaliador.png'), fullPage: true });
+  await pa.locator('[data-testid="liberar-transcricao"]').first().click();
+  await pa.waitForSelector('[data-testid="liberar-transcricao"]:has-text("Retirar")');
+  assert.equal((await srv.q(`select transcricao_liberada from execucoes where id=$1`, [execId])).rows[0].transcricao_liberada, true);
+  await pm.locator('nav button:has-text("Início")').click(); await pm.waitForSelector('[data-testid="estacoes-feitas"]');
+  await pm.locator('[data-testid="estacoes-feitas"] button:has-text("Ver análise")').first().click(); await pm.waitForSelector('[data-testid="painel-analise"]'); await abrirTudo(pm);
+  await pm.waitForSelector('[data-testid="fala-por-minuto"]');
+  assert.ok(await pm.locator('[data-testid="transcricao"] mark').count() >= 1, 'trecho da fala destacado depois de liberado');
+  assert.equal(await pm.locator('[data-testid="transcricao-oculta"]').count(), 0);
+  await pm.locator('[data-testid="transcricao"]').screenshot({ path: join(saida, 'exec-transcricao-liberada.png') });
+  // o avaliador volta atrás: o texto some para o candidato
+  await pa.locator('[data-testid="liberar-transcricao"]').first().click(); await pa.waitForSelector('[data-testid="liberar-transcricao"]:has-text("Liberar transcrição")');
+  await pm.reload(); await pm.waitForSelector('nav'); await pm.locator('nav button:has-text("Início")').click(); await pm.waitForSelector('[data-testid="estacoes-feitas"]');
+  await pm.locator('[data-testid="estacoes-feitas"] button:has-text("Ver análise")').first().click(); await abrirTudo(pm); await pm.waitForSelector('[data-testid="transcricao-oculta"]');
+  await pa.locator('nav button:has-text("Ciclos")').click();
+});
+
 await passo('avaliador revisa a nota com base na fala; a nota original fica registrada', async () => {
   await pa.waitForSelector('[data-testid="fim-estacao"]');
-  await pa.locator('button:has-text("Ver análise completa da estação")').click(); await pa.waitForSelector('[data-testid="painel-analise"]');
+  await pa.locator('button:has-text("Ver análise completa da estação")').click(); await pa.waitForSelector('[data-testid="painel-analise"]'); await abrirTudo(pa);
   await pa.locator('button:has-text("Revisar a nota")').click();
   await pa.locator('.an-item:has-text("alarme") button:has-text("usar o da fala")').click();
   await pa.locator('button:has-text("Salvar nova nota")').click();
@@ -214,10 +239,44 @@ await passo('avaliador revisa a nota com base na fala; a nota original fica regi
 await passo('estações já feitas: Início lista e abre o painel; celular sem rolagem lateral', async () => {
   const p = await abrir(sModa, { w: 390, h: 800 });
   await p.locator('nav button:has-text("Início")').click(); await p.waitForSelector('[data-testid="estacoes-feitas"]');
-  await p.locator('[data-testid="estacoes-feitas"] button:has-text("Ver análise")').first().click(); await p.waitForSelector('[data-testid="painel-analise"]');
+  await p.locator('[data-testid="estacoes-feitas"] button:has-text("Ver análise")').first().click(); await p.waitForSelector('[data-testid="painel-analise"]'); await abrirTudo(p);
   const sobra = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   assert.ok(sobra <= 1, `sobra ${sobra}px`);
   await p.screenshot({ path: join(saida, 'exec-analise-celular.png') });
+});
+
+await passo('análise em quadros: índice resumido, minimizar, reordenar por arrastar, modo em sequência e volta ao compacto', async () => {
+  const p = await abrir(sModa, { w: 1100, h: 900 });
+  await p.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.startsWith('rv_analise')) localStorage.removeItem(k); });
+  await p.locator('nav button:has-text("Início")').click(); await p.waitForSelector('[data-testid="estacoes-feitas"]');
+  await p.locator('[data-testid="estacoes-feitas"] button:has-text("Ver análise")').first().click(); await p.waitForSelector('[data-testid="painel-quadros"]');
+  // compacto: índice com tiles resumidos e só o resumo aberto
+  assert.ok(await p.locator('[data-testid="indice-quadros"] li').count() >= 5, 'índice com um quadro resumido por bloco');
+  assert.equal(await p.locator('[data-testid="resumo"]').count(), 1); assert.equal(await p.locator('[data-testid="itens"]').count(), 0, 'itens só abrem pelo índice');
+  assert.match(await p.textContent('[data-testid="tile-itens"]'), /itens/);
+  await p.locator('[data-testid="tile-itens"]').click(); await p.waitForSelector('[data-testid="itens"] .an-item');
+  await p.locator('[data-testid="tile-secoes"]').click(); await p.waitForSelector('[data-testid="secoes"]');
+  // minimizar esconde o corpo e mostra o resumo no cabeçalho
+  await p.locator('[data-testid="secoes"] button[aria-label^="Minimizar"]').click();
+  assert.equal(await p.locator('[data-testid="secoes"] .an-linha-barra').count(), 0, 'corpo some ao minimizar');
+  await p.locator('[data-testid="secoes"] button[aria-label^="Expandir"]').click(); await p.waitForSelector('[data-testid="secoes"] .an-linha-barra');
+  // reordenar arrastando o cabeçalho de "secoes" sobre "resumo"
+  const ordem = () => p.$$eval('.pq-quadro', (ns) => ns.map((n) => n.dataset.testid));
+  const antes = await ordem();
+  await p.locator('[data-testid="secoes"] .pq-cab').dragTo(p.locator('[data-testid="resumo"]'));
+  const depois = await ordem(); assert.notDeepEqual(depois, antes, 'a ordem muda ao arrastar');
+  await p.reload(); await p.locator('nav button:has-text("Início")').click(); await p.waitForSelector('[data-testid="estacoes-feitas"]');
+  await p.locator('[data-testid="estacoes-feitas"] button:has-text("Ver análise")').first().click(); await p.waitForSelector('[data-testid="painel-quadros"]');
+  assert.deepEqual(await ordem(), depois, 'a ordem escolhida fica guardada depois de recarregar');
+  // modo em sequência: todos os quadros, um abaixo do outro
+  await p.locator('[data-testid="modo-linear"]').check();
+  assert.ok(await p.locator('.pq-quadro').count() >= 5, 'todos os quadros aparecem');
+  assert.equal(await p.locator('[data-testid="indice-quadros"]').count(), 0, 'sem índice em sequência');
+  await p.screenshot({ path: join(saida, 'exec-analise-sequencia.png'), fullPage: true });
+  await p.locator('[data-testid="modo-linear"]').uncheck();
+  await p.waitForSelector('[data-testid="indice-quadros"]');
+  await p.screenshot({ path: join(saida, 'exec-analise-compacta.png') });
+  const sobra = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth); assert.ok(sobra <= 1);
 });
 
 await nav.close(); srv.fechar();

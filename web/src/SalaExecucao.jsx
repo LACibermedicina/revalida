@@ -1,6 +1,7 @@
 // Peças da estação em andamento: cartas (descrição e cenário já na abertura, materiais liberados pelo avaliador),
 // transcrição da fala do candidato e acompanhamento do avaliador (fala transcrita + sugestões de correção do PEP).
 // Nada daqui altera a nota: as sugestões só ajudam o avaliador, que continua marcando o checklist.
+import TextoEstacao, { formatarTexto } from './TextoEstacao.jsx';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { criarTranscritor, podeTranscrever } from './transcricao.js';
 import { detectarPedidos } from './pedidos.js';
@@ -47,19 +48,8 @@ export function useAoVivo({ execId, ativo, api, token, intervaloMs = 4000, anali
 
 const GRUPOS = [['laboratorial', 'Exames laboratoriais', '🧪'], ['imagem', 'Estudos de imagem', '🩻'], ['biopsia', 'Biópsia e anatomia patológica', '🔬'], ['laudo', 'Laudos', '📄'], ['outro', 'Outras informações', '📋']];
 
-/** Texto do enunciado em itens: linhas com marcador, "1." ou "a)" viram lista; o resto, parágrafo. */
-export function formatarTexto(corpo) {
-  const linhas = String(corpo ?? '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const blocos = []; let lista = null;
-  for (const l of linhas) {
-    const m = l.match(/^(?:[•\-*–]|\d{1,2}[.)]|[a-z][.)])\s+(.*)$/i);
-    if (m) { if (!lista) { lista = []; blocos.push({ lista }); } lista.push(m[1]); } else { lista = null; blocos.push({ p: l }); }
-  }
-  return blocos;
-}
-function Texto({ corpo }) {
-  return <>{formatarTexto(corpo).map((b, i) => (b.lista ? <ul key={i}>{b.lista.map((x, k) => <li key={k}>{x}</li>)}</ul> : <p key={i}>{b.p}</p>))}</>;
-}
+export { formatarTexto };
+const Texto = ({ corpo }) => <TextoEstacao corpo={corpo} />;
 
 /**
  * Descrição da estação, cenário e materiais liberados. O avaliador vê tudo organizado por tipo (laboratório, imagem, laudo…),
@@ -88,8 +78,8 @@ export function CartasEstacao({ execId, papel, api, token, segmentos = [], versa
     return (
       <article key={m.id} className={`sl-carta mat${m.liberado ? ' lib' : ''}${dica ? ' pedido' : ''}`} data-carta="material" data-liberado={m.liberado ? '1' : '0'}>
         <h4>{m.titulo} <em>{TIPO_CARTA[m.tipo] ?? 'Material'}</em></h4>
-        {m.liberado || !avaliador ? <p>{m.conteudo}</p> : (
-          <details open={dica}><summary>Ver o que será mostrado</summary><p className="sl-bloq">{m.conteudo}</p></details>
+        {m.liberado || !avaliador ? <Texto corpo={m.conteudo} /> : (
+          <details open={dica}><summary>Ver o que será mostrado</summary><div className="sl-bloq"><Texto corpo={m.conteudo} /></div></details>
         )}
         {avaliador && (
           <div className="sl-carta-acoes">

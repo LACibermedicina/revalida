@@ -153,3 +153,25 @@ export function Autocorrecao({ execId, api, token, aoAdotar }) {
     </section>
   );
 }
+
+/** O avaliador decide se o candidato pode reler a transcrição da estação que acabou (e pode retirar a qualquer momento). */
+export function LiberarTranscricao({ execId, api, token }) {
+  const [info, setInfo] = useState(null);
+  const [erro, setErro] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const ler = useCallback(() => api(`/api/execucoes/${execId}/transcricao`, { token }).then((r) => { setInfo({ liberada: Boolean(r.liberada), trechos: r.segmentos.length }); setErro(''); }).catch((e) => setErro(e.message)), [api, token, execId]);
+  useEffect(() => { setInfo(null); ler(); }, [ler]);
+  if (erro) return <p className="aviso" role="alert">{erro}</p>;
+  if (!info) return null;
+  if (info.trechos === 0) return <p className="sub" data-testid="liberar-transcricao-vazia">Sem fala transcrita nesta estação: não há transcrição para liberar.</p>;
+  const mudar = async () => {
+    setOcupado(true);
+    try { await api(`/api/execucoes/${execId}/transcricao/liberar`, { metodo: 'POST', token, corpo: { liberada: !info.liberada } }); await ler(); } catch (e) { setErro(e.message); } finally { setOcupado(false); }
+  };
+  return (
+    <div className="sl-libera" data-testid="liberar-transcricao-sala">
+      <span className="sub">{info.liberada ? `O candidato pode reler a transcrição (${info.trechos} trechos).` : `A transcrição (${info.trechos} trechos) está só com você. O candidato vê a análise, mas não a fala literal.`}</span>
+      <button type="button" className={`btn mini${info.liberada ? '' : ' menta'}`} disabled={ocupado} onClick={mudar}>{info.liberada ? 'Retirar a liberação' : 'Liberar transcrição ao candidato'}</button>
+    </div>
+  );
+}

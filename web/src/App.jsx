@@ -5,7 +5,7 @@ import Instalador from './Instalador.jsx';
 import TelaEstacoes from './Estacoes.jsx';
 import TelaCiclos from './Salas.jsx';
 import TelaEstudo from './Estudo.jsx';
-import TelaCatalogo from './Catalogo.jsx';
+import TelaPainel from './Painel.jsx';
 import { Icone } from './Icones.jsx';
 import { ConvitesRecebidos } from './SalaExtras.jsx';
 import TelaAnalise from './Analise.jsx';
@@ -41,7 +41,7 @@ const api = async (caminho, { metodo = 'GET', corpo, token } = {}) => {
   if (!r.ok) {
     if (r.status === 401 && token) window.dispatchEvent(new Event('rp-401')); // sessão encerrada no servidor (bloqueio, troca de senha…)
     // `detalhes` (lista do que falta/está inválido) e `codigo` seguem junto para as telas poderem mostrá-los
-    throw Object.assign(new Error(dados.erro || 'Algo deu errado. Tente de novo.'), { detalhes: dados.detalhes, codigo: dados.codigo, status: r.status });
+    throw Object.assign(new Error(dados.erro || 'Algo deu errado. Tente de novo.'), { detalhes: dados.detalhes, codigo: dados.codigo, status: r.status, dados });
   }
   return dados;
 };
@@ -282,7 +282,7 @@ const dataCurta = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit
 function TelaAdmin({ token, usuario }) {
   const euRoot = usuario.papel_app === 'root';
   const ehAdmin = euRoot || usuario.papel_app === 'admin';
-  const abas = [...(ehAdmin ? [['pedidos', 'Pedidos'], ['tokens', 'Tokens'], ['usuarios', 'Usuários']] : []), ['estacoes', 'Estações'], ...(ehAdmin ? [['registro', 'Registro']] : []), ...(euRoot ? [['sistema', 'Sistema']] : [])];
+  const abas = [...(ehAdmin ? [['pedidos', 'Pedidos'], ['tokens', 'Tokens'], ['usuarios', 'Usuários']] : []), ...(ehAdmin ? [['registro', 'Registro']] : []), ...(euRoot ? [['sistema', 'Sistema']] : [])];
   const [aba, setAba] = useState(abas[0][0]);
   const [cx, setCx] = useState({ aba: '', lista: [] });   // lista + a aba a que ela pertence (evita mostrar dados da aba anterior)
   const dados = cx.aba === aba ? cx.lista : [];
@@ -295,7 +295,7 @@ function TelaAdmin({ token, usuario }) {
 
   const carregar = async () => {
     setErro('');
-    const rota = { pedidos: '/api/admin/pedidos', tokens: '/api/admin/tokens', usuarios: `/api/admin/usuarios?busca=${encodeURIComponent(busca)}`, estacoes: '/api/admin/estacoes?status=revisao', registro: '/api/admin/auditoria' }[aba];
+    const rota = { pedidos: '/api/admin/pedidos', tokens: '/api/admin/tokens', usuarios: `/api/admin/usuarios?busca=${encodeURIComponent(busca)}`, registro: '/api/admin/auditoria' }[aba];
     const daAba = aba;
     if (aba === 'sistema') { setCx({ aba: daAba, lista: [] }); return; }
     try { setCx({ aba: daAba, lista: await api(rota, { token }) }); } catch (e) { setErro(e.message); setCx({ aba: daAba, lista: [] }); }
@@ -385,11 +385,6 @@ function TelaAdmin({ token, usuario }) {
         })}
       </>)}
 
-      {aba === 'estacoes' && (dados.length === 0 ? <p className="sub">Nenhuma estação aguardando revisão.</p> : dados.map((e) => (
-        <div className="cartao item-adm" key={e.id}><b>{e.titulo}</b><small>{e.area} · {e.origem} · {e.duracao_min} min</small>
-          <div className="acoes"><button className="btn mini menta" type="button" onClick={() => agir(`/api/admin/estacoes/${e.id}/status`, 'POST', { status: 'aprovada' })}>Aprovar</button>
-            <button className="btn mini" type="button" onClick={() => agir(`/api/admin/estacoes/${e.id}/status`, 'POST', { status: 'rascunho' })}>Devolver</button></div></div>)))}
-
       {aba === 'sistema' && <SistemaRoot token={token} />}
 
       {aba === 'registro' && dados.map((a) => (
@@ -436,162 +431,6 @@ function SistemaRoot({ token }) {
           <button className="btn mini coral" type="button" disabled={ocupado || !f.senha || f.confirmacao !== FRASE[acao]} onClick={executar}>Confirmar</button>
         </div>
       </>)}
-    </div>
-  );
-}
-
-/* ---------- PAINEL ---------- */
-function TelaPainel({ usuario, token, aoAbrirSala, aoCarregar, aoAnalise, aoPraticar }) {
-  const [feitas, setFeitas] = useState([]);
-  const [desempenho, setDesempenho] = useState(null);
-  const [salas, setSalas] = useState([]);
-  const [estacoes, setEstacoes] = useState([]);
-  const [estacaoId, setEstacaoId] = useState('');
-  const [modo, setModo] = useState('dupla');
-  const [papel, setPapel] = useState('avaliador_ator');
-  const [codigo, setCodigo] = useState('');
-  const [erro, setErro] = useState('');
-  const [sugestoes, setSugestoes] = useState(null);
-  const [filtroArea, setFiltroArea] = useState('');
-  const [verLista, setVerLista] = useState(false);
-  const carregarSugestoes = useCallback(() => api('/api/estudo/sugestoes-estacoes?n=5', { token }).then((r) => setSugestoes(r)).catch(() => setSugestoes({ sugestoes: [], total_disponiveis: 0 })), [token]);
-
-  useEffect(() => {
-    Promise.allSettled([
-      carregarSugestoes(),
-      api('/api/desempenho', { token }).then(setDesempenho),
-      api('/api/sessoes', { token }).then(setSalas),
-      api('/api/estacoes', { token }).then((l) => { setEstacoes(l); if (l[0]) setEstacaoId(l[0].id); }),
-      api('/api/estudo/execucoes', { token }).then(setFeitas),
-    ]).then(() => aoCarregar?.());   // só depois de TUDO (certo ou falho) a tela de carregamento sai
-  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const criar = async () => {
-    setErro('');
-    try {
-      const r = await api('/api/sessoes', { metodo: 'POST', token, corpo: { estacaoId, modo } });
-      aoAbrirSala(r.id, r.papel);
-    } catch (e) { setErro(e.message); }
-  };
-  const entrarCodigo = async () => {
-    const id = codigo.trim().split('/').pop();
-    if (!id) return setErro('Cole o código ou link da sala.');
-    setErro('');
-    try {
-      const r = await api(`/api/sessoes/${id}/entrar`, { metodo: 'POST', token, corpo: { papel } });
-      aoAbrirSala(id, r.papel);
-    } catch (e) { setErro(e.message); }
-  };
-
-  const notaMedia = desempenho?.nota_media || 0;
-  return (
-    <div className="tela painel">
-      <div className="topo">
-        <div className="quem"><div className="sub">Bom treino,</div><div className="hello">{usuario.nome.split(' ')[0]} 👋</div></div>
-        <div className="avatar" aria-hidden="true">{usuario.nome[0]?.toUpperCase()}</div>
-      </div>
-      <div className="col">
-      <div className="grid2">
-        <div className="cartao">
-          <Anel frac={notaMedia / 10} cor="var(--menta)"><span>{fmtN(notaMedia)}</span></Anel>
-          <div className="leg">nota média</div>
-        </div>
-        <div className="cartao" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 10 }}>
-          <div className="stat"><b>{desempenho?.estacoes ?? 0}</b><span>estações feitas</span></div>
-          <div className="stat"><b style={{ color: 'var(--coral)' }}>🎥</b><span>vídeo multiusuário</span></div>
-        </div>
-      </div>
-      <div className="sec">Por área</div>
-      <div className="cartao" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {(desempenho?.por_area?.length ? desempenho.por_area : [{ area: 'clinica_medica', nota: 0 }]).map((a) => (
-          <div className="barra" key={a.area}>
-            <span>{NOMES_AREA[a.area] || a.area}</span>
-            <i><u style={{ width: `${(a.nota / 10) * 100}%`, background: CORES_AREA[a.area] || 'var(--mar)' }} /></i>
-            <b>{fmtN(a.nota)}</b>
-          </div>
-        ))}
-      </div>
-
-      <div className="sec">Estações para treinar agora</div>
-      <div className="cartao sugestoes" data-testid="sugestoes" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {sugestoes === null ? <p className="sub">Escolhendo pelo seu desempenho…</p>
-          : sugestoes.sugestoes.length === 0 ? <p className="sub">Ainda não há estações aprovadas para sugerir.</p>
-            : sugestoes.sugestoes.map((e) => (
-              <button type="button" key={e.id} className="sug" data-testid="sugestao-estacao" onClick={() => aoPraticar?.(e.id)} title="Abrir nos ciclos para treinar">
-                <span><b>{e.titulo}</b><small>{NOMES_AREA[e.area] || e.area} · {e.duracao_min} min{e.dificuldade ? ` · ${e.dificuldade}` : ''}</small><small className="why">{e.motivo}</small></span>
-                <span className="tag espera">Treinar</span>
-              </button>
-            ))}
-        <div className="acoes">
-          <button type="button" className="btn mini" onClick={carregarSugestoes}>🔀 Sortear outras 5</button>
-          <button type="button" className="btn mini" aria-expanded={verLista} onClick={() => setVerLista((v) => !v)}>{verLista ? 'Esconder' : 'Ver todas as'} estações disponíveis ({estacoes.length})</button>
-        </div>
-        {verLista && (
-          <div className="disp" data-testid="estacoes-disponiveis">
-            <select value={filtroArea} onChange={(e) => setFiltroArea(e.target.value)} aria-label="Filtrar por área"><option value="">Todas as áreas</option>{Object.entries(NOMES_AREA).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select>
-            <ul>{estacoes.filter((e) => !filtroArea || e.area === filtroArea).map((e) => (
-              <li key={e.id}><span><b>{e.titulo}</b><small>{NOMES_AREA[e.area] || e.area} · {e.duracao_min} min{e.dificuldade ? ` · ${e.dificuldade}` : ''}{e.vezes_realizada ? ` · feita ${e.vezes_realizada}×` : ' · ainda não feita'}</small></span>
-                <button type="button" className="btn mini" onClick={() => aoPraticar?.(e.id)}>Treinar</button></li>
-            ))}</ul>
-          </div>
-        )}
-      </div>
-
-      </div>
-      <div className="col">
-      <div className="sec">Criar sala</div>
-      <div className="cartao" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <select value={estacaoId} onChange={(e) => setEstacaoId(e.target.value)} aria-label="Estação">
-          {estacoes.map((e) => <option key={e.id} value={e.id}>{e.titulo} · {NOMES_AREA[e.area]} · {e.duracao_min} min</option>)}
-        </select>
-        <div className="seg">
-          <button type="button" aria-selected={modo === 'dupla'} onClick={() => setModo('dupla')}>Em dupla</button>
-          <button type="button" aria-selected={modo === 'solo'} onClick={() => setModo('solo')}>Solo</button>
-        </div>
-        <button className="btn menta" type="button" onClick={criar} disabled={!estacaoId}>Criar e entrar</button>
-      </div>
-
-      <div className="sec">Entrar com código</div>
-      <div className="cartao" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div className="codigo">
-          <input placeholder="código ou link da sala" value={codigo} onChange={(e) => setCodigo(e.target.value)} />
-          <button className="btn mini" type="button" onClick={entrarCodigo}>Entrar</button>
-        </div>
-        <div className="seg">
-          {[['avaliador_ator', 'Avaliar'], ['candidato', 'Ser candidato'], ['observador', 'Observar']].map(([p, rot]) => (
-            <button key={p} type="button" aria-selected={papel === p} onClick={() => setPapel(p)}>{rot}</button>
-          ))}
-        </div>
-        {erro && <div className="msg e" role="alert">{erro}</div>}
-      </div>
-
-      </div>
-      {feitas.length > 0 && (
-        <>
-          <div className="sec largo">Estações que fiz</div>
-          <div className="cartao largo" data-testid="estacoes-feitas" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {feitas.slice(0, 6).map((x) => (
-              <div key={x.id} className="feita">
-                <span><b>{x.titulo}</b><small> · {NOMES_AREA[x.area] || x.area} · {x.maximo > 0 && x.nota !== null ? `${Math.round((x.nota / x.maximo) * 100)}%` : '—'}</small></span>
-                <button className="btn mini menta" type="button" onClick={() => aoAnalise(x.id)}>Ver análise</button>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-      <div className="sec largo">Minhas salas</div>
-      {salas.length === 0 && <p className="sub largo">Nenhuma sala ainda. Crie uma acima!</p>}
-      <div className="salas-lista">
-      {salas.map((s) => (
-        <button className="sala" type="button" key={s.id} onClick={() => aoAbrirSala(s.id, s.papel)}>
-          <span className="ic" style={{ background: s.papel === 'avaliador_ator' ? 'var(--coral-t)' : s.papel === 'candidato' ? 'var(--uva-t)' : 'var(--sol-t)' }}>
-            {s.papel === 'avaliador_ator' ? '🩺' : s.papel === 'candidato' ? '🧑‍⚕️' : '👀'}</span>
-          <span><b>{s.titulo}</b><small>Você {s.papel === 'avaliador_ator' ? 'avalia' : s.papel === 'candidato' ? 'é candidato' : 'observa'} · {s.observadores} observador(es)</small></span>
-          <span className={`tag ${s.status === 'em_andamento' ? 'vivo' : 'espera'}`}>
-            {s.status === 'em_andamento' ? 'ao vivo' : s.status === 'finalizada' ? 'finalizada' : 'aguardando'}</span>
-        </button>
-      ))}
-      </div>
     </div>
   );
 }
@@ -926,7 +765,12 @@ export default function App() {
   const [menuModo, setMenuModo] = useState(() => { try { const v = localStorage.getItem('rv_menu_modo'); return ['cheio', 'icones', 'oculto'].includes(v) ? v : (localStorage.getItem('rv_menu_oculto') === '1' ? 'oculto' : 'cheio'); } catch { return 'cheio'; } });
   const menuOculto = menuModo === 'oculto';
   const trocarMenu = (m) => { setMenuModo(m); try { localStorage.setItem('rv_menu_modo', m); } catch { /* sem storage */ } };
-  useEffect(() => window.revalidaDesktop?.aoComando?.((c) => { if (c?.tela === 'estacoes') { setComando({ ...c, n: Date.now() }); setTela('estacoes'); } else if (c?.tela === 'estudo') { setComando({ ...c, n: Date.now() }); setTela('estudo'); } else if (c?.tela === 'catalogo') { setComando({ ...c, n: Date.now() }); setTela('catalogo'); } else if (c?.tela === 'ciclos') setTela('ciclos'); }), []);
+  useEffect(() => window.revalidaDesktop?.aoComando?.((c) => {
+    if (c?.tela === 'estacoes') { setComando({ ...c, n: Date.now() }); setTela('estacoes'); }
+    else if (c?.tela === 'catalogo') { setComando({ tela: 'estacoes', aba: c.aba === 'temas' ? 'temas' : c.aba === 'importar' ? 'importar' : 'catalogo', n: Date.now() }); setTela('estacoes'); }   // o catálogo agora é uma aba de Estações
+    else if (c?.tela === 'estudo') { setComando({ ...c, n: Date.now() }); setTela('estudo'); }
+    else if (c?.tela === 'ciclos') setTela('ciclos');
+  }), []);
 
   useEffect(() => {
     fetch('/api/instalacao/estado').then((r) => r.json()).then((d) => setInstalado(d.instalado !== false)).catch(() => setInstalado(true));
@@ -937,6 +781,7 @@ export default function App() {
   const abrirAnalise = (id) => { setAnaliseId(id); setTela('analise'); };
   const sair = (motivo = '') => { localStorage.removeItem('rp-auth'); setSessaoAuth(null); setSala(null); setTela('entrar'); setAviso(motivo); };
   const abrirSala = (id, papel) => { setSala({ id, papel }); setTela('sala'); };
+  const abrirSalaCiclos = (id) => { try { sessionStorage.setItem('rv_sala', id); } catch { /* sem storage */ } setChaveCiclos((k) => k + 1); setTela('ciclos'); };
 
   useEffect(() => {
     const aoCair = () => sair('Sua sessão terminou. Entre novamente.');
@@ -952,7 +797,7 @@ export default function App() {
   useEffect(() => { if (primeiraTelaCompleta) window.__boot?.pronto(); }, [primeiraTelaCompleta]);
 
   const papelApp = sessaoAuth?.usuario?.papel_app;
-  const ehGestor = ['moderador', 'admin', 'root'].includes(papelApp);
+  const ehAdminApp = ['admin', 'root'].includes(papelApp);   // a fila de revisão de estações agora fica em Estações → Em revisão
 
   let conteudo;
   if (instalado === null) {
@@ -968,13 +813,11 @@ export default function App() {
   } else if (tela === 'sala' && sala) {
     conteudo = <TelaSala key={sala.id} sessaoId={sala.id} token={sessaoAuth.token} usuario={sessaoAuth.usuario} aoSair={() => setTela('painel')} />;
   } else if (tela === 'estacoes') {
-    conteudo = <TelaEstacoes token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} comando={comando} />;
+    conteudo = <TelaEstacoes token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} comando={comando} aoPraticar={(id) => { setSugestao(id); setChaveCiclos((k) => k + 1); setTela('ciclos'); }} />;
   } else if (tela === 'ciclos') {
     conteudo = <TelaCiclos key={chaveCiclos} token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} sugestao={sugestao} aoAnalise={abrirAnalise} aoRevisar={() => { setComando({ tela: 'estudo', aba: 'erros', n: Date.now() }); setTela('estudo'); }} />;
   } else if (tela === 'estudo') {
     conteudo = <TelaEstudo token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} comando={comando} aoAnalise={abrirAnalise} aoPraticar={(id) => { setSugestao(id); setTela('ciclos'); }} />;
-  } else if (tela === 'catalogo') {
-    conteudo = <TelaCatalogo token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} comando={comando} aoAbrirEstacao={(id) => { setComando({ tela: 'estacoes', abrir: id, n: Date.now() }); setTela('estacoes'); }} />;
   } else if (tela === 'analise' && analiseId) {
     conteudo = <TelaAnalise key={analiseId} execId={analiseId} token={sessaoAuth.token} api={api} aoVoltar={() => setTela('painel')}
       aoPraticar={(id) => { setSugestao(id); setTela('ciclos'); }}
@@ -982,10 +825,13 @@ export default function App() {
       aoNovaEstacao={(id) => { setComando({ tela: 'estacoes', abrir: id, nota: 'Estação nova criada pela IA com outra abordagem, dando ênfase aos pontos que você escolheu. Revise tudo antes de publicar.', n: Date.now() }); setTela('estacoes'); }} />;
   } else if (tela === 'conta') {
     conteudo = <TelaConta sessaoAuth={sessaoAuth} token={sessaoAuth.token} aoAtualizar={guardar} aoSair={() => sair()} />;
-  } else if (tela === 'admin' && ehGestor) {
+  } else if (tela === 'admin' && ehAdminApp) {
     conteudo = <TelaAdmin token={sessaoAuth.token} usuario={sessaoAuth.usuario} />;
   } else {
-    conteudo = <TelaPainel usuario={sessaoAuth.usuario} token={sessaoAuth.token} aoPraticar={(id) => { setSugestao(id); setChaveCiclos((k) => k + 1); setTela('ciclos'); }} aoAbrirSala={abrirSala} aoAnalise={abrirAnalise} aoCarregar={() => window.__boot?.pronto()} />;
+    conteudo = <TelaPainel usuario={sessaoAuth.usuario} token={sessaoAuth.token} api={api}
+      aoPraticar={(id) => { setSugestao(id); setChaveCiclos((k) => k + 1); setTela('ciclos'); }}
+      aoIr={(dest, cmd = {}) => { setComando({ tela: dest, ...cmd, n: Date.now() }); setTela(dest); }}
+      aoAbrirSala={abrirSalaCiclos} aoAbrirSalaAntiga={abrirSala} aoAnalise={abrirAnalise} aoCarregar={() => window.__boot?.pronto()} />;
   }
 
   return (
@@ -1011,10 +857,9 @@ export default function App() {
           <button type="button" aria-current={tela === 'sala' ? 'page' : undefined} disabled={!sala}
             onClick={() => sala && setTela('sala')} style={!sala ? { opacity: .4 } : undefined}><span className="ni" aria-hidden="true"><Icone nome="sala" /></span>Sala</button>
           <button type="button" aria-current={tela === 'ciclos' ? 'page' : undefined} onClick={() => setTela('ciclos')}><span className="ni" aria-hidden="true"><Icone nome="ciclos" /></span>Ciclos</button>
+          <button type="button" aria-current={tela === 'estacoes' ? 'page' : undefined} onClick={() => setTela('estacoes')}><span className="ni" aria-hidden="true"><Icone nome="catalogo" /></span>Estações</button>
           <button type="button" aria-current={tela === 'estudo' ? 'page' : undefined} onClick={() => setTela('estudo')}><span className="ni" aria-hidden="true"><Icone nome="estudo" /></span>Estudo</button>
-          <button type="button" aria-current={tela === 'catalogo' ? 'page' : undefined} onClick={() => setTela('catalogo')}><span className="ni" aria-hidden="true"><Icone nome="catalogo" /></span>Catálogo</button>
-          <button type="button" aria-current={tela === 'estacoes' ? 'page' : undefined} onClick={() => setTela('estacoes')}><span className="ni" aria-hidden="true"><Icone nome="criar" /></span>Criar</button>
-          {ehGestor && <button type="button" aria-current={tela === 'admin' ? 'page' : undefined} onClick={() => setTela('admin')}><span className="ni" aria-hidden="true"><Icone nome="admin" /></span>Admin</button>}
+          {ehAdminApp && <button type="button" aria-current={tela === 'admin' ? 'page' : undefined} onClick={() => setTela('admin')}><span className="ni" aria-hidden="true"><Icone nome="admin" /></span>Admin</button>}
           <button type="button" aria-current={tela === 'conta' ? 'page' : undefined} onClick={() => setTela('conta')}><span className="ni" aria-hidden="true"><Icone nome="conta" /></span>Conta</button>
           <button type="button" onClick={() => sair()}><span className="ni" aria-hidden="true"><Icone nome="sair" /></span>Sair</button>
         </nav>

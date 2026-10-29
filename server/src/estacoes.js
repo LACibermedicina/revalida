@@ -3,6 +3,7 @@
 import crypto from 'node:crypto';
 import { idValido, Limitador, rota } from './seguranca.js';
 import { ErroIA } from './ia.js';
+import { assinatura, acharDuplicada, tituloLivre } from './assinatura.js';
 import { sincronizarTemas, candidatosPorPrioridade, diretrizesDoTema } from './temas.js';
 import { AREAS, DIFICULDADES, FORMATO_PACOTE, MAX_ESTACOES_PACOTE, ESQUEMA_VERSAO, avisosDeCoerencia, validarEstacao } from './estacao-esquema.js';
 
@@ -44,24 +45,36 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
   /** Uma única instrução SQL (CTEs): a estação e seus filhos entram juntos ou não entram. */
   async function inserir({ estacao, origem, status, usuarioId, semente = null, incertos = [], dificuldade = null }) {
     const sql = `with e as (
-        insert into estacoes (titulo, area, duracao_min, origem, status, script_ator, instrucoes_candidato, cenario, conceitos, esquema_versao, criado_por, semente, incertos, sintese, objetivos, perfil_paciente, diagnostico_alvo, dificuldade)
-        values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,${ESQUEMA_VERSAO},$10,$11,$12::jsonb,$15,$16::jsonb,$17,$18,$19) returning id),
+        insert into estacoes (titulo, area, duracao_min, origem, status, script_ator, instrucoes_candidato, cenario, conceitos, esquema_versao, criado_por, semente, incertos, sintese, objetivos, perfil_paciente, diagnostico_alvo, dificuldade, titulo_norm, conteudo_hash)
+        values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,${ESQUEMA_VERSAO},$10,$11,$12::jsonb,$15,$16::jsonb,$17,$18,$19,$20,$21) returning id),
       ${SQL_FILHOS('(select id from e)').replace('$PEP', '$13').replace('$MAT', '$14')}
       select id from e`;
     const r = await q(sql, [estacao.titulo, estacao.area, estacao.duracao_min, origem, status, estacao.script_ator, estacao.instrucoes_candidato, estacao.cenario,
       JSON.stringify(estacao.conceitos), usuarioId, semente, JSON.stringify(incertos), JSON.stringify(estacao.pep), JSON.stringify(estacao.materiais),
-      estacao.sintese, JSON.stringify(estacao.objetivos), estacao.perfil_paciente, estacao.diagnostico_alvo, DIFICULDADES.includes(dificuldade) ? dificuldade : null]);
+      estacao.sintese, JSON.stringify(estacao.objetivos), estacao.perfil_paciente, estacao.diagnostico_alvo, DIFICULDADES.includes(dificuldade) ? dificuldade : null, assinatura(estacao).titulo_norm, assinatura(estacao).conteudo_hash]);
     await sincronizarTemas(q, r.rows[0].id);
     return r.rows[0].id;
   }
+  /** Estação igual já existe? Conteúdo idêntico nunca entra; título repetido com conteúdo diferente é recusado (manual) ou renomeado (IA, arquivo, pacote). */
+  const AVISO_DUP = { conteudo: 'Já existe uma estação com este mesmo conteúdo. Pratique a existente ou altere o caso para criar outra.', titulo: 'Já existe uma estação com este título. Escolha outro título.' };
+  async function inserirUnica(args, req, { titulo = 'ajustar', exceto = null } = {}) {
+    const d = await acharDuplicada(q, args.estacao, { usuarioId: req.usuario.id, moderador: ehModerador(req.usuario), exceto });
+    if (d && (d.tipo === 'conteudo' || titulo === 'bloquear')) return { duplicada: { ...d, erro: AVISO_DUP[d.tipo], sugestao_titulo: await tituloLivre(q, args.estacao.titulo) } };
+    const livre = await tituloLivre(q, args.estacao.titulo);
+    const ajustado = livre !== args.estacao.titulo ? livre : null;
+    const id = await inserir(ajustado ? { ...args, estacao: { ...args.estacao, titulo: ajustado } } : args);
+    return { id, titulo_ajustado: ajustado };
+  }
+  const recusar = (res, dup) => res.status(409).json({ erro: dup.erro, codigo: dup.tipo === 'conteudo' ? 'ESTACAO_DUPLICADA' : 'TITULO_REPETIDO', tipo: dup.tipo, existente: dup.existente, sugestao_titulo: dup.sugestao_titulo });
+
   async function atualizar(id, estacao, incertos) {
-    const sql = `with u as (update estacoes set titulo=$2, area=$3, duracao_min=$4, script_ator=$5, instrucoes_candidato=$6, cenario=$7, conceitos=$8::jsonb, incertos=$9::jsonb, sintese=$12, objetivos=$13::jsonb, perfil_paciente=$14, diagnostico_alvo=$15, atualizado_em=now() where id=$1 returning id),
+    const sql = `with u as (update estacoes set titulo=$2, area=$3, duracao_min=$4, script_ator=$5, instrucoes_candidato=$6, cenario=$7, conceitos=$8::jsonb, incertos=$9::jsonb, sintese=$12, objetivos=$13::jsonb, perfil_paciente=$14, diagnostico_alvo=$15, titulo_norm=$16, conteudo_hash=$17, atualizado_em=now() where id=$1 returning id),
       dp as (delete from pep_itens where estacao_id=$1), dm as (delete from estacao_materiais where estacao_id=$1),
       ${SQL_FILHOS('$1::uuid').replace('$PEP', '$10').replace('$MAT', '$11')}
       select id from u`;
     const r = (await q(sql, [id, estacao.titulo, estacao.area, estacao.duracao_min, estacao.script_ator, estacao.instrucoes_candidato, estacao.cenario,
       JSON.stringify(estacao.conceitos), JSON.stringify(incertos), JSON.stringify(estacao.pep), JSON.stringify(estacao.materiais),
-      estacao.sintese, JSON.stringify(estacao.objetivos), estacao.perfil_paciente, estacao.diagnostico_alvo])).rows[0]?.id ?? null;
+      estacao.sintese, JSON.stringify(estacao.objetivos), estacao.perfil_paciente, estacao.diagnostico_alvo, assinatura(estacao).titulo_norm, assinatura(estacao).conteudo_hash])).rows[0]?.id ?? null;
     if (r) await sincronizarTemas(q, id);
     return r;
   }
@@ -106,7 +119,9 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
   app.post('/api/estacoes', autenticar, rota(async (req, res) => {
     const v = validarEstacao(req.body, { completa: false });
     if (!v.ok) return res.status(400).json({ erro: 'Estação inválida.', detalhes: v.erros });
-    res.status(201).json({ id: await inserir({ estacao: v.estacao, origem: 'manual', status: 'rascunho', usuarioId: req.usuario.id }) });
+    const r = await inserirUnica({ estacao: v.estacao, origem: 'manual', status: 'rascunho', usuarioId: req.usuario.id }, req, { titulo: 'bloquear' });
+    if (r.duplicada) return recusar(res, r.duplicada);
+    res.status(201).json({ id: r.id });
   }));
 
   app.put('/api/estacoes/:id', autenticar, ID, rota(async (req, res) => {
@@ -116,6 +131,8 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
     if (dono && !ehAdmin(req.usuario) && e.status !== 'rascunho') return res.status(409).json({ erro: 'Só rascunhos podem ser editados.', codigo: 'NAO_E_RASCUNHO' });
     const v = validarEstacao(req.body, { completa: false });
     if (!v.ok) return res.status(400).json({ erro: 'Estação inválida.', detalhes: v.erros });
+    const d = await acharDuplicada(q, v.estacao, { usuarioId: req.usuario.id, moderador: ehModerador(req.usuario), exceto: req.params.id });
+    if (d) return recusar(res, { ...d, erro: AVISO_DUP[d.tipo], sugestao_titulo: await tituloLivre(q, v.estacao.titulo, req.params.id) });
     await atualizar(req.params.id, v.estacao, []); // editar = o revisor já viu os campos incertos
     res.json({ ok: true, avisos: avisosDeCoerencia(v.estacao) });
   }));
@@ -124,8 +141,11 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
     const e = (await q('select criado_por, status from estacoes where id=$1', [req.params.id])).rows[0];
     const dono = e?.criado_por === req.usuario.id;
     if (!e || !(dono || ehAdmin(req.usuario))) return res.status(404).json({ erro: 'Estação não encontrada.' });
-    if (e.status === 'aprovada') return res.status(409).json({ erro: 'Estações aprovadas não são apagadas aqui.', codigo: 'APROVADA' });
-    await q('delete from estacoes where id=$1', [req.params.id]);
+    // quem criou (ou a administração) apaga rascunho, em revisão ou aprovada; se já foi usada em sala, ciclo ou sessão, o banco impede e a pessoa é avisada
+    try { await q('delete from estacoes where id=$1', [req.params.id]); } catch (err) {
+      if (err?.code === '23503' || /violates foreign key/.test(String(err?.stderr ?? err?.message ?? ''))) return res.status(409).json({ erro: 'Esta estação já foi usada em salas ou ciclos e não pode ser apagada. Para tirá-la de circulação, devolva-a para rascunho.', codigo: 'EM_USO' });
+      throw err;
+    }
     res.json({ ok: true });
   }));
 
@@ -155,8 +175,10 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
       const r = await ia.gerarEstacao({ area: b.area || undefined, subtema, dificuldade: b.dificuldade, instrucoes: b.instrucoes, candidatosTema,
         cenario: str(b.cenario), perfil: str(b.perfil), queixa: str(b.queixa), diagnostico_alvo: str(b.diagnostico_alvo), objetivos: Array.isArray(b.objetivos) ? b.objetivos.filter((o) => typeof o === 'string') : [],
         diretrizes: await diretrizesDoTema(q, { nome: str(b.diagnostico_alvo) || subtema, area: b.area || undefined }) });
-      const id = await inserir({ estacao: r.estacao, origem: 'ia', status: 'rascunho', usuarioId: req.usuario.id, semente: r.sorteio.semente, dificuldade: r.sorteio.dificuldade });
-      res.status(201).json({ id, estacao: r.estacao, avisos: r.avisos, sorteados: r.sorteio.sorteados, semente: r.sorteio.semente });
+      const u = await inserirUnica({ estacao: r.estacao, origem: 'ia', status: 'rascunho', usuarioId: req.usuario.id, semente: r.sorteio.semente, dificuldade: r.sorteio.dificuldade }, req);
+      if (u.duplicada) return recusar(res, u.duplicada);
+      const id = u.id; if (u.titulo_ajustado) r.estacao.titulo = u.titulo_ajustado;
+      res.status(201).json({ id, titulo_ajustado: u.titulo_ajustado, estacao: r.estacao, avisos: r.avisos, sorteados: r.sorteio.sorteados, semente: r.sorteio.semente });
     } catch (e) { erroIA(res, e); }
   }));
 
@@ -172,8 +194,10 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
       const r = await ia.variarEstacao({ base: conteudo, mudancas: { perfil: str(b.perfil), cenario: str(b.cenario), diagnostico_alvo: str(b.diagnostico_alvo), dificuldade: str(b.dificuldade), instrucoes: str(b.instrucoes), abordagem: str(b.abordagem),
           foco: Array.isArray(b.foco) ? b.foco.filter((f) => typeof f === 'string').slice(0, 8) : [] },
         diretrizes: await diretrizesDoTema(q, { nome: str(b.diagnostico_alvo) || base.diagnostico_alvo || base.titulo, area: base.area }) });
-      const id = await inserir({ estacao: r.estacao, origem: 'ia', status: 'rascunho', usuarioId: req.usuario.id, dificuldade: DIFICULDADES.includes(str(b.dificuldade)) ? str(b.dificuldade) : base.dificuldade });
-      res.status(201).json({ id, estacao: r.estacao, avisos: r.avisos, base_id: base.id });
+      const u = await inserirUnica({ estacao: r.estacao, origem: 'ia', status: 'rascunho', usuarioId: req.usuario.id, dificuldade: DIFICULDADES.includes(str(b.dificuldade)) ? str(b.dificuldade) : base.dificuldade }, req);
+      if (u.duplicada) return recusar(res, u.duplicada);
+      const id = u.id; if (u.titulo_ajustado) r.estacao.titulo = u.titulo_ajustado;
+      res.status(201).json({ id, titulo_ajustado: u.titulo_ajustado, estacao: r.estacao, avisos: r.avisos, base_id: base.id });
     } catch (e) { erroIA(res, e); }
   }));
 
@@ -184,8 +208,10 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
     if (limite(req, res)) return;
     try {
       const r = await ia.extrairDeArquivo({ mime: req.body.mime, base64: req.body.base64 });
-      const id = await inserir({ estacao: r.estacao, origem: 'importada', status: 'rascunho', usuarioId: req.usuario.id, incertos: r.incertos });
-      res.status(201).json({ id, estacao: r.estacao, incertos: r.incertos, avisos: r.avisos });
+      const u = await inserirUnica({ estacao: r.estacao, origem: 'importada', status: 'rascunho', usuarioId: req.usuario.id, incertos: r.incertos }, req);
+      if (u.duplicada) return recusar(res, u.duplicada);
+      const id = u.id; if (u.titulo_ajustado) r.estacao.titulo = u.titulo_ajustado;
+      res.status(201).json({ id, titulo_ajustado: u.titulo_ajustado, estacao: r.estacao, incertos: r.incertos, avisos: r.avisos });
     } catch (e) { erroIA(res, e); }
   }));
 
@@ -203,10 +229,11 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
       if (!v.ok) { resultado.push({ posicao: i, titulo: String(bruto?.titulo ?? '').slice(0, 120), ok: false, erros: v.erros.slice(0, 5) }); continue; }
       // pacote que declara trechos incertos (ex.: importado do caderno INEP) entra como rascunho, nunca aprovado direto
       const incertos = Array.isArray(bruto.incertos) ? bruto.incertos.filter((x) => typeof x === 'string').slice(0, 20) : [];
-      const id = await inserir({ estacao: v.estacao, origem: 'importada', status: incertos.length ? 'rascunho' : status, usuarioId: req.usuario.id, incertos });
-      resultado.push({ posicao: i, titulo: v.estacao.titulo, ok: true, id, incertos });
+      const u = await inserirUnica({ estacao: v.estacao, origem: 'importada', status: incertos.length ? 'rascunho' : status, usuarioId: req.usuario.id, incertos }, req);
+      if (u.duplicada) { resultado.push({ posicao: i, titulo: v.estacao.titulo, ok: false, duplicada: true, tipo: u.duplicada.tipo, existente: u.duplicada.existente, erros: [u.duplicada.erro] }); continue; }
+      resultado.push({ posicao: i, titulo: u.titulo_ajustado ?? v.estacao.titulo, ok: true, id: u.id, incertos, titulo_ajustado: u.titulo_ajustado });
     }
-    res.status(201).json({ status, importadas: resultado.filter((r) => r.ok).length, rejeitadas: resultado.filter((r) => !r.ok).length, resultado });
+    res.status(201).json({ status, importadas: resultado.filter((r) => r.ok).length, rejeitadas: resultado.filter((r) => !r.ok).length, duplicadas: resultado.filter((r) => r.duplicada).length, resultado });
   }));
 
   app.post('/api/estacoes/exportar', autenticar, rota(async (req, res) => {

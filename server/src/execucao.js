@@ -20,9 +20,16 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
   const U = (req) => req.usuario.id;
   const ultimaAoVivo = new Map();
 
+  /** Candidato sem liberação: nada da fala literal (segmentos, trechos por minuto, evidências citadas); a análise (acertos e lacunas) continua. */
+  const ocultarFala = (p) => {
+    const por_minuto = (p.por_minuto ?? []).map((m) => ({ ...m, segmentos: [] }));
+    const itens = (p.itens ?? []).map((i) => ({ ...i, evidencia: '', ...(i.sugestao ? { sugestao: { ...i.sugestao, evidencia: '' } } : {}) }));
+    return { ...p, por_minuto, itens };
+  };
+
   /** Execução + papel de quem pergunta: candidato, avaliador (delegado ou chefe da sala) ou observador presente na sala. */
   async function contexto(execId, usuarioId) {
-    const x = (await q(`select e.id, e.estado, e.sala_id, e.avaliador_id, e.candidato_id, e.iniciada_em, e.finalizada_em, e.nota, e.checklist, e.nota_original,
+    const x = (await q(`select e.id, e.estado, e.sala_id, e.avaliador_id, e.candidato_id, e.iniciada_em, e.finalizada_em, e.nota, e.checklist, e.nota_original, e.transcricao_liberada,
         s.admin_id, i.estacao_id, t.titulo, t.area, t.cenario, t.instrucoes_candidato, t.diagnostico_alvo, t.duracao_min,
         exists (select 1 from sala_participantes sp where sp.sala_id = e.sala_id and sp.usuario_id = $2 and sp.saiu_em is null) presente
       from execucoes e join salas s on s.id = e.sala_id join ciclo_itens i on i.id = e.item_id join estacoes t on t.id = i.estacao_id where e.id = $1`, [execId, usuarioId])).rows[0];
@@ -117,8 +124,22 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
     const x = await contexto(req.params.id, U(req));
     if (!x) return naoAchou(res);
     if (x.papel !== 'candidato' && x.papel !== 'avaliador') return proibido(res);
+    // o avaliador acompanha em tempo real; o candidato só relê depois que a estação termina E o avaliador liberou
+    if (x.papel === 'candidato' && !(x.estado === 'finalizada' && x.transcricao_liberada)) return res.status(403).json({ erro: 'O avaliador ainda não liberou a transcrição para você.', codigo: 'TRANSCRICAO_NAO_LIBERADA' });
     const segmentos = (await q('select ordem, texto, inicio_ms, fonte from transcricoes where execucao_id=$1 order by ordem', [x.id])).rows;
-    res.json({ estado: x.estado, encerrada: x.estado !== 'em_andamento' && x.estado !== 'pausada', segmentos });
+    res.json({ estado: x.estado, encerrada: x.estado !== 'em_andamento' && x.estado !== 'pausada', liberada: Boolean(x.transcricao_liberada), segmentos });
+  }));
+
+  // O avaliador decide se o candidato pode reler a transcrição (e pode desfazer). Só depois que a estação terminou.
+  app.post('/api/execucoes/:id/transcricao/liberar', autenticar, ID, rota(async (req, res) => {
+    const x = await contexto(req.params.id, U(req));
+    if (!x) return naoAchou(res);
+    if (x.papel !== 'avaliador') return proibido(res);
+    if (typeof req.body?.liberada !== 'boolean') return res.status(400).json({ erro: 'Informe liberada: true ou false.' });
+    if (x.estado !== 'finalizada') return res.status(409).json({ erro: 'A transcrição só pode ser liberada depois que a estação terminar.', codigo: 'EXECUCAO_NAO_FINALIZADA' });
+    await q('update execucoes set transcricao_liberada=$2, transcricao_liberada_em=case when $2 then now() else null end where id=$1', [x.id, req.body.liberada]);
+    await difundir(x.sala_id, 'transcricao_liberada', { ator: U(req), liberada: req.body.liberada });
+    res.json({ ok: true, liberada: req.body.liberada });
   }));
 
   /* ---------------- conferência do PEP pela transcrição ---------------- */
@@ -196,11 +217,12 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
     const semFala = nSeg === 0;
     const divergentes = r.itens.filter((i) => i.divergencia).length;
     const seg = (await q('select t.ordem, t.texto, coalesce(t.inicio_ms, (extract(epoch from (t.criado_em - e.iniciada_em)) * 1000)::int) ms from transcricoes t join execucoes e on e.id = t.execucao_id where t.execucao_id=$1 order by t.ordem', [x.id])).rows;
-    res.json({ estado: 'pronta', fonte: an.fonte, gerada_em: an.gerada_em, sem_fala: semFala,
+    const resp = { estado: 'pronta', fonte: an.fonte, gerada_em: an.gerada_em, sem_fala: semFala,
       nota_automatica: semFala ? null : r.nota, nota_avaliador: nota, nota_original: x.nota_original === null ? null : Number(x.nota_original), maximo: r.max,
       percentual_automatico: !semFala && r.max > 0 ? Math.round((r.nota / r.max) * 100) : null,
       itens: r.itens, divergentes, marcas_sugeridas: semFala ? null : r.marcas, por_minuto: agruparPorMinuto(seg, r.itens),
-      resumo: an.resumo ?? {}, pode_adotar: x.papel === 'avaliador' && !semFala });
+      resumo: an.resumo ?? {}, pode_adotar: x.papel === 'avaliador' && !semFala, transcricao_liberada: Boolean(x.transcricao_liberada) };
+    res.json(x.papel === 'candidato' && !x.transcricao_liberada ? ocultarFala(resp) : resp);
   }));
 
   /* ---------------- painel de análise (depois da estação) ---------------- */
@@ -236,19 +258,23 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
     const temas = (await q('select t.id, t.nome from estacao_temas et join temas t on t.id = et.tema_id where et.estacao_id=$1 order by t.relevancia desc, t.nome limit 6', [x.estacao_id])).rows;
     const cartoes = (await q('select count(*)::int n from cartoes where estacao_id=$1 and criado_por=$2', [x.estacao_id, x.candidato_id])).rows[0].n;
     const reteste = percentual === null ? null : new Date(new Date(x.finalizada_em).getTime() + diasParaReteste(percentual / 100) * 86_400_000);
-    res.json({
+    const oculta = x.papel === 'candidato' && !x.transcricao_liberada;
+    const corpo = {
       execucao: { id: x.id, estacao_id: x.estacao_id, titulo: x.titulo, area: x.area, duracao_min: x.duracao_min, finalizada_em: x.finalizada_em,
         duracao_s: Math.round((new Date(x.finalizada_em) - new Date(x.iniciada_em)) / 1000), nota, nota_original: x.nota_original === null ? null : Number(x.nota_original), maximo, percentual },
-      meu_papel: x.papel, pode_revisar_nota: x.papel === 'avaliador',
+      meu_papel: x.papel, pode_revisar_nota: x.papel === 'avaliador', pode_liberar_transcricao: x.papel === 'avaliador',
       por_minuto: agruparPorMinuto(segmentos, itens.map((i) => ({ id: i.id, descricao: i.descricao, evidencia: i.sugestao?.evidencia, resultado_fala: i.sugestao && i.sugestao.confiavel !== false ? i.sugestao.resultado : null }))),
-      transcricao: { segmentos, analise_fonte: an?.fonte ?? null, analisada_em: an?.gerada_em ?? null, rebaixados: an?.resumo?.rebaixados ?? 0 },
+      transcricao: { segmentos, total: segmentos.length, oculta: false, liberada: Boolean(x.transcricao_liberada), analise_fonte: an?.fonte ?? null, analisada_em: an?.gerada_em ?? null, rebaixados: an?.resumo?.rebaixados ?? 0 },
       itens, divergentes: itens.filter((i) => i.divergencia).length,
       secoes, fortes: fortesFracos.fortes, fracos: fortesFracos.fracos,
       resumo: { desempenho: an?.resumo?.desempenho ?? '', referencias: an?.resumo?.referencias ?? [], fontes_gerais: an?.resumo?.fontes_gerais ?? [], sem_referencia: an?.resumo?.sem_referencia ?? null, pontos_fortes: an?.resumo?.pontos_fortes ?? [], pontos_fracos: an?.resumo?.pontos_fracos ?? [], sugestoes: an?.resumo?.sugestoes?.length ? an.resumo.sugestoes : sugestoesDeItens(itensChk) },
       comparacao: { recentes, tentativas, media_area: mesmaArea.length ? Math.round(mesmaArea.reduce((s, r) => s + r.percentual, 0) / mesmaArea.length) : null },
       lacunas, temas, cartoes_da_estacao: cartoes,
       trilha: montarTrilha({ titulo: x.titulo, temas, fracosItens, cartoes, reteste }),
-    });
+    };
+    if (!oculta) return res.json(corpo);
+    const o = ocultarFala(corpo);
+    res.json({ ...o, transcricao: { segmentos: [], total: segmentos.length, oculta: true, liberada: false, analise_fonte: corpo.transcricao.analise_fonte, analisada_em: corpo.transcricao.analisada_em, rebaixados: 0 } });
   }));
 
   function montarTrilha({ titulo, temas, fracosItens, cartoes, reteste }) {
@@ -308,7 +334,8 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
       try {
         const dir = await diretrizesDoTema(q, tema);
         const existentes = (await q('select frente from cartoes where tema_id=$1 order by criado_em desc limit 40', [tema.id])).rows.map((r) => r.frente);
-        const r = await ia.gerarCartoes({ tema: tema.nome, area: tema.area, diretrizes: dir, quantidade: Math.min(12, Math.max(3, itens.length * 2)), existentes, lacunas: itens.map((i) => i.descricao) });
+        const r = await ia.gerarCartoes({ tema: tema.nome, area: tema.area, diretrizes: dir, quantidade: Math.min(15, Math.max(4, itens.length * 3)), existentes, lacunas: itens.map((i) => i.descricao),
+          foco: x.diagnostico_alvo || x.titulo, pontos: itens.map((i) => `${i.secao}: ${i.descricao}${i.criterio ? ` (critério: ${i.criterio})` : ''}`), aprofundar: true });
         semDiretriz = dir.length === 0;
         novos = r.cartoes.map((c) => ({ ...c, pep_item_id: null, origem: 'ia', diretriz_id: dir[0]?.id ?? null }));
       } catch (e) { return erroIA(res, e); }

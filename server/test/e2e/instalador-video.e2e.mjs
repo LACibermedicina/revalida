@@ -153,10 +153,12 @@ const foto = async (p, nome) => { await p.waitForTimeout(900); return p.screensh
     const est = (await srv.q(`insert into estacoes (titulo, area, status, duracao_min) values ('Dor torácica','clinica_medica','aprovada',10) returning id`)).rows[0].id;
     const sid = (await srv.q(`insert into sessoes (estacao_id, dono_id) values ('${est}','${ids.chefe}') returning id`)).rows[0].id;
     const auth = (k, nome) => ({ token: srv.assinar({ id: ids[k], papel_app: 'usuario', sessao_versao: 0 }), usuario: { id: ids[k], nome, papel_app: 'usuario' } });
+    // a criação/entrada por código mora só em Ciclos; salas antigas por link aparecem como cartão em "Minhas salas" para quem já é participante
+    const PAPEL = { Avaliar: 'avaliador_ator', 'Ser candidato': 'candidato', Observar: 'observador' };
     const entrar = async (p, papelRotulo) => {
-      await p.goto(srv.url); await p.waitForSelector('input[placeholder="código ou link da sala"]');
-      await p.fill('input[placeholder="código ou link da sala"]', sid);
-      await p.click(`.seg button:has-text("${papelRotulo}")`); await p.click('button:has-text("Entrar"):not(.menta)');
+      await p.goto(srv.url); await p.waitForSelector('[data-testid="painel"]');
+      await p.evaluate(async ({ sid, papel }) => { const t = JSON.parse(localStorage.getItem('rp-auth')).token; await fetch(`/api/sessoes/${sid}/entrar`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${t}` }, body: JSON.stringify({ papel }) }); }, { sid, papel: PAPEL[papelRotulo] });
+      await p.reload(); await p.waitForSelector('.pn-sala:has-text("sala por link")'); await p.click('.pn-sala:has-text("sala por link")');
       await p.waitForSelector('.videos');
     };
     const chefe = await nova(1100, 1000, auth('chefe', 'Chefe Silva'));

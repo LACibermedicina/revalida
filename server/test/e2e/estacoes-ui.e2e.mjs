@@ -39,7 +39,8 @@ const nova = async ({ w = 1280, h = 800, quem = sessao(ana, 'Ana Souza', 'usuari
   }, [quem, desktop]);
   const p = await c.newPage(); p.on('pageerror', (e) => falhas.push(`erro de página: ${e.message}`));
   await p.goto(srv.url); await p.waitForSelector('nav'); await p.waitForTimeout(500);
-  await p.locator('nav button:has-text("Criar")').click(); await p.waitForSelector('h2:has-text("Estações")');
+  await p.locator('nav button:has-text("Estações")').click(); await p.waitForSelector('h2:has-text("Estações")');
+  await p.locator('[role=tab]:has-text("Minhas")').click();
   return p;
 };
 const status = async (titulo) => (await srv.q(`select status, origem, incertos::text i from estacoes where titulo=$1`, [titulo])).rows[0];
@@ -116,7 +117,12 @@ await passo('exportar .rvpack e importar de volta (relatório por estação; som
   await p.locator('button:has-text("Importar")').first().click();
   await p.locator('input[type=file]').setInputFiles(baixado);
   await p.waitForSelector('.est-relatorio');
-  assert.match(await p.textContent('.est-form'), /1 importada\(s\), 0 rejeitada\(s\)/);
+  // a estação exportada ainda existe: importar o mesmo pacote não cria cópia e diz qual já existe
+  assert.match(await p.textContent('.est-form'), /0 importada\(s\), 1 já existia\(m\), 0 rejeitada\(s\)/);
+  assert.match(await p.textContent('.est-relatorio'), /não foi repetida/);
+  assert.equal((await srv.q(`select count(*)::int n from estacoes where titulo like 'Gerada: %'`)).rows[0].n, 1);
+  await srv.q(`delete from estacoes where titulo like 'Gerada: %'`);   // sem o original, a importação entra normalmente
+  await p.locator('input[type=file]').setInputFiles(baixado); await p.waitForSelector('.est-form:has-text("1 importada(s), 0 já existia(m)")');
   assert.match(await p.textContent('.est-form'), /fila de revisão/);
   pacote.estacoes[0].titulo = 'Adulterada'; writeFileSync(join(saida, 'adulterado.rvpack'), JSON.stringify(pacote));
   await p.locator('input[type=file]').setInputFiles(join(saida, 'adulterado.rvpack'));
@@ -203,6 +209,43 @@ await passo('celular: editor cabe na tela, sem rolagem lateral', async () => {
   const g = await p.evaluate(() => ({ sw: document.scrollingElement.scrollWidth, w: innerWidth, fora: [...document.querySelectorAll('.est-editor input,.est-editor textarea,.est-editor select,.est-editor button')].filter((e) => e.getBoundingClientRect().right > innerWidth + 1).length }));
   assert.ok(g.sw <= g.w && g.fora === 0, JSON.stringify(g));
   await p.screenshot({ path: join(saida, '65-celular-editor.png') });
+});
+
+await passo('duplicidade: título já usado avisa, sugere outro e só então salva; conteúdo idêntico remete à estação existente', async () => {
+  const p = paginaAna; await p.locator('button:has-text("Nova")').first().click(); await p.waitForSelector('.est-editor');
+  await p.getByLabel('Título', { exact: true }).first().fill('Estação manual de teste');
+  await p.locator('button:has-text("Salvar rascunho")').first().click(); await p.waitForSelector('[data-testid="aviso-duplicada"]');
+  assert.match(await p.textContent('[data-testid="aviso-duplicada"]'), /título já é usado.*Estação manual de teste/);
+  assert.equal((await srv.q(`select count(*)::int n from estacoes where titulo='Estação manual de teste'`)).rows[0].n, 1, 'não criou a repetida');
+  await p.locator('[data-testid="aviso-duplicada"] button:has-text("Usar")').click();
+  assert.equal(await p.getByLabel('Título', { exact: true }).first().inputValue(), 'Estação manual de teste (2)');
+  await p.locator('button:has-text("Salvar rascunho")').first().click(); await p.waitForSelector('text=Rascunho salvo');
+  assert.equal((await srv.q(`select count(*)::int n from estacoes where titulo='Estação manual de teste (2)'`)).rows[0].n, 1);
+  await p.screenshot({ path: join(saida, '66-duplicidade.png') });
+  await p.locator('button:has-text("Voltar")').click();
+});
+
+await passo('Estações é um painel só: Disponíveis, Minhas, Catálogo INEP e Temas por ano; moderação ganha Em revisão', async () => {
+  const p = paginaAna;
+  await p.locator('[role=tab]:has-text("Disponíveis")').click(); await p.waitForSelector('[data-testid="estacoes-disponiveis"]');
+  assert.deepEqual(await p.locator('[role=tab]').allTextContents().then((l) => l.map((t) => t.replace(/ \(\d+\)$/, ''))), ['Disponíveis', 'Minhas', 'Catálogo INEP', 'Temas por ano']);
+  await p.locator('[role=tab]:has-text("Catálogo INEP")').click(); await p.waitForSelector('.ca-kpis, .ca-vazio, .ca-lista');
+  await p.locator('[role=tab]:has-text("Temas por ano")').click(); await p.waitForSelector('.ca-matriz, select');
+  assert.equal(await p.locator('nav button:has-text("Catálogo")').count(), 0, 'sem item de menu repetido');
+  const m = await nova({ quem: sessao(moda, 'Moda Dora', 'moderador') });
+  assert.ok(await m.locator('[role=tab]:has-text("Em revisão")').count(), 'moderação vê a fila de revisão aqui');
+});
+
+await passo('excluir estação criada pela listagem: pede confirmação, cancela sem apagar, confirma e some', async () => {
+  const p = paginaAna; await p.locator('[role=tab]:has-text("Minhas")').click(); await p.waitForSelector('.est-item');
+  const linha = p.locator('.est-item', { hasText: 'Estação manual de teste (2)' });
+  p.once('dialog', (d) => d.dismiss()); await linha.locator('[data-testid="excluir-estacao"]').click();
+  assert.equal((await srv.q(`select count(*)::int n from estacoes where titulo='Estação manual de teste (2)'`)).rows[0].n, 1, 'cancelar não apaga');
+  p.once('dialog', (d) => d.accept()); await linha.locator('[data-testid="excluir-estacao"]').click();
+  await p.waitForSelector('text=excluída');
+  assert.equal(await p.locator('.est-item', { hasText: 'Estação manual de teste (2)' }).count(), 0);
+  assert.equal((await srv.q(`select count(*)::int n from estacoes where titulo='Estação manual de teste (2)'`)).rows[0].n, 0);
+  await p.screenshot({ path: join(saida, '67-excluir.png') });
 });
 
 await nav.close(); srv.fechar();

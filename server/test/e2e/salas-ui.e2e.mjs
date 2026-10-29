@@ -84,6 +84,25 @@ await passo('chefe monta o ciclo; observador não vê a fila futura', async () =
   await pa.screenshot({ path: join(saida, 'salas-chefe-ciclo.png') });
 });
 
+await passo('estação que já está na fila: aviso com a situação, "só as outras", e duplicar só com confirmação', async () => {
+  const fila = '[aria-label="Fila do ciclo"] [data-estado]';
+  await mk('Pré-natal de risco habitual', 'ginecologia_obstetricia'); await recarregar(pa);   // uma estação fora da fila para o 'só as outras'
+  await pa.locator('label.sl-op:has-text("Dor torácica") .tag:has-text("na fila")').waitFor();   // o seletor já marca o que está na fila
+  await pa.locator('label.sl-op:has-text("Dor torácica")').locator('input').check();
+  await pa.locator('label.sl-op:has-text("Pré-natal")').locator('input').check();
+  await pa.locator('button:has-text("Adicionar ao ciclo")').click(); await pa.waitForSelector('[data-testid="aviso-na-fila"]');
+  assert.match(await pa.textContent('[data-testid="aviso-na-fila"]'), /«Dor torácica na UBS».*ainda na fila/);
+  assert.equal(await pa.locator(fila).count(), 2, 'nada entrou antes da decisão');
+  await pa.screenshot({ path: join(saida, 'salas-aviso-na-fila.png') });
+  await pa.locator('[data-testid="aviso-na-fila"] button:has-text("Só as outras")').click();
+  await pa.locator('button:has-text("Adicionar ao ciclo")').click(); await pa.waitForFunction((n) => document.querySelectorAll('[aria-label="Fila do ciclo"] [data-estado]').length === n, 3);
+  await pa.locator('label.sl-op:has-text("Dor torácica")').locator('input').check();
+  await pa.locator('button:has-text("Adicionar ao ciclo")').click(); await pa.waitForSelector('[data-testid="aviso-na-fila"]');
+  await pa.locator('[data-testid="aviso-na-fila"] button:has-text("Duplicar a prática")').click();
+  await pa.waitForFunction((n) => document.querySelectorAll('[aria-label="Fila do ciclo"] [data-estado]').length === n, 4);
+  assert.equal((await srv.q(`select count(*)::int n from ciclo_itens i join estacoes e on e.id=i.estacao_id where e.titulo='Dor torácica na UBS'`)).rows[0].n, 2);
+});
+
 await passo('observador pede para ser candidato; chefe aceita', async () => {
   await pm.locator('button:has-text("Ser o candidato")').click();
   await pm.waitForSelector('text=aguarda resposta');
@@ -106,6 +125,26 @@ await passo('chefe libera uma estação ao candidato e inicia; só quem avalia v
   assert.equal(await pm.locator('.sl-pep').count(), 0, 'o candidato nunca recebe o gabarito');
   assert.match(await pm.textContent('[aria-label="Estação em andamento"]'), /Conduza o atendimento/);
   assert.match(await pa.textContent('.sl-relogio'), /^\d\d:\d\d$/);
+});
+
+await passo('barra de ferramentas da sala: fixa no topo, ícones reordenáveis por arrastar, ordem guardada e proporcional ao redimensionar', async () => {
+  const barra = pa.locator('[data-testid="ferramentas-sala"]'); await barra.waitFor();
+  const ordem = () => barra.locator('[data-testid^="ferramenta-"]').evaluateAll((ns) => ns.map((n) => n.dataset.testid));
+  const antes = await ordem(); assert.ok(antes.length >= 6, 'ferramentas da sala disponíveis');
+  const rolou = await pa.evaluate(() => { const t = document.querySelector('[data-testid="ferramentas-sala"]').closest('.tela'); t.scrollTop = 600; return { st: t.scrollTop, topo: t.getBoundingClientRect().top, rolavel: t.scrollHeight > t.clientHeight }; });
+  const y = (await barra.boundingBox()).y - rolou.topo; assert.ok(!rolou.rolavel || (rolou.st > 0 && y >= 0 && y < 20), `a barra fica no topo ao rolar (y=${y}, rolou=${rolou.st})`);
+  await barra.locator(`[data-testid="${antes[0]}"]`).dragTo(barra.locator(`[data-testid="${antes[2]}"]`));
+  const depois = await ordem(); assert.notDeepEqual(depois, antes, 'a ordem mudou');
+  await recarregar(pa); await pa.locator('[data-testid="ferramentas-sala"]').waitFor();
+  assert.deepEqual(await pa.locator('[data-testid="ferramentas-sala"] [data-testid^="ferramenta-"]').evaluateAll((ns) => ns.map((n) => n.dataset.testid)), depois, 'ordem guardada');
+  for (const w of [1280, 700, 390]) {
+    await pa.setViewportSize({ width: w, height: 800 }); await pa.waitForTimeout(250);
+    const m = await pa.evaluate(() => { const b = document.querySelector('[data-testid="ferramentas-sala"]').getBoundingClientRect(); return { dir: b.right, w: window.innerWidth, sobra: document.documentElement.scrollWidth - window.innerWidth }; });
+    assert.ok(m.dir <= m.w + 1 && m.sobra <= 1, `barra cabe a ${w}px (${JSON.stringify(m)})`);
+  }
+  await pa.screenshot({ path: join(saida, 'salas-ferramentas-390.png') });
+  await pa.setViewportSize({ width: 1280, height: 800 });
+  await pa.locator('[data-testid="ferramenta-estacao"]').click();
 });
 
 await passo('finalizar calcula a nota no servidor e mostra o fim da estação a todos', async () => {

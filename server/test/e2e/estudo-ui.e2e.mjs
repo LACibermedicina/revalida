@@ -84,6 +84,28 @@ await passo('nova série de cartões por IA e estudo com repetição espaçada',
   await pa.screenshot({ path: join(saida, 'estudo-cartoes.png') });
 });
 
+await passo('trilha: tema abre quadro móvel com o contexto; "Criar card do argumento" aprofunda; quadro arrasta e minimiza', async () => {
+  await aba(pa, 'Trilha'); await pa.waitForSelector('[data-testid="trilha"] li');
+  await pa.locator('[data-testid="trilha"] [data-testid="tema-detalhe"]').first().click();
+  await pa.waitForSelector('[data-testid="quadro-flutuante"]');
+  assert.match(await pa.textContent('[data-testid="quadro-flutuante"]'), /Crise convulsiva febril|Febre na criança/);
+  const cab = pa.locator('[data-testid="quadro-flutuante"] header').first(); const r0 = await pa.locator('[data-testid="quadro-flutuante"]').boundingBox();
+  const c = await cab.boundingBox(); await pa.mouse.move(c.x + 30, c.y + c.height / 2); await pa.mouse.down(); await pa.mouse.move(c.x - 120, c.y + 90, { steps: 6 }); await pa.mouse.up();
+  const r1 = await pa.locator('[data-testid="quadro-flutuante"]').boundingBox(); assert.ok(Math.abs(r1.x - r0.x) > 40 || Math.abs(r1.y - r0.y) > 40, 'o quadro foi movido');
+  await pa.locator('[data-testid="quadro-minimizar"]').click(); const rm = await pa.locator('[data-testid="quadro-flutuante"]').boundingBox(); assert.ok(rm.height < r1.height, 'minimizado fica menor');
+  await pa.locator('[data-testid="quadro-minimizar"]').click();
+  srv.ia.chamadas.length = 0;
+  await pa.locator('[data-testid="quadro-criar-cards"]').click();
+  await pa.waitForFunction(() => /cartõe?s?|cartão/i.test(document.querySelector('[data-testid="quadro-flutuante"]')?.textContent ?? '') );
+  const cham = srv.ia.chamadas.filter((x) => x[0] === 'cartoes').at(-1)?.[1]; assert.ok(cham?.aprofundar, 'a IA foi pedida para aprofundar'); assert.ok(cham.foco);
+  await pa.screenshot({ path: join(saida, 'estudo-quadro-tema.png') });
+  await pa.keyboard.press('Escape'); await pa.waitForSelector('[data-testid="quadro-flutuante"]', { state: 'detached' });
+  srv.ia.chamadas.length = 0;
+  await pa.locator('[data-testid="criar-card-argumento"]').first().click();
+  await pa.waitForFunction(() => document.body.textContent.match(/cartõe?s? (criado|novo)|criado|já/i));
+  const c2 = srv.ia.chamadas.filter((x) => x[0] === 'cartoes').at(-1)?.[1]; assert.ok(c2?.aprofundar && c2.foco, 'card do argumento aprofunda o tema da trilha');
+});
+
 await passo('resumo específico por foco (IA recebe o foco)', async () => {
   await aba(pa, 'Mapa 3D'); await pa.locator('button:has-text("Ver como lista")').click();
   await pa.locator('[data-testid="lista-temas"] button:has-text("Crise convulsiva febril")').click();
@@ -110,7 +132,7 @@ await passo('diretriz cadastrada pela moderação vira contexto da IA; usuário 
   await aba(pm, 'Mapa 3D'); await pm.locator('button:has-text("Ver como lista")').click();
   await pm.locator('[data-testid="lista-temas"] button:has-text("Crise convulsiva febril")').click();
   await pm.waitForFunction(() => document.querySelector('section[aria-label^="Tema"]')?.textContent.includes('diretriz: Manejo da crise convulsiva febril'));
-  await pm.locator('button:has-text("Nova série")').click(); await pm.waitForSelector('text=Nova série 2');
+  await pm.locator('button:has-text("Nova série")').click(); await pm.waitForSelector('text=/Nova série [2-9]/');
   const dir = srv.ia.chamadas.filter((c) => c[0] === 'cartoes').at(-1)[1].diretrizes;
   assert.equal(dir.length, 1); assert.match(dir[0].texto, /Crise febril simples/);
 });
@@ -165,14 +187,18 @@ await passo('início: 5 estações sugeridas pelo desempenho e a lista de estaç
   await p.waitForSelector('[data-testid="sugestao-estacao"]');
   assert.equal(await p.locator('[data-testid="sugestao-estacao"]').count(), 5);
   assert.ok((await p.locator('[data-testid="sugestao-estacao"] .why').allTextContents()).every((t) => t.length > 5), 'cada sugestão diz o porquê');
+  const antes = await p.locator('[data-testid="sugestao-estacao"] b').allTextContents(); assert.equal(antes.length, 5);
+  await p.screenshot({ path: join(saida, 'inicio-sugestoes.png'), fullPage: true });
+  // a lista completa mora em Estações → Disponíveis (um só lugar), com filtros
   await p.locator('button:has-text("Ver todas as estações disponíveis")').click(); await p.waitForSelector('[data-testid="estacoes-disponiveis"] li');
   assert.ok((await p.locator('[data-testid="estacoes-disponiveis"] li').count()) >= 7);
-  await p.locator('[data-testid="estacoes-disponiveis"] select').selectOption('cirurgia');
+  await p.locator('[data-testid="estacoes-disponiveis"] select').first().selectOption('cirurgia');
   assert.ok((await p.locator('[data-testid="estacoes-disponiveis"] li').count()) <= 2);
-  const antes = await p.locator('[data-testid="sugestao-estacao"] b').allTextContents();
-  await p.screenshot({ path: join(saida, 'inicio-sugestoes.png'), fullPage: true });
+  await p.locator('[data-testid="estacoes-disponiveis"] li button:has-text("Praticar")').first().click();
+  await p.waitForSelector('h2:has-text("Ciclos de estações")');
+  await p.locator('nav button:has-text("Início")').click(); await p.waitForSelector('[data-testid="sugestao-estacao"]');
   await p.locator('[data-testid="sugestao-estacao"]').first().click();
-  await p.waitForSelector('h2:has-text("Ciclos de estações")'); assert.ok(antes.length === 5);
+  await p.waitForSelector('h2:has-text("Ciclos de estações")');
 });
 
 await passo('celular: sem rolagem horizontal na trilha e no mapa', async () => {

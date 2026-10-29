@@ -1,6 +1,7 @@
 // Estudo: trilha de aprendizagem (do menor ao maior desempenho, ou o contrário), cartões com repetição espaçada,
 // mapa 3D de temas, caderno de erros com revisão por estação e diretrizes de referência.
 // A IA gera resumos, cartões e novas ligações do mapa; o que não tem diretriz cadastrada aparece marcado "sem diretriz de referência".
+import QuadroTema from './QuadroTema.jsx';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { layout3D, projetar, escolherNo, faixaDesempenho } from './grafo3d.js';
 import './estudo.css';
@@ -22,6 +23,7 @@ export default function TelaEstudo({ token, usuario, api, comando, aoPraticar, a
   const [aba, setAba] = useState('trilha');
   const [temaCartoes, setTemaCartoes] = useState(null);
   const [temaMapa, setTemaMapa] = useState(null);
+  const [quadro, setQuadro] = useState(null);   // tema aberto no quadro móvel
   useEffect(() => {
     if (!comando?.aba || !ABAS.some(([k]) => k === comando.aba)) return;
     if (comando.tema) { if (comando.aba === 'mapa') setTemaMapa(comando.tema); else if (comando.aba === 'cartoes') setTemaCartoes(comando.tema); }
@@ -36,23 +38,35 @@ export default function TelaEstudo({ token, usuario, api, comando, aoPraticar, a
       <div className="es-abas" role="tablist" aria-label="Seções do estudo">
         {ABAS.map(([k, n]) => <button key={k} role="tab" aria-selected={aba === k} className={aba === k ? 'on' : ''} onClick={() => { setAba(k); if (k === 'cartoes') setTemaCartoes(null); }}>{n}</button>)}
       </div>
-      {aba === 'trilha' && <Trilha {...comum} aoCartoes={abrirCartoes} aoMapa={abrirMapa} aoPraticar={aoPraticar} />}
+      {aba === 'trilha' && <Trilha {...comum} aoCartoes={abrirCartoes} aoMapa={abrirMapa} aoPraticar={aoPraticar} aoTema={setQuadro} />}
       {aba === 'cartoes' && <Cartoes {...comum} tema={temaCartoes} />}
       {aba === 'biblioteca' && <Biblioteca {...comum} aoEstudar={() => abrirCartoes(null)} />}
       {aba === 'mapa' && <Mapa {...comum} inicial={temaMapa} aoCartoes={abrirCartoes} aoPraticar={aoPraticar} />}
       {aba === 'erros' && <Erros {...comum} aoAnalise={aoAnalise} />}
       {aba === 'guia' && <Guia />}
       {aba === 'diretrizes' && <Diretrizes {...comum} />}
+      {quadro && <QuadroTema key={quadro.temaId ?? quadro.nome} {...quadro} token={token} api={api} aoFechar={() => setQuadro(null)} aoCartoes={(id) => { setQuadro(null); abrirCartoes(id); }} aoPraticar={aoPraticar} />}
     </div>
   );
 }
 
 /* ======================= trilha ======================= */
-function Trilha({ token, api, aoCartoes, aoMapa, aoPraticar }) {
+function Trilha({ token, api, aoCartoes, aoMapa, aoPraticar, aoTema }) {
   const [ordem, setOrdem] = useState('fracos');
+  const [criando, setCriando] = useState('');
+  const [avisoCard, setAvisoCard] = useState({});
   const [d, setD] = useState(null);
   const [erro, setErro] = useState('');
   useEffect(() => { setD(null); api(`/api/estudo/trilha?ordem=${ordem}`, { token }).then(setD).catch((e) => setErro(e.message)); }, [ordem, api, token]);
+  // cartões do argumento (tema da trilha): aprofundam o tema e os pontos que a pessoa errou, em camadas
+  const criarCards = async (t) => {
+    setCriando(t.id); setAvisoCard((a) => ({ ...a, [t.id]: '' }));
+    try {
+      const r = await api(`/api/estudo/temas/${t.id}/cartoes/gerar`, { metodo: 'POST', token, corpo: { quantidade: 8, foco: t.nome, pontos: t.alvos, aprofundar: true } });
+      setAvisoCard((a) => ({ ...a, [t.id]: `Série ${r.serie}: ${r.total} cartões criados, aprofundando o argumento${t.alvos.length ? ' e os pontos que você errou' : ''}.` }));
+      setD((x) => (x ? { ...x, temas: x.temas.map((y) => (y.id === t.id ? { ...y, cartoes_total: y.cartoes_total + r.total, cartoes_vencidos: y.cartoes_vencidos + r.total } : y)) } : x));
+    } catch (e) { setAvisoCard((a) => ({ ...a, [t.id]: e.message })); } finally { setCriando(''); }
+  };
   if (erro) return <p className="aviso" role="alert">{erro}</p>;
   if (!d) return <p className="sub" role="status">Montando sua trilha…</p>;
   return (
@@ -68,16 +82,19 @@ function Trilha({ token, api, aoCartoes, aoMapa, aoPraticar }) {
       <ol className="es-trilha" data-testid="trilha">
         {d.temas.map((t) => (
           <li key={t.id} className={`es-tema f-${faixaDesempenho(t.desempenho)}`}>
-            <div className="es-linha"><strong>{t.nome}</strong><span className="es-pct">{pct(t.desempenho)}</span></div>
+            <div className="es-linha"><button type="button" className="ln es-tema-nome" data-testid="tema-detalhe" onClick={() => aoTema({ temaId: t.id, nome: t.nome, area: t.area })} title="Abrir o quadro explicativo do tema"><strong>{t.nome}</strong></button><span className="es-pct">{pct(t.desempenho)}</span></div>
             <Barra valor={t.desempenho} />
             <p className="sub">{t.area ? `${AREAS[t.area]} · ` : ''}{t.execucoes} estação(ões) · {t.cartoes_total} cartões{t.cartoes_vencidos > 0 ? ` (${t.cartoes_vencidos} para hoje)` : ''}</p>
             <p className="es-passo">{t.texto}</p>
             {t.alvos.length > 0 && <ul className="es-alvos">{t.alvos.map((a, i) => <li key={i}>{a}</li>)}</ul>}
             <div className="es-acoes">
               <button className="btn mini menta" onClick={() => aoCartoes(t.id)}>Cartões</button>
+              <button className="btn mini" data-testid="criar-card-argumento" disabled={criando === t.id} title="A IA cria cartões que aprofundam este argumento e os pontos em que você errou"
+                onClick={() => criarCards(t)}>{criando === t.id ? 'Criando…' : 'Criar card do argumento'}</button>
               <button className="btn mini" onClick={() => aoMapa(t.id)}>Ver no mapa</button>
               {t.estacoes.length > 0 && aoPraticar && <button className="btn mini" onClick={() => aoPraticar(t.estacoes[0].id)}>Praticar: {t.estacoes[0].titulo}</button>}
             </div>
+            {avisoCard[t.id] && <p className="aviso" role="status">{avisoCard[t.id]}</p>}
           </li>
         ))}
       </ol>

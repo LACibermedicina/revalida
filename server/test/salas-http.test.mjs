@@ -167,3 +167,27 @@ test('HTTP: sair da sala libera a vaga; quem não está na sala recebe 403', asy
   assert.equal((await api('POST', `/api/salas/${c.sala}/entrar`, c.caio)).status, 200, 'pode voltar');
   assert.equal((await api('POST', `/api/salas/${c.sala}/sair`, await uid('Fora'))).status, 200, 'sair sem estar é inofensivo');
 });
+
+test('HTTP: estação que já está na fila avisa e só repete com confirmação; título só para o admin; fora da fila entra direto', async () => {
+  const c = await montar(); const nova = await est('Asma no adulto');
+  const dup = await api('POST', `/api/ciclos/${c.ciclo}/itens`, c.ana, { estacoes: [c.e2, nova] });
+  assert.equal(dup.status, 409); assert.equal(dup.corpo.codigo, 'ESTACAO_NA_FILA');
+  assert.deepEqual(dup.corpo.repetidas.map((r) => [r.id, r.titulo, r.situacao]), [[c.e2, 'Pré-natal', 'na_fila']]);
+  assert.match(dup.corpo.erro, /"Pré-natal" já está na fila/);
+  assert.equal((await q('select count(*)::int n from ciclo_itens where ciclo_id=$1', [c.ciclo])).rows[0].n, 3, 'nada entrou (nem a nova): a pessoa decide antes');
+  // quem não é admin não descobre o título da fila (a regra do banco responde sem detalhes)
+  const naoAdmin = await api('POST', `/api/ciclos/${c.ciclo}/itens`, c.bia, { estacoes: [c.e2] });
+  assert.equal(naoAdmin.status, 403); assert.equal(naoAdmin.corpo.repetidas, undefined);
+  // confirmada: duplica a prática
+  const ok = await api('POST', `/api/ciclos/${c.ciclo}/itens`, c.ana, { estacoes: [c.e2], repetir: true });
+  assert.equal(ok.status, 200);
+  assert.equal((await q('select count(*)::int n from ciclo_itens where ciclo_id=$1 and estacao_id=$2', [c.ciclo, c.e2])).rows[0].n, 2);
+  // estação fora da fila entra sem perguntar
+  assert.equal((await api('POST', `/api/ciclos/${c.ciclo}/itens`, c.ana, { estacoes: [nova] })).status, 200);
+  // a regra também vale no banco (corrida entre dois pedidos): sem a confirmação a função recusa
+  await assert.rejects(() => q(`select rv_ciclo_itens_adicionar($1,$2,$3::uuid[],null,false)`, [c.ciclo, c.ana, `{${nova}}`]), /ESTACAO_NA_FILA/);
+  // repetida já realizada também é avisada com a situação
+  await api('POST', `/api/ciclos/${c.ciclo}/execucoes`, c.ana, {});
+  const feita = await api('POST', `/api/ciclos/${c.ciclo}/itens`, c.ana, { estacoes: [c.e1] });
+  assert.equal(feita.corpo.repetidas[0].situacao, 'em_andamento');
+});

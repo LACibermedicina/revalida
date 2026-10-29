@@ -1,0 +1,9 @@
+.qt{display:flex;flex-direction:column;gap:10px}.qt h4{margin:0 0 4px;font-family:var(--display);font-size:.95rem}
+.qt-meta{margin:0;color:var(--suave);font-size:.84rem}
+.qt-grade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.qt-grade div{display:flex;flex-direction:column;align-items:center;padding:8px 4px;border-radius:12px;background:color-mix(in srgb,var(--mar) 8%,transparent);text-align:center}
+.qt-grade b{font-family:var(--display);font-size:1.4rem;line-height:1.1}.qt-grade span{font-size:.7rem;color:var(--suave)}
+.qt-anos{display:flex;flex-wrap:wrap;gap:4px;margin:0}.qt-anos span{padding:1px 7px;border-radius:999px;background:var(--sol);color:#4a3600;font-size:.72rem;font-weight:700}
+.qt-lista{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:3px}.qt-lista small{color:var(--suave)}
+.qt-resumo{border-top:1px solid var(--borda);padding-top:6px}.qt-resumo .ln{text-align:left}
+.qt-foco{display:flex;gap:6px;margin-top:6px}.qt-foco input{flex:1;min-width:0}
+.qt-acoes{display:flex;gap:6px;flex-wrap:wrap}

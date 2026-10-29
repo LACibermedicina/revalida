@@ -156,13 +156,15 @@ try {
     assert.match(await ana.textContent('.msg'), /sessão terminou/);
   });
 
-  await passo('moderadora vê só Estações e consegue aprovar; sem abas de pedidos/usuários', async () => {
+  await passo('moderadora aprova em Estações → Em revisão e não vê o menu Admin', async () => {
     const m = await nova();
     await m.goto(srv.url);
     await m.fill('#e-email', 'moda@x.com'); await m.fill('#e-senha', 'senhaforte123'); await m.click('button.btn:has-text("Entrar")');
-    await m.click('nav >> text=Admin');
+    await m.waitForSelector('nav');
+    assert.equal(await m.locator('nav button:has-text("Admin")').count(), 0, 'moderação não tem Admin: a fila de estações fica em Estações');
+    await m.locator('nav button:has-text("Estações")').click();
+    await m.locator('[role=tab]:has-text("Em revisão")').click();
     await m.waitForSelector('text=Dor torácica na UBS');
-    assert.deepEqual(await m.locator('[role=tab]').allTextContents(), ['Estações']);
     await foto(m, '09-moderadora');
     await m.click('button:has-text("Aprovar")');
     await m.waitForSelector('text=Nenhuma estação aguardando revisão');
@@ -178,16 +180,16 @@ try {
     await w.goto(srv.url);
     await w.fill('#e-email', 'moda@x.com'); await w.fill('#e-senha', 'senhaforte123'); await w.click('button.btn:has-text("Entrar")');
     await w.waitForSelector('nav');
-    await w.waitForSelector('.tela.painel .col');
+    await w.waitForSelector('.pn-duas > section');
     const caixa = async (sel) => w.locator(sel).first().boundingBox();
     const nav = await caixa('nav'); const tela = await caixa('.tela');
     assert.ok(nav.width < 260 && nav.x < tela.x, 'menu à esquerda');
-    const [c1, c2] = [await w.locator('.tela.painel .col').nth(0).boundingBox(), await w.locator('.tela.painel .col').nth(1).boundingBox()];
+    const [c1, c2] = [await w.locator('.pn-duas > section').nth(0).boundingBox(), await w.locator('.pn-duas > section').nth(1).boundingBox()];
     assert.ok(c2.x > c1.x + c1.width - 5 && Math.abs(c1.y - c2.y) < 4, 'duas colunas lado a lado');
     assert.ok(await w.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), 'sem rolagem horizontal');
     await foto(w, '11-web-painel');
-    await w.click('nav >> text=Admin');
-    await w.waitForSelector('[role=tab]:has-text("Estações")'); await w.waitForTimeout(300);
+    await w.locator('nav button:has-text("Estações")').click();
+    await w.waitForSelector('[role=tab]:has-text("Disponíveis")'); await w.waitForTimeout(300);
     await foto(w, '12-web-admin');
     const sair = await w.locator('nav button:has-text("Sair")').boundingBox();
     assert.ok(sair.y > 500, 'Sair no rodapé do menu');

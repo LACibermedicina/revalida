@@ -62,3 +62,7 @@ html[data-layout=largo] .est-lista{display:grid;grid-template-columns:repeat(aut
 .est-pep .btn.mini,.est-mat .btn.mini{min-height:40px;padding:0 14px;font-size:.84rem;box-shadow:none;border-radius:12px}
 html[data-layout=largo] .est-editor{align-content:start}
 .est-modelo{border:1px dashed var(--borda);border-radius:14px;padding:8px 12px}.est-modelo summary{cursor:pointer;font-weight:700;padding:6px 0}
+
+.est-lista-disp{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}.est-lista-disp .est-item{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.est-lista-disp .corpo{display:flex;flex-direction:column;gap:2px;flex:1 1 220px}.est-lista-disp .acoes{display:flex;gap:6px}
+.est-relatorio li.dup span{color:var(--sol)}

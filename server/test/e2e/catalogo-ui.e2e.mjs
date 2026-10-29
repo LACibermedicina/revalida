@@ -25,7 +25,7 @@ writeFileSync(join(pub, 'index.html'), readFileSync(join(web, 'index.html'), 'ut
 const srv = await iniciar({ pastaWeb: pub });
 const nav = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const falhas = [];
-const passo = async (n, fn) => { try { await fn(); console.log('✔', n); } catch (e) { falhas.push(n); console.log('✘', n, '\n   ', e.message.split('\n')[0]); } };
+const passo = async (n, fn) => { try { await fn(); console.log('✔', n); } catch (e) { falhas.push(n); console.log('✘', n, '\n   ', e.message.split('\n').slice(0,4).join(' | ')); } };
 
 
 const u = async (email) => (await srv.q(`select id, sessao_versao from usuarios where email=$1`, [email])).rows[0];
@@ -37,7 +37,7 @@ const nova = async (quem, { w = 1280, h = 800 } = {}) => {
   await c.addInitScript((s) => localStorage.setItem('rp-auth', JSON.stringify(s)), quem);
   const p = await c.newPage(); p.on('pageerror', (e) => falhas.push(`erro de página: ${e.message}`));
   await p.goto(srv.url); await p.waitForSelector('nav'); await p.waitForTimeout(500);
-  await p.locator('nav button:has-text("Catálogo")').click(); await p.waitForSelector('.ca-card');
+  await p.locator('nav button:has-text("Estações")').click(); await p.locator('[role="tab"]:has-text("Catálogo INEP")').click(); await p.waitForSelector('.ca-card');
   return p;
 };
 const aba = (p, n) => p.locator(`[role="tab"]:has-text("${n}")`).click();
@@ -51,7 +51,8 @@ await passo('lista o catálogo com KPIs e filtra por área e busca', async () =>
   assert.match(await pa.textContent('.ca-kpis'), /426/);
   await pa.locator('.ca-areas button:has-text("Pediatria")').click(); await pa.waitForTimeout(400);
   assert.match(await pa.textContent('.ca-conta'), /87 estações/);
-  await pa.locator('input[type=search]').fill('asma'); await pa.waitForTimeout(500);
+  await pa.locator('input[type=search]').fill('asma');
+  await pa.waitForFunction(() => { const n = document.querySelectorAll('.ca-card').length; return n >= 1 && n < 87; }, null, { timeout: 8000 });
   const n = await pa.locator('.ca-card').count(); assert.ok(n >= 1 && n < 87);
   await pa.screenshot({ path: join(saida, 'catalogo-lista.png') });
 });
@@ -66,19 +67,32 @@ await passo('temas por ano: matriz com anos e temas mais cobrados', async () => 
   assert.ok((await pa.locator('.ca-matriz tbody tr').count()) > 10);
   await pa.screenshot({ path: join(saida, 'catalogo-temas.png') });
 });
-await passo('usuário comum não vê a importação de cadernos', async () => {
-  await aba(pa, 'Importar'); assert.match(await pa.textContent('.ca-tela'), /moderadores e administradores/);
+await passo('usuário comum não vê a importação de cadernos (só arquivo/pacote próprio)', async () => {
+  await pa.locator('button:has-text("Importar")').first().click(); await pa.waitForSelector('.est-solta');
+  assert.equal(await pa.locator('[data-testid="importar-caderno"]').count(), 0);
+  await pa.locator('button:has-text("Voltar")').click();
 });
 await passo('moderador importa o caderno de GO e baixa o pacote com relatório', async () => {
   if (!caderno) { console.log('   (caderno não disponível: passo ignorado; defina CADERNO_GO)'); return; }
-  const p = await nova(sessao(moda, 'Moda', 'moderador')); await aba(p, 'Importar');
+  const p = await nova(sessao(moda, 'Moda', 'moderador')); await p.locator('button:has-text("Importar")').first().click();
+  await p.locator('[data-testid="importar-caderno"] summary').click();
   writeFileSync(join(dir, 'go.txt'), caderno);
-  await p.locator('input[type=file]').setInputFiles(join(dir, 'go.txt')); await p.waitForSelector('.ca-rel li', { timeout: 30000 });
+  await p.locator('[data-testid="importar-caderno"] input[type=file]').setInputFiles(join(dir, 'go.txt')); await p.waitForSelector('.ca-rel li', { timeout: 30000 });
   assert.match(await p.textContent('[role=status]'), /estações lidas/);
   assert.ok((await p.locator('.ca-rel li.conf, .ca-rel li.bom').count()) >= 10);
   const [dl] = await Promise.all([p.waitForEvent('download'), p.locator('button:has-text("Baixar pacote")').click()]);
   assert.match(dl.suggestedFilename(), /\.rvpack$/);
   await p.screenshot({ path: join(saida, 'catalogo-importar.png'), fullPage: true });
+  // importa direto (sem baixar e subir de novo); repetir a importação não cria cópias
+  await p.locator('button:has-text("Importar estas estações agora")').click(); await p.waitForSelector('[data-testid="caderno-importado"]');
+  const t1 = await p.textContent('[data-testid="caderno-importado"]'); const n1 = Number(t1.match(/(\d+) entraram/)[1]);
+  assert.ok(n1 >= 10, t1);
+  const total = (await srv.q(`select count(*)::int n from estacoes where origem='importada'`)).rows[0].n; assert.equal(total, n1);
+  writeFileSync(join(dir, 'go2.txt'), caderno);
+  await p.locator('[data-testid="importar-caderno"] input[type=file]').setInputFiles(join(dir, 'go2.txt')); await p.waitForSelector('.ca-rel li', { timeout: 30000 });
+  await p.locator('button:has-text("Importar estas estações agora")').click(); await p.waitForSelector('[data-testid="caderno-importado"]:has-text("0 entraram")');
+  assert.match(await p.textContent('[data-testid="caderno-importado"]'), new RegExp(`${n1} já existiam`));
+  assert.equal((await srv.q(`select count(*)::int n from estacoes where origem='importada'`)).rows[0].n, n1, 'nada duplicado');
 });
 await passo('menu lateral: ocultar e mostrar, com a escolha lembrada ao recarregar; ícones são SVG', async () => {
   assert.ok((await pa.locator('nav .ni svg').count()) >= 7);

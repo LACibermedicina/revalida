@@ -1,5 +1,6 @@
 // Estudo: revisão por estação (lacunas), desempenho, trilha, cartões com repetição espaçada, resumos, mapa de temas e diretrizes.
 // O que a IA gera entra com a origem marcada e as diretrizes cadastradas como contexto; sem diretriz, a resposta diz isso.
+import fs from 'node:fs';
 import { idValido, Limitador, rota } from './seguranca.js';
 import { ErroIA } from './ia.js';
 import { AREAS } from './estacao-esquema.js';
@@ -10,7 +11,10 @@ import { desempenhoTemas, diretrizesDoTema, garantirTema, semearBase } from './t
 const lit = (l) => `{${l.join(',')}}`;
 const ERROS_IA = { IA_NAO_CONFIGURADA: 503, IA_CHAVE_INVALIDA: 502, IA_LIMITE: 429, IA_DEMORA: 504, IA_FALHA: 502, IA_ESQUEMA: 502 };
 
-export function registrarEstudo(app, { q, autenticar, ia, rng = Math.random, limitador = new Limitador({ max: 30, janelaMs: 3_600_000 }) }) {
+const normTema = (s) => String(s ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const lerDados = (nome) => { try { return JSON.parse(fs.readFileSync(new URL(`../data/${nome}`, import.meta.url), 'utf8')); } catch { return []; } };
+
+export function registrarEstudo(app, { q, autenticar, ia, rng = Math.random, limitador = new Limitador({ max: 30, janelaMs: 3_600_000 }), temasProvas = lerDados('temas-provas.json') }) {
   const moderador = (u) => ['moderador', 'admin', 'root'].includes(u.papel_app);
   const admin = (u) => ['admin', 'root'].includes(u.papel_app);
   const ID = (req, res, prox) => (idValido(req.params.id) ? prox() : res.status(400).json({ erro: 'Identificador inválido.' }));
@@ -192,6 +196,15 @@ export function registrarEstudo(app, { q, autenticar, ia, rng = Math.random, lim
     res.json({ total: r.rows.length, pendentes: r.rows.filter((c) => c.situacao === 'pendente').length, executadas: r.rows.filter((c) => c.situacao === 'executada').length, estacoes });
   }));
 
+  // Qualquer nome de tema (catálogo, matriz por ano, trilha) vira um tema do mapa, para poder abrir o quadro explicativo.
+  app.post('/api/estudo/temas/resolver', autenticar, rota(async (req, res) => {
+    const nome = String(req.body?.nome ?? '').replace(/[\u0000-\u001F]/g, ' ').trim().slice(0, 120);
+    if (nome.length < 2) return res.status(400).json({ erro: 'Informe o nome do tema.' });
+    await base();
+    const id = await garantirTema(q, nome, { area: AREAS.includes(req.body?.area) ? req.body.area : null, origem: 'manual' });
+    res.json({ id });
+  }));
+
   app.get('/api/estudo/temas/:id', autenticar, ID, rota(async (req, res) => {
     const t = await tema(req.params.id); if (!t) return res.status(404).json({ erro: 'Tema não encontrado.' });
     const dir = await diretrizesDoTema(q, t);
@@ -201,8 +214,13 @@ export function registrarEstudo(app, { q, autenticar, ia, rng = Math.random, lim
     const rel = (await q(`select r.tipo, r.motivo, case when r.de = $1 then r.para else r.de end outro, t2.nome
         from tema_relacoes r join temas t2 on t2.id = case when r.de = $1 then r.para else r.de end where r.de=$1 or r.para=$1 order by r.peso desc limit 20`, [t.id])).rows;
     const estacoes = (await q(`select s.id, s.titulo from estacao_temas et join estacoes s on s.id = et.estacao_id where et.tema_id=$1 and s.status='aprovada' order by s.titulo limit 10`, [t.id])).rows;
+    // contexto do argumento: quantas vezes e em que anos caiu em prova (matriz INEP) e como a pessoa está nele
+    const alvo = normTema(t.nome);
+    const anos = alvo.length < 4 ? [] : [...new Set(temasProvas.filter((x) => { const n = normTema(x.tema); return n === alvo || (n.length >= 5 && (n.includes(alvo) || alvo.includes(n))); }).map((x) => x.ano))].sort();
+    const meu = (await desempenhoTemas(q, U(req))).find((x) => x.id === t.id);
     res.json({ tema: t, diretrizes: dir.map((d) => ({ id: d.id, titulo: d.titulo, fonte: d.fonte, url: d.url })), sem_diretriz: dir.length === 0,
-      resumos, series: c, relacoes: rel, estacoes });
+      resumos, series: c, relacoes: rel, estacoes,
+      contexto: { relevancia: t.relevancia, anos_prova: anos, desempenho: meu?.desempenho ?? null, execucoes: meu?.execucoes ?? 0, cartoes_total: meu?.cartoes_total ?? 0, lacunas: meu?.lacunas ?? 0 } });
   }));
 
   // IA propõe temas ligados ao tema; entram no mapa com origem 'ia' (relações fracas até alguém confirmar na prática).
@@ -251,11 +269,15 @@ export function registrarEstudo(app, { q, autenticar, ia, rng = Math.random, lim
       const existentes = (await q('select frente from cartoes where tema_id=$1 order by criado_em desc limit 40', [t.id])).rows.map((x) => x.frente);
       const lacunas = (await q(`select l.descricao from lacunas l join estacao_temas et on et.estacao_id = l.estacao_id where l.usuario_id=$1 and et.tema_id=$2 and l.descricao <> '' order by l.criada_em desc limit 8`, [U(req), t.id])).rows.map((x) => x.descricao);
       const dir = await diretrizesDoTema(q, t);
-      const r = await ia.gerarCartoes({ tema: t.nome, area: t.area, diretrizes: dir, quantidade: n, existentes, lacunas });
+      const lista = (v, max, tam) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string').map((x) => x.replace(/[\u0000-\u001F]/g, ' ').trim().slice(0, tam)).filter(Boolean).slice(0, max) : []);
+      const foco = String(req.body?.foco ?? '').replace(/[\u0000-\u001F]/g, ' ').trim().slice(0, 160);
+      const pontos = lista(req.body?.pontos, 8, 220);
+      // com argumento ou pontos escolhidos, os cartões aprofundam o escolhido (camadas), em vez de repetir o básico
+      const r = await ia.gerarCartoes({ tema: t.nome, area: t.area, diretrizes: dir, quantidade: n, existentes, lacunas, foco, pontos, aprofundar: req.body?.aprofundar !== false && Boolean(foco || pontos.length) });
       const serie = ((await q('select coalesce(max(serie),0)+1 s from cartoes where tema_id=$1', [t.id])).rows[0].s);
       await q(`insert into cartoes (tema_id, serie, frente, verso, origem, diretriz_id, criado_por)
         select $1, $2, x.frente, x.verso, 'ia', $3, $4 from jsonb_to_recordset($5::jsonb) as x(frente text, verso text)`, [t.id, serie, dir[0]?.id ?? null, U(req), JSON.stringify(r.cartoes)]);
-      res.status(201).json({ serie, total: r.cartoes.length, sem_diretriz: dir.length === 0 });
+      res.status(201).json({ serie, total: r.cartoes.length, sem_diretriz: dir.length === 0, aprofundado: Boolean(foco || pontos.length) });
     } catch (e) { erroIA(res, e); }
   }));
 

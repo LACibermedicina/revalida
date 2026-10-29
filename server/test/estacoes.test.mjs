@@ -30,7 +30,7 @@ const ia = {
 const COMPLETA = (titulo = 'Dor torácica') => ({
   titulo, area: 'clinica_medica', duracao_min: 10,
   instrucoes_candidato: 'Você atende um paciente com dor torácica. Conduza o caso.', cenario: 'Pronto atendimento.',
-  script_ator: 'Paciente de 58 anos com dor opressiva há 40 minutos; libere o ECG quando pedido.',
+  script_ator: `Paciente de 58 anos com dor opressiva há 40 minutos; libere o ECG quando pedido. (${titulo})`,
   pep: [{ secao: 'Anamnese', descricao: 'Caracteriza a dor', pontos_total: 1 }, { secao: 'Exame', descricao: 'Solicita ECG', pontos_total: 2, critico: true }, { secao: 'Conduta', descricao: 'Prescreve AAS', pontos_total: 1.5 }],
   materiais: [{ tipo: 'imagem', titulo: 'ECG', conteudo: 'Supra de ST em parede anterior.', gatilho: 'solicitar ECG' }], conceitos: ['síndrome coronariana aguda'],
 });
@@ -77,7 +77,7 @@ test('manual: cria rascunho, edita, só o dono e a moderação enxergam o conte�
   assert.equal((await api('GET', '/api/estacoes/nao-e-id', ana)).status, 400);
 });
 
-test('publicar: incompleta é barrada; usuário vai para revisão, moderação aprova; aprovada não se apaga aqui', async () => {
+test('publicar: incompleta é barrada; usuário vai para revisão, moderação aprova; aprovada sem uso pode ser excluída; em uso, não', async () => {
   const [ana, mod] = [await novo('Ana'), await novo('Mod', 'moderador')];
   const incompleta = (await api('POST', '/api/estacoes', ana, { titulo: 'Só o começo', area: 'cirurgia' })).corpo.id;
   const barrada = await api('POST', `/api/estacoes/${incompleta}/publicar`, ana);
@@ -87,7 +87,13 @@ test('publicar: incompleta é barrada; usuário vai para revisão, moderação a
   assert.equal((await api('PUT', `/api/estacoes/${id}`, ana, COMPLETA())).status, 409, 'em revisão o dono não edita');
   assert.equal((await api('POST', `/api/estacoes/${id}/publicar`, mod)).corpo.status, 'aprovada');
   assert.equal((await api('POST', `/api/estacoes/${id}/publicar`, mod)).status, 409);
-  assert.equal((await api('DELETE', `/api/estacoes/${id}`, ana)).status, 409);
+  await q(`insert into sessoes (estacao_id, dono_id) values ($1,$2)`, [id, ana]);
+  const emUso = await api('DELETE', `/api/estacoes/${id}`, ana);
+  assert.equal(emUso.status, 409); assert.equal(emUso.corpo.codigo, 'EM_USO', 'estação já usada em sala não some');
+  const livre = (await api('POST', '/api/estacoes', ana, COMPLETA('Aprovada sem uso'))).corpo.id;
+  await api('POST', `/api/estacoes/${livre}/publicar`, mod);
+  assert.equal((await api('DELETE', `/api/estacoes/${livre}`, (await novo('Outro')))).status, 404, 'outra pessoa não vê nem exclui');
+  assert.equal((await api('DELETE', `/api/estacoes/${livre}`, ana)).status, 200, 'o dono exclui mesmo aprovada, se nunca foi usada');
   const rasc = (await api('POST', '/api/estacoes', ana, COMPLETA('Apagar'))).corpo.id;
   assert.equal((await api('DELETE', `/api/estacoes/${rasc}`, ana)).status, 200);
   assert.equal((await api('GET', `/api/estacoes/${rasc}`, ana)).status, 404);
@@ -132,16 +138,21 @@ test('pacote .rvpack: ida e volta, soma de verificação, lote parcial; admin ap
   assert.equal(pacote.formato, 'rvpack'); assert.equal(pacote.estacoes.length, 2); assert.equal(pacote.sha256, somaVerificacao(pacote.estacoes));
   assert.equal((await api('POST', '/api/estacoes/exportar', await novo('Bia'), { ids })).status, 404, 'não exporta gabarito alheio');
   assert.equal((await api('POST', '/api/estacoes/exportar', ana, { ids: [] })).status, 400);
+  // as originais continuam existindo: importar o mesmo pacote não cria cópia (conteúdo idêntico), e diz qual já existe
+  const dup = await api('POST', '/api/estacoes/importar-pacote', ana, { pacote });
+  assert.deepEqual([dup.status, dup.corpo.importadas, dup.corpo.duplicadas], [201, 0, 2]);
+  assert.equal(dup.corpo.resultado[0].existente.id, ids[0]); assert.equal(dup.corpo.resultado[0].tipo, 'conteudo');
+  for (const id of ids) assert.equal((await api('DELETE', `/api/estacoes/${id}`, ana)).status, 200);
   const a = await api('POST', '/api/estacoes/importar-pacote', ana, { pacote });
   assert.deepEqual([a.status, a.corpo.status, a.corpo.importadas], [201, 'revisao', 2]);
   const b = await api('POST', '/api/estacoes/importar-pacote', adm, { pacote });
-  assert.deepEqual([b.corpo.status, b.corpo.importadas], ['aprovada', 2]);
-  assert.equal((await q(`select count(*)::int n from estacoes where titulo='Pacote 1' and status='aprovada'`)).rows[0].n, 1);
+  assert.deepEqual([b.corpo.importadas, b.corpo.duplicadas], [0, 2], 'a moderação enxerga as estações em revisão e também não duplica');
   const adulterado = { ...pacote, estacoes: [{ ...pacote.estacoes[0], titulo: 'Trocado' }, pacote.estacoes[1]] };
   assert.match((await api('POST', '/api/estacoes/importar-pacote', adm, { pacote: adulterado })).corpo.erro, /corrompido/);
   const ruim = montarPacote([COMPLETA('Boa'), { titulo: 'Ruim', area: 'mfc' }]);
   const parcial = (await api('POST', '/api/estacoes/importar-pacote', adm, { pacote: ruim })).corpo;
   assert.deepEqual([parcial.importadas, parcial.rejeitadas], [1, 1]);
+  assert.equal((await q(`select count(*)::int n from estacoes where titulo='Boa' and status='aprovada'`)).rows[0].n, 1, 'admin aprova direto');
   assert.equal(parcial.resultado[1].ok, false); assert.ok(parcial.resultado[1].erros.length > 0, 'diz por que rejeitou');
   assert.equal((await api('POST', '/api/estacoes/importar-pacote', adm, { pacote: { formato: 'outro' } })).status, 400);
   assert.equal((await api('POST', '/api/estacoes/importar-pacote', adm, { pacote: { ...montarPacote([COMPLETA()]), versao: 99 } })).status, 400);
@@ -213,4 +224,55 @@ test('REGRESSÃO: estação gerada pela IA abre, aparece na lista, publica e exp
   assert.equal(pub.status, 200, JSON.stringify(pub.corpo));
   const exp = await api('POST', '/api/estacoes/exportar', u, { ids: [g.corpo.id] });
   assert.equal(exp.status, 200);
+});
+
+/* ---------------- duplicidade ---------------- */
+test('duplicidade: mesmo conteúdo ou mesmo título é barrado, com a estação existente e um título sugerido', async () => {
+  const [ana, bia, adm] = [await novo('Ana'), await novo('Bia'), await novo('Adm', 'admin')];
+  const base = COMPLETA('Dor torácica aguda');
+  const a = await api('POST', '/api/estacoes', ana, base);
+  assert.equal(a.status, 201);
+  // mesmo título, só com outras maiúsculas/acentos/pontuação → título repetido
+  const t = await api('POST', '/api/estacoes', ana, { ...COMPLETA('DOR TORACICA, aguda!'), script_ator: 'Outro paciente, outro caso, com roteiro totalmente diferente do anterior.' });
+  assert.equal(t.status, 409); assert.equal(t.corpo.codigo, 'TITULO_REPETIDO'); assert.equal(t.corpo.existente.id, a.corpo.id);
+  assert.equal(t.corpo.sugestao_titulo, 'DOR TORACICA, aguda! (2)');
+  // título diferente, conteúdo idêntico (ignorando caixa, acentos e pontuação) → duplicada
+  const c = await api('POST', '/api/estacoes', ana, { ...base, titulo: 'Outro nome para o mesmo caso', script_ator: base.script_ator.toUpperCase().replace(/ç/gi, 'c') });
+  assert.equal(c.status, 409); assert.equal(c.corpo.codigo, 'ESTACAO_DUPLICADA'); assert.equal(c.corpo.existente.id, a.corpo.id);
+  // com a sugestão de título e conteúdo realmente novo, entra
+  assert.equal((await api('POST', '/api/estacoes', ana, { ...base, titulo: t.corpo.sugestao_titulo, script_ator: 'Roteiro novo, completamente distinto, para outra apresentação clínica.' })).status, 201);
+  // rascunho de outra pessoa não é visível: Bia pode criar o mesmo título (e não descobre que a Ana tem rascunho)
+  assert.equal((await api('POST', '/api/estacoes', bia, { ...base, script_ator: 'Roteiro diferente da Bia, escrito por ela, sem relação com o da Ana.' })).status, 201);
+  // a moderação enxerga tudo
+  assert.equal((await api('POST', '/api/estacoes', adm, { ...base, titulo: 'Dor torácica aguda' })).status, 409);
+  // editar para virar cópia de outra também é barrado; editar a si mesma não
+  const outra = (await api('POST', '/api/estacoes', ana, { ...COMPLETA('Estação distinta'), script_ator: 'Paciente jovem com palpitações há duas horas, sem outros sintomas relevantes.' })).corpo.id;
+  const ed = await api('PUT', `/api/estacoes/${outra}`, ana, { ...base, titulo: 'Estação distinta' });
+  assert.equal(ed.status, 409); assert.equal(ed.corpo.codigo, 'ESTACAO_DUPLICADA');
+  assert.equal((await api('PUT', `/api/estacoes/${outra}`, ana, { ...COMPLETA('Estação distinta'), script_ator: 'Paciente jovem com palpitações há duas horas, sem outros sintomas relevantes. Editada.' })).status, 200);
+});
+
+test('duplicidade: IA e arquivo renomeiam título repetido e recusam conteúdo idêntico; estação em branco não acusa falso positivo', async () => {
+  const ana = await novo('Ana');
+  const g1 = await api('POST', '/api/estacoes/gerar', ana, { subtema: 'dup-ia' });
+  assert.equal(g1.status, 201); assert.equal(g1.corpo.titulo_ajustado, null);
+  // a IA devolve a mesma estação de novo: conteúdo idêntico → recusa (não gasta rascunho repetido)
+  const g2 = await api('POST', '/api/estacoes/gerar', ana, { subtema: 'dup-ia' });
+  assert.equal(g2.status, 409); assert.equal(g2.corpo.codigo, 'ESTACAO_DUPLICADA'); assert.equal(g2.corpo.existente.id, g1.corpo.id);
+  // mesmo título com conteúdo diferente (variação) → título ganha sufixo
+  const vi = await novo('Vi'); // outro usuário: o limite de pedidos à IA é por pessoa
+  const base = (await api('POST', '/api/estacoes', vi, COMPLETA('Base para variar 2'))).corpo.id;
+  const orig = ia.variarEstacao; let n = 0;
+  ia.variarEstacao = async (p) => ({ estacao: validarEstacao({ ...COMPLETA('Base para variar 2'), script_ator: `Variação número ${++n}: paciente diferente, com história diferente e outra apresentação.` }).estacao, avisos: [] });
+  try {
+    const v = await api('POST', `/api/estacoes/${base}/variar`, vi, {});
+    assert.equal(v.status, 201); assert.equal(v.corpo.titulo_ajustado, 'Base para variar 2 (2)');
+    const v2 = await api('POST', `/api/estacoes/${base}/variar`, vi, {});
+    assert.equal(v2.status, 201, JSON.stringify(v2.corpo)); assert.equal(v2.corpo.titulo_ajustado, 'Base para variar 2 (3)');
+    assert.equal((await q(`select titulo from estacoes where id='${v2.corpo.id}'`)).rows[0].titulo, 'Base para variar 2 (3)');
+  } finally { ia.variarEstacao = orig; }
+  // sem conteúdo (só título e itens mínimos) não há assinatura de conteúdo: duas em branco com títulos diferentes convivem
+  const b1 = await api('POST', '/api/estacoes', ana, { titulo: 'Em branco A', area: 'mfc' });
+  const b2 = await api('POST', '/api/estacoes', ana, { titulo: 'Em branco B', area: 'mfc' });
+  assert.deepEqual([b1.status, b2.status], [201, 201]);
 });
