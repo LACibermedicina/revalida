@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Revalida Prático
 
 App completo para treino da 2ª fase prática do Revalida INEP: estações clínicas com checklist PEP,
@@ -239,3 +240,6 @@ Gerar por IA aceita os campos do modelo (área, cenário, perfil, queixa, diagn�
 - **Cards que aprofundam**: a IA recebe foco, pontos selecionados e a instrução de aprofundar (critério, por que importa, conduta, sinais de alarme, pergunta de raciocínio). Na Trilha há "Criar card do argumento" ao lado de "Cartões".
 - **Análise**: índice de quadros resumidos; abertos, podem ser movidos, minimizados e fechados. A opção "Ver o conteúdo em sequência" empilha todos os quadros; desligada, volta ao formato compacto. Preferências ficam no navegador.
 - **Excluir estações**: botão "Excluir" em Minhas (qualquer status) e em Disponíveis (dono ou admin). Estação já usada em sala/ciclo responde `EM_USO` e deve voltar para rascunho.
+=======
+# revalida
+>>>>>>> 3a23226720e6efb17132f7f272af1ea6f13a6c5f
