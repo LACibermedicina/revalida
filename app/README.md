@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Revalida Prático
 
 App completo para treino da 2ª fase prática do Revalida INEP: estações clínicas com checklist PEP,
@@ -255,7 +254,7 @@ Integra o script "Conduta Dinâmica" (kb, pep, board, app). Na estação em anda
 
 ## Documentação e pacote de instalação
 
-Manuais em `docs/` (e o playbook em 4 idiomas em `docs/playbook/`): `01` usuário · `02` desenvolvedor · `03` investidor e plano de negócios · `04` técnico completo · `05` guia de instalação · `modelo-de-dados.md` · `referencia-api.md` · `visualizacao/index.html` (galeria das telas). Pacote: `bash scripts/empacotar.sh` gera `dist-pacote/revalida-pratico-AAAAMMDD.zip` com `SHA256SUMS`. Leia `LEIA-ME-PRIMEIRO.txt`.
+Manuais técnicos em `docs/`: `01` usuário · `02` desenvolvedor · `03` investidor e plano de negócios · `04` técnico completo · `05` guia de instalação · `modelo-de-dados.md` · `referencia-api.md`. O playbook (4 idiomas), a marca e a galeria de telas ficam em `docs/playbook/`, `docs/marca/` e `docs/visualizacao/` no repositório e, no pacote, na pasta irmã `playbook/`. `bash scripts/empacotar.sh` gera `dist-pacote/revalida-pratico-AAAAMMDD.zip` com dois diretórios (`app/` e `playbook/`) e `SHA256SUMS`. Leia `LEIA-ME-PRIMEIRO.txt`.
 
 ## Trilha guiada, ciclo randômico, comunidade, segurança social e desempenho
 
@@ -267,7 +266,4 @@ Manuais em `docs/` (e o playbook em 4 idiomas em `docs/playbook/`): `01` usuári
 
 ## Logomarca
 
-Proposta em `docs/marca/` (guia em `marca.html`; SVG e PNG; gerada por `python3 docs/marca/gerar_marca.py`): cruz médica facetada com batimento, referenciada nas facetas e cubos verde-água do anexo. Ainda **não aplicada** ao app (o cabeçalho do app usa o ✚ antigo); só o playbook já usa.
-=======
-# revalida
->>>>>>> f059488867d064ed1b81df89569a571f84d42d48
+Proposta em `docs/marca/` (guia em `marca.html`, com SVG e PNG): cruz médica facetada com batimento, referenciada nas facetas e cubos verde-água do anexo. Ainda **não aplicada** ao app nem ao playbook (ambos usam o ✚ antigo).

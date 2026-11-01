@@ -1,0 +1,10 @@
+PLAYBOOK — REVALIDA PRÁTICO
+===========================
+Abra no navegador (não precisa instalar nada):
+  playbook/playbook.html          playbook interativo em pt-BR, es, en e 中文 (roadmap imersivo, MER, fluxogramas)
+  playbook/playbook.<idioma>.md   o mesmo em Markdown (diagramas Mermaid)
+  marca/marca.html                folha da marca (símbolo, horizontal, ícone, paleta, uso) + SVGs
+  galeria-de-telas/index.html     galeria visual das telas
+  manuais/                        01 usuário · 02 desenvolvedor · 03 investidor · 04 técnico · 05 instalação · modelo de dados · API
+Para regenerar o playbook depois de editar o conteúdo: python3 playbook/gerar.py  (fonte: conteudo.py e diagramas.py).
+Honestidade: tudo foi testado em desenvolvimento (Postgres real, navegador automatizado); não em produção, vídeo ao vivo, SMTP, IA real, Docker ou apps nativos.

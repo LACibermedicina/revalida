@@ -15,10 +15,9 @@ Manuais (pasta docs/):
   04-manual-tecnico.md               arquitetura, segurança, operação
   05-guia-de-instalacao.md           instalação e operação
   modelo-de-dados.md, referencia-api.md
-  visualizacao/index.html            galeria visual das telas (abra no navegador)
   marca/marca.html                   logomarca: símbolo, horizontal, ícone, padrão (SVG/PNG) e guia de uso
-  playbook/playbook.html             playbook em pt-BR, es, en e 中文: roadmap imersivo, MER e fluxogramas (abra no navegador)
-  playbook/playbook.<idioma>.md      o mesmo em Markdown (diagramas Mermaid)
+
+O playbook, a marca e a galeria de telas estão na pasta irmã ../playbook/.
 
 Aviso: câmera e microfone exigem HTTPS. Troque a senha do root no primeiro acesso.
 O que NÃO foi testado de verdade: Docker Compose, vídeo ao vivo (Agora), e-mail (SMTP), IA real, Electron, Expo e relógio físico.
