@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Revalida Prático
 
 App completo para treino da 2ª fase prática do Revalida INEP: estações clínicas com checklist PEP,
@@ -267,3 +268,6 @@ Manuais em `docs/` (e o playbook em 4 idiomas em `docs/playbook/`): `01` usuári
 ## Logomarca
 
 Proposta em `docs/marca/` (guia em `marca.html`; SVG e PNG; gerada por `python3 docs/marca/gerar_marca.py`): cruz médica facetada com batimento, referenciada nas facetas e cubos verde-água do anexo. Ainda **não aplicada** ao app (o cabeçalho do app usa o ✚ antigo); só o playbook já usa.
+=======
+# revalida
+>>>>>>> f059488867d064ed1b81df89569a571f84d42d48
