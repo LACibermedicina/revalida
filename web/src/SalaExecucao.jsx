@@ -123,7 +123,7 @@ export function CartasEstacao({ execId, papel, api, token, segmentos = [], versa
 }
 
 /** Controle da transcrição do candidato: precisa do microfone e do consentimento; para sozinho quando a estação termina. */
-export function TranscricaoCandidato({ execId, api, token }) {
+export function TranscricaoCandidato({ execId, api, token, aoFala }) {
   const [estado, setEstado] = useState('parada');
   const [fala, setFala] = useState({ texto: '', parcial: false });
   const tr = useRef(null);
@@ -133,7 +133,7 @@ export function TranscricaoCandidato({ execId, api, token }) {
     const t = criarTranscritor({
       enviarTexto: (texto, inicio_ms) => api(`/api/execucoes/${execId}/transcricao`, { metodo: 'POST', token, corpo: { texto, inicio_ms } }),
       enviarAudio: (mime, base64) => api(`/api/execucoes/${execId}/audio`, { metodo: 'POST', token, corpo: { mime, base64 } }),
-      aoEstado: setEstado, aoTexto: (texto, parcial) => setFala({ texto, parcial }),
+      aoEstado: setEstado, aoTexto: (texto, parcial) => { setFala({ texto, parcial }); aoFala?.(texto, parcial); },
     });
     tr.current = t;
     if (possivel && lerConsentimento()) t.iniciar();       // já autorizou antes: começa junto com a estação

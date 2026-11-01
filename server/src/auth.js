@@ -2,6 +2,7 @@
 import { Limitador, normalizarEmail, emailValido, rota } from './seguranca.js';
 
 export const MSG_LOGIN = 'E-mail ou senha incorretos.';
+export const MSG_SUSPENSO = (ate) => `Acesso suspenso até ${new Date(ate).toLocaleDateString('pt-BR')} por decisão do administrador.`;
 export const MSG_PEDIDO = 'Pedido enviado. Quando receber o token, escolha "Tenho um token".';
 
 export const criarAssinar = ({ jwt, segredo }) => (u) =>
@@ -13,10 +14,11 @@ export function criarAutenticar({ q, jwt, segredo }) {
     const token = cab.startsWith('Bearer ') ? cab.slice(7) : null;
     let dec;
     try { dec = jwt.verify(token, segredo); } catch { return res.status(401).json({ erro: 'Sessão expirada. Entre novamente.' }); }
-    const r = await q('select id, nome, papel_app, ativo, sessao_versao from usuarios where id=$1', [dec.id]);
+    const r = await q('select id, nome, papel_app, ativo, sessao_versao, suspenso_ate from usuarios where id=$1', [dec.id]);
     const u = r.rows[0];
     // papel vem do banco (não do token); sessao_versao muda ao trocar a senha ou bloquear
     if (!u || !u.ativo || u.sessao_versao !== dec.v) return res.status(401).json({ erro: 'Sessão expirada. Entre novamente.' });
+    if (u.suspenso_ate && new Date(u.suspenso_ate) > new Date()) return res.status(403).json({ erro: MSG_SUSPENSO(u.suspenso_ate), codigo: 'SUSPENSO', ate: u.suspenso_ate });
     req.usuario = { id: u.id, nome: u.nome, papel_app: u.papel_app };
     // presença: "online" = visto nos últimos 90 s; grava no máximo a cada 20 s por pessoa (nunca atrasa nem derruba a requisição)
     Promise.resolve(q("update usuarios set visto_em = now() where id = $1 and (visto_em is null or visto_em < now() - interval '20 seconds')", [u.id])).catch(() => {});
@@ -36,7 +38,7 @@ export function registrarLogin(app, { q, bcrypt, assinar, dummyHash }) {
     if (porIpEmail.excedeu(chave) || porEmail.excedeu(email)) {
       return res.status(429).json({ erro: 'Muitas tentativas. Aguarde 15 minutos e tente de novo.' });
     }
-    const r = await q('select id, nome, papel_app, ativo, senha_hash, senha_provisoria, sessao_versao from usuarios where email=$1', [email]);
+    const r = await q('select id, nome, papel_app, ativo, senha_hash, senha_provisoria, sessao_versao, suspenso_ate from usuarios where email=$1', [email]);
     const u = r.rows[0];
     // compara sempre, mesmo sem conta: o tempo de resposta não revela se o e-mail existe
     const confere = await bcrypt.compare(senha, u?.senha_hash ?? dummyHash);
@@ -46,6 +48,7 @@ export function registrarLogin(app, { q, bcrypt, assinar, dummyHash }) {
     }
     porIpEmail.limpar(chave);
     if (!u.ativo) return res.status(403).json({ erro: 'Conta bloqueada. Fale com o administrador.' });
+    if (u.suspenso_ate && new Date(u.suspenso_ate) > new Date()) return res.status(403).json({ erro: MSG_SUSPENSO(u.suspenso_ate), codigo: 'SUSPENSO', ate: u.suspenso_ate });
     res.json({
       token: assinar(u),
       usuario: { id: u.id, nome: u.nome, papel_app: u.papel_app },

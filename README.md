@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Revalida Prático
 
 App completo para treino da 2ª fase prática do Revalida INEP: estações clínicas com checklist PEP,
@@ -240,6 +239,31 @@ Gerar por IA aceita os campos do modelo (área, cenário, perfil, queixa, diagn�
 - **Cards que aprofundam**: a IA recebe foco, pontos selecionados e a instrução de aprofundar (critério, por que importa, conduta, sinais de alarme, pergunta de raciocínio). Na Trilha há "Criar card do argumento" ao lado de "Cartões".
 - **Análise**: índice de quadros resumidos; abertos, podem ser movidos, minimizados e fechados. A opção "Ver o conteúdo em sequência" empilha todos os quadros; desligada, volta ao formato compacto. Preferências ficam no navegador.
 - **Excluir estações**: botão "Excluir" em Minhas (qualquer status) e em Disponíveis (dono ou admin). Estação já usada em sala/ciclo responde `EM_USO` e deve voltar para rascunho.
-=======
-# revalida
->>>>>>> 3a23226720e6efb17132f7f272af1ea6f13a6c5f
+
+## Apoio cognitivo: grafo da conduta durante a estação (2D e 3D)
+
+Integra o script "Conduta Dinâmica" (kb, pep, board, app). Na estação em andamento, **só o candidato** vê a oferta "Abrir apoio cognitivo" (e o ícone *Apoio* na barra de ferramentas da sala). É opcional e não abre sozinho.
+
+- **Quadro móvel e redimensionável** (arrastar pelo cabeçalho, Alt+setas, canto inferior direito para esticar; cabe na janela quando ela diminui e vira folha no celular).
+- **Grafo dinâmico** montado com a fala do próprio candidato (transcrição reconhecida no navegador) e com as *anotações do que o paciente informou*: achados → hipóteses → trilha esperada × realizada (nº = ordem em que foi dito, fora de sequência, omitidos) → ramificação da conduta (ramos indicados, condicionais e descartados com o motivo). Clique no nó para o detalhe; "Fixar este fluxo" compara hipóteses.
+- **Converter para 3D**: o mesmo grafo em 3D (arrastar gira, roda/botões dão zoom, teclas ← → giram); a escolha 2D/3D fica guardada. A visão 2D tem a mesma informação com navegação por teclado.
+- **Módulo puro**: `web/src/conduta.js` (testado em `web/test/conduta.test.mjs`); quadro em `web/src/ApoioCognitivo.jsx`.
+- **Limites propositais**: a trilha de referência é a estrutura genérica das estações práticas e protocolos resumidos (ATLS, Surviving Sepsis, MS/SBC/AHA…), apenas para estudo. **Nunca usa o checklist (PEP) real da estação**, e não altera a nota. Se o navegador só tem a transcrição por gravação enviada ao servidor, a fala não volta ao candidato (continua restrita pela liberação do avaliador): nesse caso o grafo usa só as anotações.
+
+**Desligar o apoio na sala:** o chefe da sala tem a opção "Permitir o apoio cognitivo (grafo da conduta) ao candidato" (ligada por padrão; `PATCH /api/salas/:id/apoio-cognitivo`, migração `012`). Desligada, a oferta e o ícone somem para o candidato e o quadro aberto fecha. O apoio roda só no navegador do candidato, então essa trava é de interface, não uma barreira de segurança.
+
+## Documentação e pacote de instalação
+
+Manuais em `docs/` (e o playbook em 4 idiomas em `docs/playbook/`): `01` usuário · `02` desenvolvedor · `03` investidor e plano de negócios · `04` técnico completo · `05` guia de instalação · `modelo-de-dados.md` · `referencia-api.md` · `visualizacao/index.html` (galeria das telas). Pacote: `bash scripts/empacotar.sh` gera `dist-pacote/revalida-pratico-AAAAMMDD.zip` com `SHA256SUMS`. Leia `LEIA-ME-PRIMEIRO.txt`.
+
+## Trilha guiada, ciclo randômico, comunidade, segurança social e desempenho
+
+- **Início:** trilha guiada × plataforma. A trilha pede só minutos por dia (e dias, opcional), recupera a configuração nas próximas sessões e encadeia ciclos randômicos até preencher o tempo.
+- **Ciclo randômico e chamado público:** a plataforma sorteia estação e funções e inverte depois do 1×1; qualquer usuário pode incluir quem abriu um chamado numa sala aberta ou em um ciclo de estações específicas.
+- **Bloquear/denunciar:** bilateral; denúncia notifica denunciado e administrador, com direito de resposta; suspensão de 7 dias só por decisão do administrador (padrão: só os dois deixam de se relacionar). Migração `013`.
+- **Desempenho:** gráficos por bloco do PEP, modalidade, área e semana, com filtros.
+- **Playbook em 4 idiomas** (pt-BR, es, en, 中文) com roadmap imersivo, MER e fluxogramas: `docs/playbook/playbook.html` (gerado por `python3 docs/playbook/gerar.py`; também `playbook.{pt,es,en,zh}.md` com Mermaid).
+
+## Logomarca
+
+Proposta em `docs/marca/` (guia em `marca.html`; SVG e PNG; gerada por `python3 docs/marca/gerar_marca.py`): cruz médica facetada com batimento, referenciada nas facetas e cubos verde-água do anexo. Ainda **não aplicada** ao app (o cabeçalho do app usa o ✚ antigo); só o playbook já usa.

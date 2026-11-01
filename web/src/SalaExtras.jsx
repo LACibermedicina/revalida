@@ -175,3 +175,22 @@ export function LiberarTranscricao({ execId, api, token }) {
     </div>
   );
 }
+
+/** Plano do ciclo randômico: etapa atual e “Próxima etapa” (o chefe segue; as funções se invertem 1×1). */
+export function BannerRandomico({ salaId, api, token, versao, souAdmin, podeSeguir, aoMudou }) {
+  const [p, setP] = useState(null); const [erro, setErro] = useState('');
+  useEffect(() => { let vivo = true; api(`/api/salas/${salaId}/randomico`, { token }).then((r) => vivo && setP(r)).catch(() => {}); return () => { vivo = false; }; }, [salaId, api, token, versao]);
+  if (!p || (!p.ativo && !p.concluido)) return null;
+  const seguir = async () => { setErro(''); try { await api(`/api/salas/${salaId}/randomico/seguir`, { metodo: 'POST', token }); aoMudou?.(); } catch (e) { setErro(e.message); } };
+  const atual = p.estacoes[Math.min(p.indice, p.estacoes.length - 1)];
+  return (
+    <section className="rd-banner" aria-label="Ciclo randômico" data-testid="banner-randomico">
+      {p.concluido ? <p className="sub"><b>Ciclo randômico concluído.</b> Todas as estações foram feitas nos dois papéis. 🎉</p> : (
+        <>
+          <p className="sub"><b>{p.origem === 'trilha' ? 'Trilha guiada' : 'Ciclo randômico'}</b> · estação {p.indice + 1} de {p.total}{atual ? ` (${atual.titulo})` : ''} · volta {p.fase + 1} de 2 — {p.fase === 0 ? 'depois desta, os papéis se invertem' : 'segue a próxima estação sorteada'}.</p>
+          {souAdmin && <button type="button" className="btn mini menta" disabled={!podeSeguir} onClick={seguir} data-testid="proxima-etapa">{p.fase === 0 ? 'Inverter papéis e repetir' : p.indice + 1 >= p.total ? 'Concluir ciclo' : 'Próxima estação'}</button>}
+        </>)}
+      {erro && <span className="aviso" role="alert">{erro}</span>}
+    </section>
+  );
+}

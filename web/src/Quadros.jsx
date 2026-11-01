@@ -56,10 +56,11 @@ export function useReordenar(chave, ids) {
  * Quadro flutuante: arrasta pelo cabeçalho (mouse, caneta ou toque), minimiza, fecha. A posição é guardada e SEMPRE
  * reajustada para caber na janela quando ela muda de tamanho; em telas estreitas vira uma folha fixa embaixo (sem arrastar).
  */
-export function QuadroFlutuante({ id, titulo, aoFechar, children, largura = 420, inicial }) {
+export function QuadroFlutuante({ id, titulo, aoFechar, children, largura = 420, inicial, redimensionavel = false, altura = 460, testid = 'quadro-flutuante' }) {
   const ref = useRef(null);
   const [pos, setPos] = usePref(`rv_quadro_${id}`, null);
   const [min, setMin] = useState(false);
+  const [tam, setTam] = usePref(`rv_quadro_${id}_tam`, null);   // só quando redimensionável: { w, h } escolhidos pela pessoa
   const [estreito, setEstreito] = useState(() => typeof window !== 'undefined' && window.innerWidth < 700);
   const arr = useRef(null);
 
@@ -79,6 +80,11 @@ export function QuadroFlutuante({ id, titulo, aoFechar, children, largura = 420,
     window.addEventListener('resize', aoRedimensionar);
     return () => window.removeEventListener('resize', aoRedimensionar);
   }, [caber, setPos]);
+  useEffect(() => {
+    const el = ref.current; if (!redimensionavel || !el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(() => { if (min) return; const w = Math.round(el.offsetWidth); const h = Math.round(el.offsetHeight); setTam((t) => (t && Math.abs(t.w - w) < 3 && Math.abs(t.h - h) < 3 ? t : { w, h })); });
+    ro.observe(el); return () => ro.disconnect();
+  }, [redimensionavel, min, setTam]);
   useEffect(() => { const fx = (e) => { if (e.key === 'Escape') aoFechar?.(); }; window.addEventListener('keydown', fx); return () => window.removeEventListener('keydown', fx); }, [aoFechar]);
 
   const comecar = (e) => {
@@ -96,8 +102,8 @@ export function QuadroFlutuante({ id, titulo, aoFechar, children, largura = 420,
   };
 
   return (
-    <aside ref={ref} className={`qf${min ? ' min' : ''}${estreito ? ' folha' : ''}`} role="dialog" aria-label={titulo} data-testid="quadro-flutuante"
-      style={estreito || !pos ? undefined : { left: pos.x, top: pos.y, width: Math.min(largura, window.innerWidth - 16) }}>
+    <aside ref={ref} className={`qf${min ? ' min' : ''}${estreito ? ' folha' : ''}${redimensionavel && !estreito && !min ? ' redim' : ''}`} role="dialog" aria-label={titulo} data-testid={testid}
+      style={estreito || !pos ? undefined : { left: pos.x, top: pos.y, width: Math.min(redimensionavel && tam ? tam.w : largura, window.innerWidth - 16), ...(redimensionavel && !min ? { height: Math.min(tam?.h ?? altura, window.innerHeight - 16) } : {}) }}>
       <header className="qf-cab" onPointerDown={comecar} onPointerMove={levar} onPointerUp={largar} onPointerCancel={largar} onKeyDown={teclas} tabIndex={0} aria-label={`${titulo}. Arraste para mover; Alt e setas movem pelo teclado.`}>
         <span className="qf-alca" aria-hidden="true">⠿</span><b>{titulo}</b>
         <span className="qf-bts">

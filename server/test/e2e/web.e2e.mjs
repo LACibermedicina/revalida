@@ -133,6 +133,8 @@ try {
     await ana.waitForSelector('.msg.e:has-text("incorretos")');
     await ana.fill('#e-senha', 'NovaDaAna-2026'); await ana.click('button.btn:has-text("Entrar")');
     await ana.waitForSelector('nav');
+    // depois de sair e entrar de novo o app volta a perguntar: trilha guiada ou plataforma (a escolha vale por sessão)
+    await ana.waitForSelector('[data-testid=escolha-plataforma]', { timeout: 5000 }); await ana.click('[data-testid=escolha-plataforma]');
     assert.equal(await ana.locator('nav >> text=Admin').count(), 0, 'usuária comum não vê Admin');
   });
 

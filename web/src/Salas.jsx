@@ -6,7 +6,9 @@ import { criarSalaVideo } from './video.js';
 import TextoEstacao from './TextoEstacao.jsx';
 import FerramentasSala from './FerramentasSala.jsx';
 import { CartasEstacao, TranscricaoCandidato, FalaDoCandidato, Sugestao, AnaliseDaFala, useAoVivo } from './SalaExecucao.jsx';
-import { Autocorrecao, ConvidarOnline, LiberarTranscricao } from './SalaExtras.jsx';
+import ApoioCognitivo, { useFalaLocal } from './ApoioCognitivo.jsx';
+import { Autocorrecao, BannerRandomico, ConvidarOnline, LiberarTranscricao } from './SalaExtras.jsx';
+import { AcoesUsuario } from './Seguranca.jsx';
 import './salas.css';
 
 const PAPEL = { admin: 'Chefe', candidato: 'Candidato', observador: 'Observador' };
@@ -97,6 +99,12 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
 
   const meu = est?.meu_papel;
   const exe = est?.execucao;
+  const falaLocal = useFalaLocal(exe?.id);                // fala do próprio candidato, guardada só neste navegador (apoio cognitivo)
+  const [apoio, setApoio] = useState(false);
+  const [notasApoio, setNotasApoio] = useState('');
+  const apoioPermitido = est?.sala?.apoio_cognitivo !== false;
+  useEffect(() => { if (!apoioPermitido) setApoio(false); }, [apoioPermitido]);
+  useEffect(() => { setNotasApoio(''); if (!exe) setApoio(false); }, [exe?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const ciclo = est?.ciclo;
   const euAvalio = Boolean(exe && (exe.avaliador_id === eu || est?.sala.admin_id === eu));
 
@@ -227,6 +235,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
     ...(pedidosPendentes > 0 && (meu === 'admin' || meu === 'candidato') ? [{ id: 'pedidos', rotulo: 'Pedidos de papel', curto: 'Pedidos', aviso: pedidosPendentes, aoClicar: () => irPara('sl-pedidos') }] : []),
     ...(emAndamento ? [{ id: 'estacao', rotulo: 'Estação em andamento', curto: 'Estação', aoClicar: () => irPara('sl-estacao') },
       { id: 'transcricao', rotulo: euAvalio ? 'Fala do candidato em tempo real' : 'Minha transcrição', curto: 'Fala', aoClicar: () => irPara(euAvalio ? 'sl-transcricao' : 'sl-estacao') }] : []),
+    ...(emAndamento && apoioPermitido && meu === 'candidato' && exe.candidato_id === eu ? [{ id: 'conduta', rotulo: apoio ? 'Fechar o apoio cognitivo' : 'Apoio cognitivo: grafo da conduta', curto: 'Apoio', ativo: apoio, aoClicar: () => setApoio((v) => !v) }] : []),
     ...(emAndamento && euAvalio && pep ? [{ id: 'checklist', rotulo: 'Checklist do PEP', curto: 'PEP', aoClicar: () => irPara('sl-checklist') }] : []),
     ...(!emAndamento && ultima && ciclo ? [{ id: 'fim', rotulo: 'Resultado da estação', curto: 'Resultado', aoClicar: () => irPara('sl-fim') }] : []),
     ...(ciclo ? [{ id: 'fila', rotulo: 'Fila do ciclo', curto: 'Fila', aoClicar: () => irPara('sl-fila') }] : []),
@@ -252,6 +261,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
               <button className="btn mini" onClick={() => alternar('mic')} aria-pressed={video.mic}>{video.mic ? 'Silenciar' : 'Ligar microfone'}</button>
             </div>}
         {video.erro && <p className="aviso">{video.erro}</p>}
+        {souAdmin && <label className="sl-op"><input type="checkbox" data-testid="opcao-apoio" checked={est.sala.apoio_cognitivo !== false} onChange={(e) => agir(`/api/salas/${salaId}/apoio-cognitivo`, { liberado: e.target.checked }, 'PATCH')} /> Permitir o apoio cognitivo (grafo da conduta) ao candidato</label>}
         {souAdmin && <label className="sl-op"><input type="checkbox" checked={est.sala.audio_observadores} onChange={(e) => agir(`/api/salas/${salaId}/audio-observadores`, { liberado: e.target.checked }, 'PATCH')} /> Liberar áudio dos observadores</label>}
       </section>
 
@@ -267,11 +277,14 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
         </section>
       )}
 
+      <BannerRandomico salaId={salaId} api={api} token={token} versao={est?.sala?.versao} souAdmin={souAdmin} podeSeguir={souAdmin && !emAndamento && Boolean(ultima)} aoMudou={carregar} />
+
       <section className="sl-bloco" id="sl-participantes" aria-label="Participantes">
         <h3>Participantes ({est.participantes.length})</h3>
         {est.participantes.map((p) => (
           <div key={p.usuario_id} className="sl-linha">
             <span>{p.nome}{p.usuario_id === eu && ' (você)'} <em className={`sl-papel p-${p.papel}`}>{PAPEL[p.papel]}{p.e_avaliador && p.papel !== 'admin' ? ' · avalia' : ''}</em>{p.video_pausado && <em className="sl-mudo"> vídeo pausado</em>}</span>
+            {p.usuario_id !== eu && <AcoesUsuario usuarioId={p.usuario_id} nome={p.nome} api={api} token={token} salaId={salaId} aoFeito={carregar} />}
             {souAdmin && p.usuario_id !== eu && (
               <span className="acoes">
                 {p.papel !== 'candidato' && <button className="btn mini" disabled={emAndamento} onClick={() => agir(`/api/salas/${salaId}/candidato`, { usuario_id: p.usuario_id }, 'PATCH')}>Candidato</button>}
@@ -306,7 +319,11 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
           <Relogio inicio={exe.iniciada_em} limiteMin={pep?.duracao_min} />
           <CartasEstacao execId={exe.id} papel={euAvalio ? 'avaliador' : meu} api={api} token={token} segmentos={aoVivo.segmentos} />
           <span id="sl-transcricao" />
-          {meu === 'candidato' && exe.candidato_id === eu && <TranscricaoCandidato execId={exe.id} api={api} token={token} />}
+          {meu === 'candidato' && exe.candidato_id === eu && <TranscricaoCandidato execId={exe.id} api={api} token={token} aoFala={falaLocal.registrar} />}
+          {apoioPermitido && meu === 'candidato' && exe.candidato_id === eu && (
+            <div className="ap-abrir" data-testid="apoio-oferta"><span className="sub">Quer uma ajuda visual? O apoio cognitivo monta, ao vivo, o grafo da conduta a partir do que você fala. Você pode movê-lo, redimensioná-lo e ver em 3D.</span>
+              <button type="button" className="btn mini menta" aria-pressed={apoio} onClick={() => setApoio((v) => !v)} data-testid="abrir-apoio">{apoio ? 'Fechar apoio cognitivo' : 'Abrir apoio cognitivo'}</button></div>)}
+          {apoio && apoioPermitido && meu === 'candidato' && exe.candidato_id === eu && <ApoioCognitivo fala={falaLocal.fala} inicio={exe.iniciada_em} anotacoes={notasApoio} aoAnotar={setNotasApoio} aoFechar={() => setApoio(false)} />}
           {euAvalio && <FalaDoCandidato segmentos={aoVivo.segmentos} info={aoVivo.info} aoAnalisar={aoVivo.analisar} />}
           {euAvalio && <AnaliseDaFala info={aoVivo.info} />}
           {euAvalio && pep && (

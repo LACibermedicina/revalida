@@ -50,6 +50,8 @@ export function criarQ(db) {
       if (tipo === 'bigint') return [nome, v];                         // node-pg devolve int8 como texto
       if (/^numeric/.test(tipo)) return [nome, v];                      // ...e numeric também: quem precisa de número converte (era o que escondia o erro de publicar)
       if (/^(json|jsonb)$/.test(tipo)) return [nome, JSON.parse(v)];
+      if (/^(integer|smallint|bigint)\[\]$/.test(tipo)) return [nome, v === '{}' ? [] : v.slice(1, -1).split(',').map(Number)];   // como o node-pg
+      if (/^uuid\[\]$/.test(tipo)) return [nome, v === '{}' ? [] : v.slice(1, -1).split(',')];
       if (/^(double precision|real)/.test(tipo)) return [nome, Number(v)];
       return [nome, v];
     })));

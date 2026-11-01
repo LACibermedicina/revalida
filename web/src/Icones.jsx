@@ -17,6 +17,8 @@ const D = {
   criar: <><path className="ic-lapis" d="M5 27l1.5-6L21 6.5a3 3 0 0 1 4.5 4.5L11 25.5z" /><path d="M18 9.5l4.5 4.5" /></>,
   admin: <><path className="ic-escudo" d="M16 4l10 4v7c0 6-4 10-10 13C10 25 6 21 6 15V8z" /><path d="m11.5 16 3.5 3.5 6-7" /></>,
   conta: <><circle className="ic-cab" cx="16" cy="11" r="5" /><path className="ic-omb" d="M6 27c1-5 5-8 10-8s9 3 10 8" /></>,
+  comunidade: <><circle cx="11" cy="12" r="4" /><circle cx="22" cy="13" r="3" /><path d="M4 26c.8-4.5 3.5-7 7-7s6.2 2.500 7 7" /><path d="M20 20c3 0 5.500 1.800 6.500 6" /></>,
+  desempenho: <><path d="M5 5v22h22" /><rect x="9" y="16" width="4" height="8" rx="1" /><rect x="15" y="11" width="4" height="13" rx="1" /><rect x="21" y="7" width="4" height="17" rx="1" /></>,
   sair: <><path d="M13 5H8a3 3 0 0 0-3 3v16a3 3 0 0 0 3 3h5" /><path className="ic-seta" d="M20 10l6 6-6 6M26 16H12" /></>,
   menu: <><path className="ic-m1" d="M6 10h20" /><path className="ic-m2" d="M6 16h20" /><path className="ic-m3" d="M6 22h20" /></>,
 };

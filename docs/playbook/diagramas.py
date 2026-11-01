@@ -1,0 +1,115 @@
+# Diagramas do playbook: MER (extraído das chaves estrangeiras reais do db/schema.sql) e fluxogramas de UX/funcionamento.
+# Rótulos de fluxo existem nos 4 idiomas; nomes de tabela e colunas ficam como no banco.
+def T(pt, es, en, zh): return {'pt': pt, 'es': es, 'en': en, 'zh': zh}
+
+# ---------- MER: nome -> (coluna, linha, [campos]) ; pk/fk marcados com * e #
+ENT = {
+ 'trilhas': (0, 0, ['*usuario_id #', 'minutos_dia', 'dias[]', 'ultimo_modo']),
+ 'chamados': (1, 0, ['*id', '#usuario_id', '#sala_id', 'tipo · estado', 'area · estacoes[]']),
+ 'notificacoes': (2, 0, ['*id', '#usuario_id', 'tipo · dados', 'lida_em']),
+ 'denuncias': (3, 0, ['*id', '#denunciante_id', '#denunciado_id', 'motivo · estado', 'resposta · decisao']),
+ 'suspensoes': (4, 0, ['*id', '#usuario_id', '#denuncia_id', 'inicio · fim']),
+ 'bloqueios': (5, 0, ['*#bloqueador_id', '*#bloqueado_id', 'origem']),
+ 'convites_sala': (0, 1, ['*id', '#sala_id', '#convidante_id', '#convidado_id', 'estado']),
+ 'salas': (1, 1, ['*id', '#dono_id · #admin_id', '#ciclo_ativo_id', 'estado', 'apoio_cognitivo']),
+ 'sala_participantes': (2, 1, ['*#sala_id', '*#usuario_id', 'papel · e_avaliador', 'entrou_em · saiu_em']),
+ 'usuarios': (3, 1, ['*id', 'nome · email', 'papel_app · ativo', 'suspenso_ate']),
+ 'usuario_estacao': (4, 1, ['*#usuario_id', '*#estacao_id', 'vezes_realizada', 'melhor_nota']),
+ 'cartoes': (5, 1, ['*id', '#tema_id', '#estacao_id', '#pep_item_id', 'frente · verso']),
+ 'ciclos_randomicos': (0, 2, ['*#sala_id', 'estacoes[]', 'indice · fase', 'origem · estado']),
+ 'ciclos': (1, 2, ['*id', '#sala_id', '#admin_id', '#candidato_id', 'estado']),
+ 'execucoes': (2, 2, ['*id', '#ciclo_id · #item_id', '#candidato_id', '#avaliador_id', 'nota · checklist']),
+ 'estacoes': (3, 2, ['*id', 'titulo · area', 'duracao_min', 'status · origem']),
+ 'cartao_progresso': (4, 2, ['*#usuario_id', '*#cartao_id', 'proximo_em', 'acertos · erros']),
+ 'temas': (5, 2, ['*id', 'nome', 'relevancia']),
+ 'solicitacoes_papel': (0, 3, ['*id', '#sala_id', '#solicitante_id', 'papel_pedido · estado']),
+ 'ciclo_itens': (1, 3, ['*id', '#ciclo_id', '#estacao_id', 'posicao']),
+ 'transcricoes': (2, 3, ['*id', '#execucao_id', 'texto · inicio_ms']),
+ 'pep_itens': (3, 3, ['*id', '#estacao_id', 'secao · descricao', 'pontos_total · critico']),
+ 'analises_transcricao': (4, 3, ['*#execucao_id', 'itens · resumo', 'gerada_em']),
+ 'estacao_temas': (5, 3, ['*#estacao_id', '*#tema_id']),
+}
+# (origem, destino, card_origem, card_destino, auxiliar?)  — "origem N → 1 destino" quando a FK está na origem
+REL = [
+ ('trilhas', 'usuarios', '1', '1'), ('chamados', 'usuarios', 'N', '1'), ('chamados', 'salas', 'N', '1'),
+ ('notificacoes', 'usuarios', 'N', '1'), ('denuncias', 'usuarios', 'N', '1'), ('suspensoes', 'denuncias', 'N', '1'),
+ ('suspensoes', 'usuarios', 'N', '1'), ('bloqueios', 'usuarios', 'N', '1'),
+ ('convites_sala', 'salas', 'N', '1'), ('convites_sala', 'usuarios', 'N', '1'),
+ ('sala_participantes', 'salas', 'N', '1'), ('sala_participantes', 'usuarios', 'N', '1'),
+ ('salas', 'usuarios', 'N', '1'), ('salas', 'ciclos', '1', 'N'), ('ciclos', 'usuarios', 'N', '1'),
+ ('usuario_estacao', 'usuarios', 'N', '1'), ('usuario_estacao', 'estacoes', 'N', '1'),
+ ('cartoes', 'temas', 'N', '1'), ('cartoes', 'estacoes', 'N', '1'), ('cartoes', 'pep_itens', 'N', '1'),
+ ('cartao_progresso', 'cartoes', 'N', '1'), ('cartao_progresso', 'usuarios', 'N', '1'),
+ ('ciclos_randomicos', 'salas', '1', '1'), ('ciclos', 'salas', 'N', '1'),
+ ('execucoes', 'ciclos', 'N', '1'), ('execucoes', 'ciclo_itens', 'N', '1'), ('execucoes', 'usuarios', 'N', '1'),
+ ('solicitacoes_papel', 'salas', 'N', '1'), ('solicitacoes_papel', 'usuarios', 'N', '1'),
+ ('ciclo_itens', 'ciclos', 'N', '1'), ('ciclo_itens', 'estacoes', 'N', '1'),
+ ('transcricoes', 'execucoes', 'N', '1'), ('analises_transcricao', 'execucoes', '1', '1'),
+ ('pep_itens', 'estacoes', 'N', '1'), ('estacao_temas', 'estacoes', 'N', '1'), ('estacao_temas', 'temas', 'N', '1'),
+]
+AUX = {'estacao_temas', 'sala_participantes', 'usuario_estacao', 'cartao_progresso', 'bloqueios'}   # tabelas de ligação (N–N)
+
+# ---------- fluxogramas: nós (id, col, linha, tipo, texto) e arestas (de, para, rótulo|None). tipos: start, proc, dec, end
+FLUXOS = [
+ ('jornada', T('Jornada ponta a ponta (UX)', 'Recorrido de extremo a extremo (UX)', 'End-to-end journey (UX)', '端到端用户旅程（UX）'), [
+  ('a', 0, 1, 'start', T('Entrar na conta', 'Iniciar sesión', 'Sign in', '登录账号')),
+  ('b', 1, 1, 'dec', T('Trilha guiada ou plataforma?', '¿Ruta guiada o plataforma?', 'Guided path or platform?', '引导路径还是平台？')),
+  ('c', 2, 0, 'proc', T('Informar minutos por dia (dias é opcional)', 'Indicar minutos al día (días opcional)', 'Say minutes per day (days optional)', '填写每天分钟数（星期可选）')),
+  ('d', 3, 0, 'proc', T('Entrar na fila e ser pareado', 'Entrar en la cola y emparejarse', 'Join the queue and get matched', '加入队列并配对')),
+  ('e', 4, 0, 'proc', T('Sala 1×1 com estação sorteada', 'Sala 1×1 con estación sorteada', '1×1 room with a drawn station', '1对1房间，随机抽取站点')),
+  ('f', 5, 0, 'proc', T('Inverter papéis e repetir a estação', 'Invertir roles y repetir la estación', 'Swap roles and repeat the station', '互换角色并重做该站点')),
+  ('g', 6, 0, 'dec', T('Ainda há tempo no dia?', '¿Queda tiempo hoy?', 'Time left today?', '今天还有时间吗？')),
+  ('h', 2, 2, 'proc', T('Plataforma: Início, Ciclos, Estações, Estudo, Comunidade', 'Plataforma: Inicio, Ciclos, Estaciones, Estudio, Comunidad', 'Platform: Home, Cycles, Stations, Study, Community', '平台：首页、循环、站点、学习、社区')),
+  ('i', 3, 2, 'proc', T('Sala própria, convite ou chamado público', 'Sala propia, invitación o llamado público', 'Own room, invite or public call', '自建房间、邀请或公开呼叫')),
+  ('j', 7, 1, 'proc', T('Análise da fala, nota e cartões', 'Análisis del habla, nota y tarjetas', 'Speech analysis, score and cards', '语音分析、评分与卡片')),
+  ('k', 8, 1, 'end', T('Desempenho por bloco do PEP', 'Desempeño por bloque del PEP', 'Performance by PEP block', '按 PEP 模块查看表现')),
+ ], [('a', 'b', None), ('b', 'c', T('Trilha', 'Ruta', 'Path', '路径')), ('b', 'h', T('Plataforma', 'Plataforma', 'Platform', '平台')),
+     ('c', 'd', None), ('d', 'e', None), ('e', 'f', None), ('f', 'g', None),
+     ('g', 'd', T('Sim: próxima estação', 'Sí: siguiente estación', 'Yes: next station', '是：下一站')), ('g', 'j', T('Não', 'No', 'No', '否')),
+     ('h', 'i', None), ('i', 'j', None), ('j', 'k', None)]),
+
+ ('funcionamento', T('Funcionamento: arquitetura', 'Funcionamiento: arquitectura', 'How it works: architecture', '运行原理：架构'), [
+  ('w', 0, 0, 'proc', T('Web (React + Vite)', 'Web (React + Vite)', 'Web (React + Vite)', '网页（React + Vite）')),
+  ('d', 0, 1, 'proc', T('Desktop (Electron)', 'Escritorio (Electron)', 'Desktop (Electron)', '桌面端（Electron）')),
+  ('m', 0, 2, 'proc', T('Celular (Expo)', 'Móvil (Expo)', 'Mobile (Expo)', '手机端（Expo）')),
+  ('r', 0, 3, 'proc', T('Relógio (PWA /watch/)', 'Reloj (PWA /watch/)', 'Watch (PWA /watch/)', '手表（PWA /watch/）')),
+  ('api', 2, 1, 'proc', T('API Node + Express: valida, autentica, traduz erros', 'API Node + Express: valida, autentica, traduce errores', 'Node + Express API: validates, authenticates, maps errors', 'Node + Express API：校验、认证、转换错误')),
+  ('io', 2, 2, 'proc', T('Socket.IO: estado da sala filtrado por papel', 'Socket.IO: estado de la sala filtrado por rol', 'Socket.IO: room state filtered by role', 'Socket.IO：按角色过滤的房间状态')),
+  ('db', 4, 0, 'proc', T('PostgreSQL: tabelas + funções rv_* (regras atômicas)', 'PostgreSQL: tablas + funciones rv_* (reglas atómicas)', 'PostgreSQL: tables + rv_* functions (atomic rules)', 'PostgreSQL：数据表 + rv_* 函数（原子规则）')),
+  ('v', 4, 1, 'proc', T('Agora: vídeo (modo demo sem chaves)', 'Agora: video (modo demo sin claves)', 'Agora: video (demo mode without keys)', 'Agora：视频（无密钥时为演示模式）')),
+  ('ia', 4, 2, 'proc', T('IA opcional: estações, cartões, análise', 'IA opcional: estaciones, tarjetas, análisis', 'Optional AI: stations, cards, analysis', '可选 AI：站点、卡片、分析')),
+  ('s', 4, 3, 'proc', T('SMTP: recuperação de senha e aprovações', 'SMTP: recuperación de contraseña y aprobaciones', 'SMTP: password recovery and approvals', 'SMTP：找回密码与审批')),
+ ], [('w', 'api', 'REST'), ('d', 'api', 'REST'), ('m', 'api', 'REST'), ('r', 'api', 'REST'), ('w', 'io', None),
+     ('api', 'db', None), ('io', 'db', None), ('api', 'v', None), ('api', 'ia', None), ('api', 's', None)]),
+
+ ('randomico', T('Ciclo randômico e chamado à comunidade', 'Ciclo aleatorio y llamado a la comunidad', 'Random cycle and community call', '随机循环与社区呼叫'), [
+  ('a', 0, 0, 'start', T('Ficar disponível (fila)', 'Quedar disponible (cola)', 'Become available (queue)', '进入可用队列')),
+  ('b', 1, 0, 'dec', T('Alguém online e sem bloqueio?', '¿Alguien en línea y sin bloqueo?', 'Anyone online and not blocked?', '有人在线且无屏蔽吗？')),
+  ('w', 1, 1, 'proc', T('Aguardar (expira em 10 min)', 'Esperar (caduca en 10 min)', 'Wait (expires in 10 min)', '等待（10 分钟后过期）')),
+  ('c', 2, 0, 'proc', T('Plataforma sorteia estação e funções', 'La plataforma sortea estación y roles', 'Platform draws station and roles', '平台随机抽取站点与角色')),
+  ('d', 3, 0, 'proc', T('Estação 1×1', 'Estación 1×1', '1×1 station', '1对1站点')),
+  ('e', 4, 0, 'proc', T('Inverter papéis, mesma estação', 'Invertir roles, misma estación', 'Swap roles, same station', '互换角色，同一站点')),
+  ('f', 5, 0, 'dec', T('Há mais estações no plano?', '¿Hay más estaciones en el plan?', 'More stations in the plan?', '计划中还有站点吗？')),
+  ('g', 6, 0, 'end', T('Ciclo concluído', 'Ciclo concluido', 'Cycle complete', '循环完成')),
+  ('h', 0, 2, 'start', T('Abrir chamado público', 'Abrir llamado público', 'Open a public call', '发布公开呼叫')),
+  ('i', 1, 2, 'proc', T('Qualquer usuário (não bloqueado) inclui você', 'Cualquier usuario (no bloqueado) te incluye', 'Any user (not blocked) includes you', '任何（未屏蔽的）用户可邀请你')),
+  ('j', 2, 2, 'dec', T('Sala aberta ou ciclo de estações?', '¿Sala abierta o ciclo de estaciones?', 'Open room or station cycle?', '开放房间还是指定站点循环？')),
+  ('k', 3, 2, 'proc', T('Entra na sala aberta', 'Entra a la sala abierta', 'Joins the open room', '加入开放房间')),
+  ('l', 3, 3, 'proc', T('Novo ciclo com as estações pedidas', 'Nuevo ciclo con las estaciones pedidas', 'New cycle with the chosen stations', '按所选站点新建循环')),
+ ], [('a', 'b', None), ('b', 'w', T('Não', 'No', 'No', '否')), ('b', 'c', T('Sim', 'Sí', 'Yes', '是')), ('c', 'd', None), ('d', 'e', None), ('e', 'f', None),
+     ('f', 'c', T('Sim: sorteia de novo', 'Sí: sortea otra vez', 'Yes: draw again', '是：重新抽取')), ('f', 'g', T('Não', 'No', 'No', '否')),
+     ('h', 'i', None), ('i', 'j', None), ('j', 'k', T('Sala', 'Sala', 'Room', '房间')), ('j', 'l', T('Estações', 'Estaciones', 'Stations', '站点'))]),
+
+ ('seguranca', T('Segurança social: bloquear e denunciar', 'Seguridad social: bloquear y denunciar', 'Social safety: block and report', '社交安全：屏蔽与举报'), [
+  ('a', 0, 0, 'start', T('Bloquear', 'Bloquear', 'Block', '屏蔽')),
+  ('b', 0, 2, 'start', T('Denunciar', 'Denunciar', 'Report', '举报')),
+  ('c', 1, 1, 'proc', T('Bloqueio mútuo: somem de listas, salas, convites, chamados e fila', 'Bloqueo mutuo: desaparecen de listas, salas, invitaciones, llamados y cola', 'Mutual block: hidden from lists, rooms, invites, calls and queue', '双向屏蔽：在列表、房间、邀请、呼叫和队列中互相隐藏')),
+  ('d', 1, 2, 'proc', T('Notifica o denunciado e o administrador', 'Notifica al denunciado y al administrador', 'Notifies the reported user and the admin', '通知被举报者与管理员')),
+  ('e', 2, 2, 'proc', T('Denunciado responde (direito de resposta)', 'El denunciado responde (derecho de respuesta)', 'Reported user replies (right of reply)', '被举报者回复（申辩权）')),
+  ('f', 3, 2, 'dec', T('Administrador decide', 'El administrador decide', 'Admin decides', '管理员裁决')),
+  ('g', 4, 1, 'end', T('Manter só o bloqueio (padrão)', 'Mantener solo el bloqueo (por defecto)', 'Keep the block only (default)', '仅保留屏蔽（默认）')),
+  ('h', 4, 2, 'end', T('Arquivar: quem bloqueou pode desfazer', 'Archivar: quien bloqueó puede deshacer', 'Archive: the blocker may undo it', '归档：屏蔽者可撤销')),
+  ('i', 4, 3, 'end', T('Suspender 7 dias (só se decidir)', 'Suspender 7 días (solo si decide)', 'Suspend 7 days (only if decided)', '停权 7 天（仅在裁决时）')),
+ ], [('a', 'c', None), ('b', 'c', None), ('b', 'd', None), ('d', 'e', None), ('e', 'f', None),
+     ('f', 'g', None), ('f', 'h', None), ('f', 'i', T('Não resolvido', 'No resuelto', 'Unresolved', '未解决'))]),
+]

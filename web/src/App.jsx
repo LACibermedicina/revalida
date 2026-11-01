@@ -9,6 +9,10 @@ import TelaPainel from './Painel.jsx';
 import { Icone } from './Icones.jsx';
 import { ConvitesRecebidos } from './SalaExtras.jsx';
 import TelaAnalise from './Analise.jsx';
+import TelaComunidade from './Comunidade.jsx';
+import TelaDesempenho from './Desempenho.jsx';
+import EscolhaInicial from './Inicio.jsx';
+import { AdminDenuncias } from './Seguranca.jsx';
 import { gravarModo, podeTrocarVersao } from './dispositivo.js';
 
 /* Relógio de bolso: atalho discreto, sempre no canto, para a versão mini (/watch/). */
@@ -282,7 +286,7 @@ const dataCurta = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit
 function TelaAdmin({ token, usuario }) {
   const euRoot = usuario.papel_app === 'root';
   const ehAdmin = euRoot || usuario.papel_app === 'admin';
-  const abas = [...(ehAdmin ? [['pedidos', 'Pedidos'], ['tokens', 'Tokens'], ['usuarios', 'Usuários']] : []), ...(ehAdmin ? [['registro', 'Registro']] : []), ...(euRoot ? [['sistema', 'Sistema']] : [])];
+  const abas = [...(ehAdmin ? [['pedidos', 'Pedidos'], ['tokens', 'Tokens'], ['usuarios', 'Usuários']] : []), ...(ehAdmin ? [['denuncias', 'Denúncias'], ['registro', 'Registro']] : []), ...(euRoot ? [['sistema', 'Sistema']] : [])];
   const [aba, setAba] = useState(abas[0][0]);
   const [cx, setCx] = useState({ aba: '', lista: [] });   // lista + a aba a que ela pertence (evita mostrar dados da aba anterior)
   const dados = cx.aba === aba ? cx.lista : [];
@@ -297,7 +301,7 @@ function TelaAdmin({ token, usuario }) {
     setErro('');
     const rota = { pedidos: '/api/admin/pedidos', tokens: '/api/admin/tokens', usuarios: `/api/admin/usuarios?busca=${encodeURIComponent(busca)}`, registro: '/api/admin/auditoria' }[aba];
     const daAba = aba;
-    if (aba === 'sistema') { setCx({ aba: daAba, lista: [] }); return; }
+    if (aba === 'sistema' || aba === 'denuncias') { setCx({ aba: daAba, lista: [] }); return; }
     try { setCx({ aba: daAba, lista: await api(rota, { token }) }); } catch (e) { setErro(e.message); setCx({ aba: daAba, lista: [] }); }
   };
   useEffect(() => { setMsg(''); carregar(); }, [aba]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -386,6 +390,7 @@ function TelaAdmin({ token, usuario }) {
       </>)}
 
       {aba === 'sistema' && <SistemaRoot token={token} />}
+      {aba === 'denuncias' && <AdminDenuncias api={api} token={token} />}
 
       {aba === 'registro' && dados.map((a) => (
         <div className="cartao item-adm" key={a.id}><b>{a.acao.replaceAll('_', ' ')}</b><small>{a.ator || 'sistema'} · {a.alvo || '—'} · {dataCurta(a.criado_em)}</small></div>))}
@@ -754,6 +759,9 @@ export default function App() {
   const [sugestao, setSugestao] = useState(null); // estação sugerida pela trilha de estudo para a próxima sala
   const [comando, setComando] = useState(null); // pedido vindo do menu da versão desktop: { tela, aba }
   const [instalado, setInstalado] = useState(null); // null = descobrindo
+  // início de cada sessão: trilha guiada ou plataforma (a escolha vale até fechar a aba)
+  const [escolheu, setEscolheu] = useState(() => { try { return sessionStorage.getItem('rv_modo_ok') === '1'; } catch { return false; } });
+  const marcarEscolha = () => { setEscolheu(true); try { sessionStorage.setItem('rv_modo_ok', '1'); } catch { /* sem storage */ } };
   const [dispositivo, setDispositivo] = useState(() => document.documentElement.dataset.dispositivo || 'desktop');
   useEffect(() => {
     const ler = () => setDispositivo(document.documentElement.dataset.dispositivo || 'desktop'); // dispositivo.js atualiza ao redimensionar
@@ -779,7 +787,7 @@ export default function App() {
   const guardar = (r) => { localStorage.setItem('rp-auth', JSON.stringify(r)); setSessaoAuth(r); };
   const entrar = (r) => { guardar(r); setTela('painel'); setAviso(''); };
   const abrirAnalise = (id) => { setAnaliseId(id); setTela('analise'); };
-  const sair = (motivo = '') => { localStorage.removeItem('rp-auth'); setSessaoAuth(null); setSala(null); setTela('entrar'); setAviso(motivo); };
+  const sair = (motivo = '') => { try { sessionStorage.removeItem('rv_modo_ok'); } catch { /* sem storage */ } setEscolheu(false); localStorage.removeItem('rp-auth'); setSessaoAuth(null); setSala(null); setTela('entrar'); setAviso(motivo); };
   const abrirSala = (id, papel) => { setSala({ id, papel }); setTela('sala'); };
   const abrirSalaCiclos = (id) => { try { sessionStorage.setItem('rv_sala', id); } catch { /* sem storage */ } setChaveCiclos((k) => k + 1); setTela('ciclos'); };
 
@@ -816,6 +824,10 @@ export default function App() {
     conteudo = <TelaEstacoes token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} comando={comando} aoPraticar={(id) => { setSugestao(id); setChaveCiclos((k) => k + 1); setTela('ciclos'); }} />;
   } else if (tela === 'ciclos') {
     conteudo = <TelaCiclos key={chaveCiclos} token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} sugestao={sugestao} aoAnalise={abrirAnalise} aoRevisar={() => { setComando({ tela: 'estudo', aba: 'erros', n: Date.now() }); setTela('estudo'); }} />;
+  } else if (tela === 'comunidade') {
+    conteudo = <TelaComunidade token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} aoAbrirSala={abrirSalaCiclos} />;
+  } else if (tela === 'desempenho') {
+    conteudo = <TelaDesempenho token={sessaoAuth.token} api={api} />;
   } else if (tela === 'estudo') {
     conteudo = <TelaEstudo token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} comando={comando} aoAnalise={abrirAnalise} aoPraticar={(id) => { setSugestao(id); setTela('ciclos'); }} />;
   } else if (tela === 'analise' && analiseId) {
@@ -837,6 +849,9 @@ export default function App() {
   return (
     <div className={`app${menuOculto ? ' menu-oculto' : ''}${menuModo === 'icones' ? ' menu-icones' : ''}`}>
       <div className="blobs" aria-hidden="true"><i className="blob b1" /><i className="blob b2" /><i className="blob b3" /><i className="blob b4" /></div>
+      {instalado && sessaoAuth && !tokenSenha && !escolheu && !sessaoAuth.senhaProvisoria && (
+        <EscolhaInicial api={api} token={sessaoAuth.token} nome={sessaoAuth.usuario?.nome} aoPlataforma={marcarEscolha} aoAbrirSala={(id) => { marcarEscolha(); abrirSalaCiclos(id); }} />
+      )}
       {instalado && sessaoAuth && !tokenSenha && sessaoAuth.senhaProvisoria && tela !== 'conta' && (
         <button type="button" className="faixa" onClick={() => setTela('conta')}>⚠ Sua senha é provisória. Toque para trocar.</button>
       )}
@@ -858,6 +873,8 @@ export default function App() {
             onClick={() => sala && setTela('sala')} style={!sala ? { opacity: .4 } : undefined}><span className="ni" aria-hidden="true"><Icone nome="sala" /></span>Sala</button>
           <button type="button" aria-current={tela === 'ciclos' ? 'page' : undefined} onClick={() => setTela('ciclos')}><span className="ni" aria-hidden="true"><Icone nome="ciclos" /></span>Ciclos</button>
           <button type="button" aria-current={tela === 'estacoes' ? 'page' : undefined} onClick={() => setTela('estacoes')}><span className="ni" aria-hidden="true"><Icone nome="catalogo" /></span>Estações</button>
+          <button type="button" aria-current={tela === 'comunidade' ? 'page' : undefined} onClick={() => setTela('comunidade')}><span className="ni" aria-hidden="true"><Icone nome="comunidade" /></span>Comunidade</button>
+          <button type="button" aria-current={tela === 'desempenho' ? 'page' : undefined} onClick={() => setTela('desempenho')}><span className="ni" aria-hidden="true"><Icone nome="desempenho" /></span>Desempenho</button>
           <button type="button" aria-current={tela === 'estudo' ? 'page' : undefined} onClick={() => setTela('estudo')}><span className="ni" aria-hidden="true"><Icone nome="estudo" /></span>Estudo</button>
           {ehAdminApp && <button type="button" aria-current={tela === 'admin' ? 'page' : undefined} onClick={() => setTela('admin')}><span className="ni" aria-hidden="true"><Icone nome="admin" /></span>Admin</button>}
           <button type="button" aria-current={tela === 'conta' ? 'page' : undefined} onClick={() => setTela('conta')}><span className="ni" aria-hidden="true"><Icone nome="conta" /></span>Conta</button>

@@ -191,3 +191,18 @@ test('HTTP: estação que já está na fila avisa e só repete com confirmação
   const feita = await api('POST', `/api/ciclos/${c.ciclo}/itens`, c.ana, { estacoes: [c.e1] });
   assert.equal(feita.corpo.repetidas[0].situacao, 'em_andamento');
 });
+
+test('apoio cognitivo: ligado por padrão; só o chefe desliga; o estado da sala informa e o evento é difundido', async () => {
+  const [ana, bia] = [await uid('Ana'), await uid('Bia')];
+  const sala = (await api('POST', '/api/salas', ana)).corpo.id; await api('POST', `/api/salas/${sala}/entrar`, bia);
+  assert.equal((await api('GET', `/api/salas/${sala}/estado`, bia)).corpo.sala.apoio_cognitivo, true, 'padrão: permitido');
+  assert.equal((await api('PATCH', `/api/salas/${sala}/apoio-cognitivo`, ana, { liberado: 'sim' })).status, 400);
+  const nao = await api('PATCH', `/api/salas/${sala}/apoio-cognitivo`, bia, { liberado: false });
+  assert.equal(nao.status, 403); assert.equal(nao.corpo.codigo, 'NAO_ADMIN');
+  eventos.length = 0;
+  const ok = await api('PATCH', `/api/salas/${sala}/apoio-cognitivo`, ana, { liberado: false });
+  assert.equal(ok.status, 200); assert.equal(ok.corpo.apoio_cognitivo, false);
+  assert.ok(eventos.some(([s, e]) => s === sala && e === 'apoio_cognitivo'));
+  assert.equal((await api('GET', `/api/salas/${sala}/estado`, bia)).corpo.sala.apoio_cognitivo, false, 'todos veem a opção desligada');
+  assert.equal((await api('PATCH', `/api/salas/${sala}/apoio-cognitivo`, ana, { liberado: true })).corpo.apoio_cognitivo, true);
+});

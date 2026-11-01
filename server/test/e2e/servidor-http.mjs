@@ -19,6 +19,8 @@ import { registrarEstudo } from '../../src/estudo.js';
 import { registrarCatalogo } from '../../src/catalogo.js';
 import { registrarExecucao } from '../../src/execucao.js';
 import { registrarPainel } from '../../src/painel.js';
+import { registrarSocial } from '../../src/social.js';
+import { registrarDesempenho } from '../../src/desempenho.js';
 import { analisarHeuristica, validarAnalise } from '../../src/analise-transcricao.js';
 import { sortearCampos, validarEstacao } from '../../src/estacao-esquema.js';
 
@@ -123,6 +125,8 @@ export async function iniciar({ pastaWeb, porta = 0, instalado = true, extras = 
   iaFalsa.transcreverAudio = async function () { this.chamadas.push(['audio']); return { texto: 'trecho transcrito pela IA' }; };
   const execucao = registrarExecucao(app, { q, autenticar, ia: iaFalsa, difundir, intervaloAoVivoMs: 0 });
   registrarSalas(app, { q, autenticar, agora, cfg, difundir, aoFinalizar: execucao.analisarFinal });
+  registrarSocial(app, { q, autenticar, difundir });
+  registrarDesempenho(app, { q, autenticar });
   app.get('/api/estacoes', autenticar, async (rq, rs) => rs.json((await q(`select e.id, e.titulo, e.area, e.duracao_min, e.origem, e.status, e.dificuldade, (e.criado_por = $1) minha, coalesce(u.vezes_realizada,0)::int vezes_realizada, u.ultima_em from estacoes e left join usuario_estacao u on u.estacao_id = e.id and u.usuario_id = $1 where e.status='aprovada' order by e.area, e.titulo`, [rq.usuario.id])).rows));
 
   const mkUser = async (nome, email, senha, papel = 'usuario') =>
@@ -154,6 +158,11 @@ export async function iniciar({ pastaWeb, porta = 0, instalado = true, extras = 
     if (existsSync(arq) && statSync(arq).isDirectory()) arq = join(arq, 'index.html');
     if (!existsSync(arq)) arq = join(pastaWeb, 'index.html');
     resp.writeHead(200, { 'Content-Type': TIPOS[extname(arq)] ?? 'application/octet-stream' });
+    // A pergunta inicial (trilha × plataforma) só aparece nos testes que a pedem (?escolha=1); nos demais ela já vem respondida.
+    if (extname(arq) === '.html') {
+      const pular = url.searchParams.has('escolha') ? '' : `<script>try{sessionStorage.setItem('rv_modo_ok','1')}catch(e){}</script>`;
+      return resp.end(readFileSync(arq, 'utf8').replace('<head>', `<head>${pular}`));
+    }
     resp.end(readFileSync(arq));
   });
   await new Promise((r) => servidor.listen(porta, '127.0.0.1', r));

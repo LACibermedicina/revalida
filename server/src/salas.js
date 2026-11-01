@@ -40,6 +40,7 @@ const ERROS = {
   CONVITE_PENDENTE: [409, 'Já existe um convite pendente para essa pessoa.'],
   CONVITE_INEXISTENTE: [404, 'Convite não encontrado.'],
   CONVITE_INATIVO: [409, 'Este convite já foi respondido ou cancelado.'],
+  BLOQUEADO: [403, 'Não é possível: há um bloqueio entre pessoas desta sala.'],
   CANDIDATO_OCUPADO: [409, 'Já há um candidato na sala. Entre como observador ou aguarde a vaga.'],
 };
 
@@ -167,7 +168,13 @@ export function registrarSalas(app, { q, autenticar, agora, cfg, difundir, prese
   }));
 
   app.get('/api/salas/:id/estado', autenticar, validarId, rota(async (req, res) => {
-    try { res.json((await q('select rv_sala_estado($1,$2) as r', [req.params.id, U(req)])).rows[0].r); } catch (e) { falha(res, e); }
+    try {
+      const est = (await q('select rv_sala_estado($1,$2) as r', [req.params.id, U(req)])).rows[0].r;
+      // opção da sala guardada fora da função SQL: o apoio cognitivo vale para todos os candidatos da sala (padrão: ligado)
+      const ap = (await q('select apoio_cognitivo from salas where id=$1', [req.params.id])).rows[0];
+      if (est?.sala && ap) est.sala.apoio_cognitivo = ap.apoio_cognitivo;
+      res.json(est);
+    } catch (e) { falha(res, e); }
   }));
 
   app.post('/api/salas/:id/ciclos', autenticar, validarId, agir('ciclo_criado',
@@ -259,13 +266,14 @@ export function registrarSalas(app, { q, autenticar, agora, cfg, difundir, prese
     const r = await q(`select u.id, u.nome, exists (select 1 from convites_sala c where c.sala_id = $1 and c.convidado_id = u.id and c.estado = 'pendente') convidado
         from usuarios u where u.ativo and u.id <> $2 and u.visto_em > now() - interval '90 seconds'
          and not exists (select 1 from sala_participantes sp where sp.sala_id = $1 and sp.usuario_id = u.id and sp.saiu_em is null)
+         and not exists (select 1 from bloqueios b where (b.bloqueador_id = $2 and b.bloqueado_id = u.id) or (b.bloqueador_id = u.id and b.bloqueado_id = $2))
          and ($3 = '' or u.nome ilike '%' || $3 || '%') order by u.nome limit 50`, [req.params.id, U(req), busca]);
     res.json(r.rows);
   }));
   app.post('/api/salas/:id/convites', autenticar, validarId, rota(async (req, res) => {
     const alvo = req.body?.usuario_id;
     if (!idValido(alvo)) return res.status(400).json({ erro: 'Escolha uma pessoa online.' });
-    const ok = (await q(`select 1 from usuarios where id = $1 and ativo and visto_em > now() - interval '90 seconds'`, [alvo])).rows[0];
+    const ok = (await q(`select 1 from usuarios where id = $1 and ativo and visto_em > now() - interval '90 seconds' and not rv_bloqueados($1, $2)`, [alvo, U(req)])).rows[0];
     if (!ok) return res.status(409).json({ erro: 'Essa pessoa não está online agora.', codigo: 'NAO_ONLINE' });
     try {
       const r = (await q('select rv_convite_criar($1,$2,$3) as r', [req.params.id, U(req), alvo])).rows[0].r;
@@ -282,7 +290,7 @@ export function registrarSalas(app, { q, autenticar, agora, cfg, difundir, prese
         not exists (select 1 from sala_participantes sp where sp.sala_id = c.sala_id and sp.papel = 'candidato' and sp.saiu_em is null) vaga_candidato,
         exists (select 1 from execucoes e where e.sala_id = c.sala_id and e.estado = 'em_andamento') estacao_em_andamento
       from convites_sala c join usuarios u on u.id = c.convidante_id join salas s on s.id = c.sala_id
-     where c.convidado_id = $1 and c.estado = 'pendente' and s.estado = 'aberta' order by c.criado_em desc limit 20`, [U(req)]);
+     where c.convidado_id = $1 and c.estado = 'pendente' and s.estado = 'aberta' and not rv_bloqueados($1, c.convidante_id) order by c.criado_em desc limit 20`, [U(req)]);
     res.json(r.rows);
   }));
   app.post('/api/convites/:id/responder', autenticar, validarId, rota(async (req, res) => {
@@ -324,6 +332,15 @@ export function registrarSalas(app, { q, autenticar, agora, cfg, difundir, prese
     if (!r.rows[0]) return res.status(403).json({ erro: 'Só o administrador da sala pode mudar isso.', codigo: 'NAO_ADMIN' });
     await difundir(req.params.id, 'audio_observadores');
     res.json({ audio_observadores: r.rows[0].audio_observadores });
+  }));
+
+  // O chefe liga ou desliga o apoio cognitivo (grafo da conduta) do candidato — padrão: ligado.
+  app.patch('/api/salas/:id/apoio-cognitivo', autenticar, validarId, rota(async (req, res) => {
+    if (typeof req.body?.liberado !== 'boolean') return res.status(400).json({ erro: 'Informe liberado: true ou false.' });
+    const r = await q(`update salas set apoio_cognitivo=$3, versao=versao+1 where id=$1 and admin_id=$2 and estado='aberta' returning apoio_cognitivo`, [req.params.id, U(req), req.body.liberado]);
+    if (!r.rows[0]) return res.status(403).json({ erro: 'Só o administrador da sala pode mudar isso.', codigo: 'NAO_ADMIN' });
+    await difundir(req.params.id, 'apoio_cognitivo');
+    res.json({ apoio_cognitivo: r.rows[0].apoio_cognitivo });
   }));
 
   // Token de vídeo da sala. Vídeo: todos, exceto quem o admin pausou; token curto para a pausa valer em até 2 min

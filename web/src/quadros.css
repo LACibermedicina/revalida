@@ -28,3 +28,7 @@
 .pq-bts{display:flex;gap:4px}.pq-bts button{width:32px;height:32px;border-radius:9px;border:1px solid var(--borda);background:transparent;color:var(--fg);font:inherit;font-weight:800;cursor:pointer}
 .pq-quadro.min .pq-cab{border-bottom:0;margin-bottom:0;padding-bottom:0}
 .pq-corpo{display:flex;flex-direction:column;gap:10px}
+
+/* quadro redimensionável: o canto inferior direito estica; o limite acompanha a janela */
+.qf.redim{resize:both;overflow:hidden;min-width:300px;min-height:240px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px)}
+.qf.redim .qf-corpo{flex:1;min-height:0}

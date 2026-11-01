@@ -15,6 +15,9 @@ import { criarIA } from './ia.js';
 import { registrarEstacoes } from './estacoes.js';
 import { preencherAssinaturas } from './assinatura.js';
 import { registrarPainel } from './painel.js';
+import { registrarSocial } from './social.js';
+import { registrarDesempenho } from './desempenho.js';
+import { registrarDesempenho } from './desempenho.js';
 import { registrarEstudo } from './estudo.js';
 import { registrarCatalogo } from './catalogo.js';
 import { registrarExecucao } from './execucao.js';
@@ -26,7 +29,7 @@ import { registrarAdmin } from './admin.js';
 import { criarEmailer } from './email.js';
 import { garantirRoot } from './bootstrap.js';
 
-const SEGREDO = process.env.JWT_SEGREDO || 'troque-em-producao';
+if (process.env.NODE_ENV === 'production' && (SEGREDO === 'troque-em-producao' || /^troque/i.test(SEGREDO) || SEGREDO.length < 32)) {
 if (process.env.NODE_ENV === 'production' && (SEGREDO === 'troque-em-producao' || SEGREDO.length < 32)) {
   console.error('Defina JWT_SEGREDO com 32+ caracteres aleatórios em produção. Encerrando.');
   process.exit(1);
@@ -95,6 +98,9 @@ const execucao = registrarExecucao(app, { q, autenticar, ia, difundir });
 registrarSalas(app, { q, autenticar, agora, cfg, difundir, presenca, aoFinalizar: execucao.analisarFinal });
 registrarEstacoes(app, { q, autenticar, ia, emitir: emitirSala });
 registrarPainel(app, { q, autenticar });
+registrarSocial(app, { q, autenticar, difundir });
+registrarDesempenho(app, { q, autenticar });
+registrarDesempenho(app, { q, autenticar });
 preencherAssinaturas(q).catch((e) => console.error('assinaturas das estações:', e.message)); // estações antigas ganham título/conteúdo normalizados
 registrarEstudo(app, { q, autenticar, ia });
 registrarCatalogo(app, { q, autenticar });
@@ -318,9 +324,9 @@ async function placarDa(avaliacaoId) {
 io.use(async (socket, prox) => {
   try {
     const dec = jwt.verify(socket.handshake.auth?.token, SEGREDO);
-    const r = await q('select id, nome, papel_app, ativo, sessao_versao from usuarios where id=$1', [dec.id]);
+    const r = await q('select id, nome, papel_app, ativo, sessao_versao, suspenso_ate from usuarios where id=$1', [dec.id]);
     const u = r.rows[0];
-    if (!u || !u.ativo || u.sessao_versao !== dec.v) throw new Error('sessão inválida');
+    if (!u || !u.ativo || u.sessao_versao !== dec.v || (u.suspenso_ate && new Date(u.suspenso_ate) > new Date())) throw new Error('sessão inválida');
     socket.data.usuario = { id: u.id, nome: u.nome, papel_app: u.papel_app };
     prox();
   } catch { prox(new Error('não autorizado')); }
@@ -431,17 +437,7 @@ io.on('connection', (socket) => {
 
 /* ---------------- painel ---------------- */
 
-app.get('/api/desempenho', autenticar, async (req, res) => {
-  const g = await q(
-    `select count(*)::int estacoes,
-            coalesce(avg(case when nota_max>0 then nota/nota_max*10 end),0)::float nota_media
-     from avaliacoes where candidato_id=$1 and finalizada_em is not null`, [req.usuario.id]);
-  const area = await q(
-    `select e.area, coalesce(avg(case when a.nota_max>0 then a.nota/a.nota_max*10 end),0)::float nota
-     from avaliacoes a join sessoes s on s.id=a.sessao_id join estacoes e on e.id=s.estacao_id
-     where a.candidato_id=$1 and a.finalizada_em is not null group by e.area`, [req.usuario.id]);
-  res.json({ ...g.rows[0], por_area: area.rows });
-});
+// (o resumo de desempenho agora vive em desempenho.js: blocos do PEP, modalidades, áreas e evolução)
 
 app.get('/api/saude', (_req, res) => res.json({ ok: true, agora: agora.configurado() ? 'configurado' : 'demo' }));
 
