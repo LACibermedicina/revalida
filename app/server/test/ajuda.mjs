@@ -77,13 +77,18 @@ export function criarApp() {
     const req = { method: metodo, path: caminho, body: corpo, params, ip, headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(codigo ? { 'x-codigo-instalacao': codigo } : {}), ...(hExtra ?? {}) }, query: query ?? Object.fromEntries(new URLSearchParams(qs ?? '')) };
     let fim;
     const respondeu = new Promise((r) => { fim = r; });
-    const res = { statusCode: 200, corpo: undefined, headersSent: false, status(n) { this.statusCode = n; return this; }, json(o) { this.corpo = o; this.headersSent = true; fim(); return this; } };
+    const res = { statusCode: 200, corpo: undefined, headers: {}, buffer: undefined, headersSent: false, status(n) { this.statusCode = n; return this; }, json(o) { this.corpo = o; this.headersSent = true; fim(); return this; },
+      // respostas não-JSON (áudio, RSS, download): set/send/end
+      set(a, b) { if (typeof a === 'object') for (const [k, v] of Object.entries(a)) this.headers[k.toLowerCase()] = String(v); else this.headers[String(a).toLowerCase()] = String(b); return this; },
+      setHeader(a, b) { return this.set(a, b); },
+      send(x) { this.buffer = Buffer.isBuffer(x) ? x : Buffer.from(String(x ?? '')); this.headersSent = true; fim(); return this; },
+      end(x) { return this.send(x); } };
     let i = 0;
     // como no Express: o middleware chama prox() sem esperar; quem encerra é res.json()
     const prox = () => { const h = alvo.hs[i++]; if (h) void Promise.resolve(h(req, res, prox)).catch((e) => { console.error('exceção na rota', e); fim(); }); };
     prox();
     await Promise.race([respondeu, new Promise((_, rej) => setTimeout(() => rej(new Error(`sem resposta: ${metodo} ${caminho}`)), 20000))]);
-    return { status: res.statusCode, corpo: res.corpo };
+    return { status: res.statusCode, corpo: res.corpo, headers: res.headers, buffer: res.buffer, texto: res.buffer?.toString('utf8') };
   }
   return { app, chamar };
 }

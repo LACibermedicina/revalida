@@ -37,24 +37,26 @@ const SQL_FILHOS = (alvo) => `
          select ${alvo}, x.ordem, x.tipo, x.titulo, x.conteudo, x.gatilho
          from jsonb_to_recordset($MAT::jsonb) as x(ordem int, tipo text, titulo text, conteudo text, gatilho text) returning 1)`;
 
+/** Uma única instrução SQL (CTEs): a estação e seus filhos entram juntos ou não entram. */
+export async function inserirEstacao(q, { estacao, origem, status, usuarioId, semente = null, incertos = [], dificuldade = null }) {
+  const sql = `with e as (
+      insert into estacoes (titulo, area, duracao_min, origem, status, script_ator, instrucoes_candidato, cenario, conceitos, esquema_versao, criado_por, semente, incertos, sintese, objetivos, perfil_paciente, diagnostico_alvo, dificuldade, titulo_norm, conteudo_hash)
+      values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,${ESQUEMA_VERSAO},$10,$11,$12::jsonb,$15,$16::jsonb,$17,$18,$19,$20,$21) returning id),
+    ${SQL_FILHOS('(select id from e)').replace('$PEP', '$13').replace('$MAT', '$14')}
+    select id from e`;
+  const r = await q(sql, [estacao.titulo, estacao.area, estacao.duracao_min, origem, status, estacao.script_ator, estacao.instrucoes_candidato, estacao.cenario,
+    JSON.stringify(estacao.conceitos), usuarioId, semente, JSON.stringify(incertos), JSON.stringify(estacao.pep), JSON.stringify(estacao.materiais),
+    estacao.sintese, JSON.stringify(estacao.objetivos), estacao.perfil_paciente, estacao.diagnostico_alvo, DIFICULDADES.includes(dificuldade) ? dificuldade : null, assinatura(estacao).titulo_norm, assinatura(estacao).conteudo_hash]);
+  await sincronizarTemas(q, r.rows[0].id);
+  return r.rows[0].id;
+}
+
 export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, limitador = new Limitador({ max: 8, janelaMs: 3_600_000 }) }) {
   const ehModerador = (u) => ['moderador', 'admin', 'root'].includes(u.papel_app);
   const ehAdmin = (u) => ['admin', 'root'].includes(u.papel_app);
   const ID = (req, res, prox) => (idValido(req.params.id) ? prox() : res.status(400).json({ erro: 'Identificador inválido.' }));
 
-  /** Uma única instrução SQL (CTEs): a estação e seus filhos entram juntos ou não entram. */
-  async function inserir({ estacao, origem, status, usuarioId, semente = null, incertos = [], dificuldade = null }) {
-    const sql = `with e as (
-        insert into estacoes (titulo, area, duracao_min, origem, status, script_ator, instrucoes_candidato, cenario, conceitos, esquema_versao, criado_por, semente, incertos, sintese, objetivos, perfil_paciente, diagnostico_alvo, dificuldade, titulo_norm, conteudo_hash)
-        values ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,${ESQUEMA_VERSAO},$10,$11,$12::jsonb,$15,$16::jsonb,$17,$18,$19,$20,$21) returning id),
-      ${SQL_FILHOS('(select id from e)').replace('$PEP', '$13').replace('$MAT', '$14')}
-      select id from e`;
-    const r = await q(sql, [estacao.titulo, estacao.area, estacao.duracao_min, origem, status, estacao.script_ator, estacao.instrucoes_candidato, estacao.cenario,
-      JSON.stringify(estacao.conceitos), usuarioId, semente, JSON.stringify(incertos), JSON.stringify(estacao.pep), JSON.stringify(estacao.materiais),
-      estacao.sintese, JSON.stringify(estacao.objetivos), estacao.perfil_paciente, estacao.diagnostico_alvo, DIFICULDADES.includes(dificuldade) ? dificuldade : null, assinatura(estacao).titulo_norm, assinatura(estacao).conteudo_hash]);
-    await sincronizarTemas(q, r.rows[0].id);
-    return r.rows[0].id;
-  }
+  const inserir = (args) => inserirEstacao(q, args);
   /** Estação igual já existe? Conteúdo idêntico nunca entra; título repetido com conteúdo diferente é recusado (manual) ou renomeado (IA, arquivo, pacote). */
   const AVISO_DUP = { conteudo: 'Já existe uma estação com este mesmo conteúdo. Pratique a existente ou altere o caso para criar outra.', titulo: 'Já existe uma estação com este título. Escolha outro título.' };
   async function inserirUnica(args, req, { titulo = 'ajustar', exceto = null } = {}) {
@@ -178,6 +180,7 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
       const u = await inserirUnica({ estacao: r.estacao, origem: 'ia', status: 'rascunho', usuarioId: req.usuario.id, semente: r.sorteio.semente, dificuldade: r.sorteio.dificuldade }, req);
       if (u.duplicada) return recusar(res, u.duplicada);
       const id = u.id; if (u.titulo_ajustado) r.estacao.titulo = u.titulo_ajustado;
+      await q('update estacoes set variacao_de = $2, variacao_tema = $3 where id = $1', [id, base.id, String(str(b.diagnostico_alvo) || base.variacao_tema || base.diagnostico_alvo || base.titulo).slice(0, 160)]);
       res.status(201).json({ id, titulo_ajustado: u.titulo_ajustado, estacao: r.estacao, avisos: r.avisos, sorteados: r.sorteio.sorteados, semente: r.sorteio.semente });
     } catch (e) { erroIA(res, e); }
   }));

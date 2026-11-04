@@ -13,7 +13,7 @@
   "build": {
     "appId": "pro.m3d.revalida",
     "productName": "Revalida Prático",
-    "files": ["main.js", "preload.cjs", "config.html", "src-servidor.js", "src-menu.js"],
+    "files": ["assets/icon.png", "main.js", "preload.cjs", "config.html", "src-servidor.js", "src-menu.js"],
     "win": { "target": "nsis" }, "mac": { "target": "dmg" }, "linux": { "target": "AppImage" }
   }
 }

@@ -32,3 +32,15 @@
 /* quadro redimensionável: o canto inferior direito estica; o limite acompanha a janela */
 .qf.redim{resize:both;overflow:hidden;min-width:300px;min-height:240px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px)}
 .qf.redim .qf-corpo{flex:1;min-height:0}
+
+/* quadros: nada de rolagem horizontal; o conteúdo quebra linha e se ajusta à largura (só o mapa 3D navega por arrastar) */
+.qf-corpo{overflow-x:hidden;overflow-y:auto;min-width:0}
+.qf-corpo,.pq-corpo,.qt,.pq-quadro{min-width:0;overflow-wrap:anywhere;word-break:break-word}
+.qf-corpo *,.pq-corpo *,.qt *{max-width:100%;box-sizing:border-box}
+.qf-corpo pre,.pq-corpo pre,.qt pre,.qf-corpo code,.pq-corpo code{white-space:pre-wrap;overflow-wrap:anywhere}
+.qf-corpo table,.pq-corpo table{width:100%;table-layout:fixed;border-collapse:collapse}.qf-corpo td,.qf-corpo th,.pq-corpo td,.pq-corpo th{overflow-wrap:anywhere;word-break:break-word}
+.qf-corpo img,.qf-corpo svg,.qf-corpo canvas,.pq-corpo img,.pq-corpo svg{height:auto;max-width:100%}
+.qf-corpo input,.qf-corpo select,.qf-corpo textarea,.pq-corpo input,.pq-corpo select,.pq-corpo textarea{width:100%;min-width:0}
+.qt-grade{grid-template-columns:repeat(auto-fit,minmax(70px,1fr))}
+.pq-area>*{min-width:0}
+.pq-res{max-width:100%}

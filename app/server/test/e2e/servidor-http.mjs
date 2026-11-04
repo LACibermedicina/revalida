@@ -21,6 +21,8 @@ import { registrarExecucao } from '../../src/execucao.js';
 import { registrarPainel } from '../../src/painel.js';
 import { registrarSocial } from '../../src/social.js';
 import { registrarDesempenho } from '../../src/desempenho.js';
+import { registrarSolo } from '../../src/solo.js';
+import { registrarPodcast } from '../../src/podcast.js';
 import { analisarHeuristica, validarAnalise } from '../../src/analise-transcricao.js';
 import { sortearCampos, validarEstacao } from '../../src/estacao-esquema.js';
 
@@ -104,6 +106,10 @@ export async function iniciar({ pastaWeb, porta = 0, instalado = true, extras = 
     },
   };
   // estudo (cartões, resumos, mapa): a IA falsa devolve o formato já validado; o contexto de diretrizes que recebeu fica em `chamadas`
+  iaFalsa.responderPaciente = async function (p) { this.chamadas.push(['paciente', p]); if (this.falha) throw this.falha;
+    return { fala: 'Começou há dois dias, doutor, e piora à noite.', liberar: [] }; };
+  iaFalsa.gerarRoteiro = async function (p) { this.chamadas.push(['roteiro', p]); if (this.falha) throw this.falha;
+    return { titulo: `Episódio: ${p.tema}`, roteiro: `Olá, plantonista. Hoje vamos revisar ${p.tema}. Primeiro, reconheça os sinais de gravidade. Depois, conduza e oriente o retorno.`, provedor: 'ia-falsa' }; };
   iaFalsa.gerarCartoes = async function (p) { this.chamadas.push(['cartoes', p]); if (this.falha) throw this.falha;
     return { ok: true, erros: [], cartoes: [{ frente: `Qual a conduta inicial em ${p.tema}? (${p.existentes.length} já existentes)`, verso: 'Estabilizar, avaliar gravidade e tratar a causa.' }, { frente: `Qual sinal de alarme em ${p.tema}?`, verso: 'Rebaixamento do nível de consciência.' }] }; };
   iaFalsa.gerarResumo = async function (p) { this.chamadas.push(['resumo', p]); if (this.falha) throw this.falha;
@@ -127,6 +133,8 @@ export async function iniciar({ pastaWeb, porta = 0, instalado = true, extras = 
   registrarSalas(app, { q, autenticar, agora, cfg, difundir, aoFinalizar: execucao.analisarFinal });
   registrarSocial(app, { q, autenticar, difundir });
   registrarDesempenho(app, { q, autenticar });
+  registrarSolo(app, { q, autenticar, ia: iaFalsa });
+  registrarPodcast(app, { q, autenticar, ia: iaFalsa, cfg });
   app.get('/api/estacoes', autenticar, async (rq, rs) => rs.json((await q(`select e.id, e.titulo, e.area, e.duracao_min, e.origem, e.status, e.dificuldade, (e.criado_por = $1) minha, coalesce(u.vezes_realizada,0)::int vezes_realizada, u.ultima_em from estacoes e left join usuario_estacao u on u.estacao_id = e.id and u.usuario_id = $1 where e.status='aprovada' order by e.area, e.titulo`, [rq.usuario.id])).rows));
 
   const mkUser = async (nome, email, senha, papel = 'usuario') =>

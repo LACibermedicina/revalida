@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import './social.css';
 
 const AREAS = { clinica_medica: 'Clínica médica', cirurgia: 'Cirurgia', ginecologia_obstetricia: 'Ginecologia e obstetrícia', pediatria: 'Pediatria', mfc: 'Medicina de família' };
-const MODS = { sala: 'Sala (chefe/convite)', randomico: 'Ciclo randômico', trilha: 'Trilha guiada', comunidade: 'Chamado da comunidade' };
+const MODS = { sala: 'Sala (chefe/convite)', randomico: 'Ciclo randômico', trilha: 'Trilha guiada', solo: 'Prática solo com IA', comunidade: 'Chamado da comunidade' };
 const PERIODOS = [['', 'Geral (todo o período)'], ['7', 'Últimos 7 dias'], ['30', 'Últimos 30 dias'], ['90', 'Últimos 90 dias'], ['365', 'Último ano'], ['x', 'Intervalo…']];
 const p1 = (n) => (n === null || n === undefined ? '—' : `${String(n).replace('.', ',')}%`);
 

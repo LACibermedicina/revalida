@@ -12,6 +12,7 @@ _Manuals, journey, architecture, data and roadmap in one place_
 - [Guided path](#trilha)
 - [Random cycle and community call](#randomico)
 - [Social safety: block and report](#seguranca)
+- [Solo practice, cards, podcast and Revalida Radio](#radio)
 - [Performance charts](#desempenho)
 - [Architecture and operation](#arquitetura)
 - [Installation and operations (summary)](#instalacao)
@@ -150,6 +151,14 @@ flowchart LR
   f --> h
   f -->|Unresolved| i
 ```
+
+<a id="radio"></a>
+## Solo practice, cards, podcast and Revalida Radio
+
+- **Practice with AI:** the AI draws the topic from the area you need most; you only pick difficulty and time (default: station time, medium, 15 items).
+- **Cards:** each flashcard is an RPG card; the list shows all of them, 10 per page, by area; the wizard turns a topic into cards.
+- **Podcast:** audio playlists with transcript, detail prompt, pause and resume, private link (your credential) or public link for podcast apps.
+- **Revalida Radio (radIA.m3d):** public episodes join the programme; exported topics wait in a pool with the request date until synced.
 
 <a id="desempenho"></a>
 ## Performance charts

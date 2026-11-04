@@ -1,0 +1,39 @@
+/* Praticar com IA sozinho */
+.solo{display:grid;gap:14px;max-width:640px}
+.solo-sorteio{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:16px;border-radius:20px;background:linear-gradient(135deg,var(--uva-t),var(--mar-t));border:1px solid var(--borda);box-shadow:var(--sombra)}
+.solo-sorteio h3{margin:0;font-family:var(--display)}
+.solo-area{margin:0;font-size:.8rem;font-weight:700;color:var(--uva);text-transform:uppercase;letter-spacing:.05em}
+.solo-dado{font-size:2.2rem;display:inline-block}
+.solo-sorteio.girando .solo-dado{animation:solo-giro .5s ease-in-out}
+@keyframes solo-giro{0%{transform:rotate(0) scale(1)}50%{transform:rotate(200deg) scale(1.3)}100%{transform:rotate(360deg) scale(1)}}
+.solo-niveis{display:flex;gap:8px;border:0;padding:0;margin:0}
+.solo-niveis legend{font-weight:700;margin-bottom:6px;padding:0}
+.solo-nivel{flex:1;min-height:48px;border-radius:14px;border:2px solid var(--borda);background:var(--card);color:var(--fg);font-family:var(--display);font-weight:700;cursor:pointer;display:flex;gap:6px;align-items:center;justify-content:center;transition:transform .15s,border-color .2s,background .2s}
+.solo-nivel:hover{transform:translateY(-2px)}
+.solo-nivel.on{border-color:var(--menta);background:var(--menta-t)}
+.solo-ir{width:100%}
+.solo-pronta{padding:16px;border-radius:20px;background:var(--menta-t);border:1px solid var(--borda);animation:solo-entra .4s ease-out}
+@keyframes solo-entra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.solo-hist{list-style:none;padding:0;margin:0;display:grid;gap:8px}
+.solo-hist li{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px;border-radius:14px;background:var(--card);border:1px solid var(--borda)}
+@media (prefers-reduced-motion:reduce){.solo-sorteio.girando .solo-dado,.solo-pronta{animation:none}.solo-nivel{transition:none}}
+.pia{display:grid;gap:12px;max-width:820px}
+.pia-topo{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+.pia-tempo{font:700 1.1rem var(--display);background:var(--card,#fff);border:2px solid var(--menta);border-radius:999px;padding:4px 14px}
+.pia-tempo.fim{border-color:var(--coral);color:var(--coral);animation:pia-pisca 1s ease-in-out infinite}
+@keyframes pia-pisca{50%{opacity:.45}}
+.pia-chat{display:flex;flex-direction:column;gap:8px;min-height:220px;max-height:46vh;overflow-y:auto;overflow-x:hidden;padding:10px;border-radius:16px;background:linear-gradient(160deg,rgba(20,181,138,.08),rgba(31,122,224,.08))}
+.pia-msg{max-width:82%;padding:8px 12px;border-radius:14px;animation:sobe .25s ease both;overflow-wrap:anywhere}
+.pia-msg p{margin:2px 0 0}
+.pia-msg.candidato{align-self:flex-end;background:var(--mar);color:#fff}
+.pia-msg.paciente{align-self:flex-start;background:var(--card,#fff);border:1px solid rgba(0,0,0,.1)}
+.pia-msg.digitando p{animation:pia-pisca 1s infinite}
+.pia-quem{font-size:.72rem;font-weight:700;opacity:.75}
+.pia-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.pia-form input[type=text],.pia-form input:not([type]){flex:1 1 240px;min-width:0}
+.pia-voz{font-size:.85rem;display:flex;gap:4px;align-items:center}
+.pia-acoes{display:flex;gap:8px;flex-wrap:wrap}
+.pia-cartas,.pia-script{background:var(--card,#fff);border-radius:14px;padding:10px 14px;overflow-wrap:anywhere}
+.pia-pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;margin:0}
+.pia-nota{font-size:1.4rem}
+.pia-hist li{display:grid;gap:2px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,.08);overflow-wrap:anywhere}
+.pia-sel{display:inline-block;font-size:.72rem;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--uva);color:#fff;margin-right:4px}

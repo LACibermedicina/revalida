@@ -45,7 +45,10 @@ button{font:inherit;color:inherit}
 
 h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
 .marca{display:inline-flex;align-items:center;gap:8px;font-family:var(--display);font-weight:700;font-size:.95rem}
-.logo{width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,var(--mar),var(--uva));display:grid;place-items:center;color:#fff;font-size:.9rem}
+.logo{width:30px;height:30px;flex:none;overflow:visible;filter:drop-shadow(0 2px 4px rgba(31,95,82,.25))}
+.logo-pulso{stroke-dasharray:260;stroke-dashoffset:0;animation:rv-ecg 3.2s ease-in-out infinite}
+@keyframes rv-ecg{0%{stroke-dashoffset:260}45%,100%{stroke-dashoffset:0}}
+@media (prefers-reduced-motion:reduce){.logo-pulso{animation:none}}
 .hero{font-size:2rem;line-height:1.08;font-weight:800;letter-spacing:-.02em}
 .hero em{font-style:normal;color:var(--coral)}
 .sub{color:var(--suave);margin:0;line-height:1.45}
@@ -314,3 +317,18 @@ html[data-layout=largo] .app.menu-icones .nav{padding-top:112px}
 .sug{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 12px;border:1px solid var(--borda);border-radius:16px;background:var(--bg);cursor:pointer;font:inherit;color:inherit;transition:transform .15s,box-shadow .15s}
 .sug:hover{transform:translateY(-1px);box-shadow:0 6px 16px #0001}.sug small{display:block;color:var(--suave);font-size:.78rem}.sug .why{color:var(--mar)}
 .disp ul{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:320px;overflow:auto}.disp li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border-radius:12px;background:var(--bg)}.disp small{display:block;color:var(--suave);font-size:.78rem}
+
+/* ===== Animações globais: cores vivas, entradas suaves e retorno claro ao toque ===== */
+@keyframes rv-entra{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes rv-gradiente{0%,100%{background-position:0 50%}50%{background-position:100% 50%}}
+@keyframes rv-pulso{0%,100%{box-shadow:0 0 0 0 #14B58A55}50%{box-shadow:0 0 0 8px #14B58A00}}
+.tela,.main>section,.main>div>section{animation:rv-entra .35s ease both}
+.btn{transition:transform .15s,box-shadow .2s,filter .2s}
+.btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 18px #0002;filter:saturate(1.1)}
+.btn:active:not(:disabled){transform:translateY(0) scale(.97)}
+.btn.menta,.btn.primario{background-image:linear-gradient(120deg,var(--menta),var(--mar),var(--menta));background-size:220% 100%;animation:rv-gradiente 8s ease-in-out infinite}
+.nav button{transition:transform .15s,background-color .2s}.nav button:hover{transform:translateX(3px)}
+.nav button[aria-current=page]{animation:rv-pulso 2.8s ease-out infinite}
+.nav .ni svg{transition:transform .25s}.nav button:hover .ni svg{transform:scale(1.15) rotate(-4deg)}
+@media (prefers-reduced-motion:reduce){.tela,.main>section,.main>div>section,.btn.menta,.btn.primario,.nav button[aria-current=page]{animation:none!important}.btn:hover:not(:disabled),.nav button:hover{transform:none}}
+.nav-marca{padding:4px 8px 8px}.nav-marca .logo{width:26px;height:26px}

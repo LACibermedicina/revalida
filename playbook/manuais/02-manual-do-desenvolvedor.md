@@ -184,3 +184,7 @@ Componente `.jsx` + `.css`, entrada no menu em `App.jsx`, `data-testid` nos elem
 
 ### Camada social (migração 013)
 Tabelas `bloqueios`, `denuncias`, `suspensoes`, `notificacoes`, `chamados`, `ciclos_randomicos`, `trilhas` e coluna `usuarios.suspenso_ate` (o autenticador e o Socket.IO recusam conta suspensa; `sessao_versao` muda ao suspender). Testes: `server/test/social.test.mjs`, `desempenho.test.mjs`, e2e `social-ui.e2e.mjs`. Telas: `Inicio.jsx` (trilha × plataforma), `Comunidade.jsx`, `Seguranca.jsx`, `Desempenho.jsx`.
+
+## Podcast e rádio: configuração
+
+`TTS_URL`, `TTS_CHAVE`, `TTS_MODELO`, `TTS_VOZ` (provedor compatível com OpenAI `/audio/speech`; sem eles o episódio fica só com a transcrição) e `RADIA_URL`, `RADIA_TOKEN` (sincronização do pool; testada apenas com servidor falso). Módulos: `solo.js`, `podcast.js`, `tts.js`, `radia.js`, `cartoes-lista.js`; migrações 014 e 015.

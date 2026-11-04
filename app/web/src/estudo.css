@@ -38,3 +38,7 @@
 .es-chip{min-height:34px;padding:0 12px;border-radius:999px;border:2px solid var(--borda);background:transparent;font:inherit;font-size:.85rem;font-weight:700;color:var(--suave);cursor:pointer}.es-chip.on{background:var(--mar);border-color:var(--mar);color:#fff}.es-chip:disabled{opacity:.4;cursor:not-allowed}
 .es-sit{display:inline-block;padding:1px 8px;border-radius:99px;font-size:.72rem;font-weight:700;margin-right:6px;background:var(--sol-t)}.es-sit.executada{background:var(--menta-t)}
 .es-bloco h3 small{font-weight:400;color:var(--suave);font-size:.8rem}
+.es-dica{position:absolute;left:10px;bottom:10px;right:230px;margin:0;font-size:.7rem;color:var(--suave);pointer-events:none;opacity:.85}
+.es-mapa canvas:focus-visible{outline:3px solid var(--sol);outline-offset:-3px}
+.es-zoom{flex-wrap:wrap;justify-content:flex-end;max-width:60%}
+@media (max-width:560px){.es-dica{display:none}}

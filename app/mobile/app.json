@@ -11,6 +11,15 @@
         "NSMicrophoneUsageDescription": "O microfone é usado para a videochamada da estação."
       }
     },
-    "android": { "package": "pro.m3d.revalida", "permissions": ["CAMERA", "RECORD_AUDIO", "MODIFY_AUDIO_SETTINGS", "INTERNET"] }
+    "android": {
+      "package": "pro.m3d.revalida",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "MODIFY_AUDIO_SETTINGS",
+        "INTERNET"
+      ]
+    },
+    "icon": "./assets/icon.png"
   }
 }

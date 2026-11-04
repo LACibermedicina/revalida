@@ -19,6 +19,8 @@ const D = {
   conta: <><circle className="ic-cab" cx="16" cy="11" r="5" /><path className="ic-omb" d="M6 27c1-5 5-8 10-8s9 3 10 8" /></>,
   comunidade: <><circle cx="11" cy="12" r="4" /><circle cx="22" cy="13" r="3" /><path d="M4 26c.8-4.5 3.5-7 7-7s6.2 2.500 7 7" /><path d="M20 20c3 0 5.500 1.800 6.500 6" /></>,
   desempenho: <><path d="M5 5v22h22" /><rect x="9" y="16" width="4" height="8" rx="1" /><rect x="15" y="11" width="4" height="13" rx="1" /><rect x="21" y="7" width="4" height="17" rx="1" /></>,
+  solo: <><circle cx="16" cy="16" r="10" /><path className="ic-brilho" d="M16 9v7l4 3" /><path d="M10 4l2 3M22 4l-2 3" /></>,
+  podcast: <><rect x="12" y="4" width="8" height="14" rx="4" /><path className="ic-onda" d="M7 15a9 9 0 0 0 18 0" /><path d="M16 24v4M11 28h10" /></>,
   sair: <><path d="M13 5H8a3 3 0 0 0-3 3v16a3 3 0 0 0 3 3h5" /><path className="ic-seta" d="M20 10l6 6-6 6M26 16H12" /></>,
   menu: <><path className="ic-m1" d="M6 10h20" /><path className="ic-m2" d="M6 16h20" /><path className="ic-m3" d="M6 22h20" /></>,
 };

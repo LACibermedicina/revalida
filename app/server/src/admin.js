@@ -42,7 +42,7 @@ export function registrarAdmin(app, d) {
     const r = await q(
       `select (select count(*)::int from solicitacoes_acesso where status='pendente') pedidos,
               (select count(*)::int from tokens_acesso where not revogado and tipo<>'master' and usos<usos_max and (expira_em is null or expira_em>now())) tokens,
-              (select count(*)::int from usuarios) usuarios,
+              (select count(*)::int from usuarios where not sistema) usuarios,
               (select count(*)::int from estacoes where status='revisao') estacoes_revisao`);
     res.json(r.rows[0]);
   }));
@@ -124,7 +124,7 @@ export function registrarAdmin(app, d) {
     const padrao = `%${busca.replace(/[\\%_]/g, '\\$&')}%`;
     const r = await q(
       `select id, nome, email, papel_app, ativo, criado_em from usuarios
-        where $1 = '' or nome ilike $2 or email::text ilike $2 order by criado_em desc limit 50`, [busca, padrao]);
+        where not sistema and ($1 = '' or nome ilike $2 or email::text ilike $2) order by criado_em desc limit 50`, [busca, padrao]);
     res.json(r.rows);
   }));
 

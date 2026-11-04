@@ -211,3 +211,16 @@ O **quadro explicativo do tema** mostra contexto (anos em prova, desempenho, car
 ## 16. Desempenho (gráficos)
 
 A tela **Desempenho** mostra, para as estações que você fez como candidato, o aproveitamento por **bloco geral do PEP** (preparação, anamnese, exame físico, hipótese, exames, conduta, comunicação, desfecho), por **modalidade** (sala, randômico, trilha, chamado), por **área** e a **evolução semanal**. Filtros: **área**, **período** (7, 30, 90 dias, 1 ano, intervalo ou geral) e **modalidade**. Há visão em tabela para leitores de tela. Os blocos são classificados por palavras da seção/descrição de cada item; itens sem pista caem em "Outros".
+
+## Praticar com IA, cartas, podcast e Rádio Revalida
+
+- **Praticar com IA**: menu *Praticar com IA*. A IA escolhe o tema onde você mais precisa treinar; você só ajusta dificuldade e tempo. Sem ajuste: tempo da estação, dificuldade médio e 15 itens de checklist.
+- **Cartas**: em *Estudo → Cartões*, *Todos os cartões* lista as cartas de 10 em 10 por área; *Criar cartões* guia a conversão de um tema em cartas (escolher, gerar, revisar, salvar).
+- **Podcast**: menu *Podcast e Rádio*. Crie uma playlist, escreva o prompt de detalhamento, gere episódios por tema ou revisão de cartões, baixe, pause e continue depois. *Gerar link privado* cria o endereço para o seu app de podcast (guarde-o como senha); o link público é opcional.
+- **Rádio Revalida**: aba *Rádio Revalida* toca a programação (radia.m3d.pro/revalida). Marque um episódio como público para entrar no programa.
+- **Exportar para a rádio**: aba *Exportar para a rádio* envia temas ao pool; eles aguardam sincronização, listados com a data da solicitação.
+
+## Quadros e navegação do mapa 3D
+
+- Os quadros (tema, ferramentas da sala) não têm rolagem horizontal: o texto quebra linha e tabelas, campos e imagens se ajustam à largura.
+- No mapa 3D (Estudo e apoio cognitivo) a navegação é como em um mapa online: **arrastar** move o mapa; **roda do mouse** ou **pinça** aproxima no ponto apontado; **duplo clique** aproxima (Shift + duplo clique afasta); **botão direito** (ou Ctrl/Shift + arrastar) ou dois dedos giram e inclinam; setas movem, `+`/`−` dão zoom, `Q/E/W/S` orbitam e `0` volta ao início.

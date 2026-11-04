@@ -1,0 +1,39 @@
+/* Cartas de RPG, listagem paginada e assistente */
+.rc{--rc-c1:#9aa7b8;--rc-c2:#c9d2de;perspective:900px;max-width:340px;margin:0 auto;width:100%}
+.rc-incomum{--rc-c1:#2fbf8a;--rc-c2:#9be8c6}.rc-rara{--rc-c1:#1F7AE0;--rc-c2:#8cc0ff}.rc-epica{--rc-c1:#7A5AF8;--rc-c2:#d1c4ff}.rc-lendaria{--rc-c1:#F7B731;--rc-c2:#ff8a4c}
+.rc-moldura{position:relative;border-radius:20px;padding:10px;background:linear-gradient(135deg,var(--rc-c1),var(--rc-c2),var(--rc-c1));background-size:240% 240%;animation:rc-brilho 6s ease-in-out infinite;box-shadow:0 8px 22px #0002,inset 0 0 0 2px #fff8;display:flex;flex-direction:column;gap:8px;transition:transform .25s,box-shadow .25s}
+.rc:hover .rc-moldura{transform:translateY(-4px) rotate(-.6deg);box-shadow:0 14px 28px #0003}
+.rc-lendaria .rc-moldura::after{content:"";position:absolute;inset:0;border-radius:20px;background:linear-gradient(110deg,transparent 35%,#fff9 50%,transparent 65%);background-size:250% 100%;animation:rc-reflexo 3.2s linear infinite;pointer-events:none}
+.rc-topo{display:flex;align-items:center;gap:8px;background:#ffffffd9;border-radius:12px;padding:5px 9px}
+.rc-nome{flex:1;font:700 .85rem var(--display);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rc-raridade{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--rc-c1)}
+.rc-arte{height:64px;border-radius:12px;display:grid;place-items:center;background:radial-gradient(circle at 30% 30%,#fff9,transparent 60%),linear-gradient(135deg,var(--rc-c2),var(--rc-c1));font-size:2.3rem;overflow:hidden}
+.rc-arte span{animation:rc-flutua 3.4s ease-in-out infinite}.rc.compacta .rc-arte{height:44px;font-size:1.7rem}
+.rc-corpo{background:#fffffff2;border-radius:12px;padding:12px;min-height:110px;display:flex;flex-direction:column;gap:10px;justify-content:center;color:#16233B}
+.rc-frente{margin:0;font:700 1.02rem var(--display)}.rc-verso{margin:0;white-space:pre-wrap;line-height:1.5;animation:rc-vira .5s ease both;transform-origin:center}
+.rc-atributos{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:.74rem;background:#ffffffd9;border-radius:12px;padding:5px 9px;color:#16233B}
+.rc-estrelas{color:#F7B731;letter-spacing:1px}.rc-estrelas i{font-style:normal;color:#c8ccd4}
+.rc-virar{align-self:flex-start}
+.rc-lista,.rc-assist{display:flex;flex-direction:column;gap:14px}
+.rc-busca{display:flex;gap:8px;flex-wrap:wrap}.rc-busca input{flex:1;min-width:180px}
+.rc-abas{display:flex;gap:6px;flex-wrap:wrap}.rc-abas button{border:1px solid var(--borda);background:var(--bg);border-radius:999px;padding:6px 12px;cursor:pointer;font:inherit;transition:transform .15s,background .2s,color .2s}
+.rc-abas button:hover{transform:translateY(-2px)}.rc-abas button.on{background:linear-gradient(120deg,var(--mar),var(--uva));color:#fff;border-color:transparent}.rc-abas b{margin-left:4px;opacity:.8}
+.rc-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+.rc-item{display:flex;flex-direction:column;gap:8px;animation:rc-entra .4s ease both}
+.rc-item:nth-child(2n){animation-delay:.05s}.rc-item:nth-child(3n){animation-delay:.1s}
+.rc-acoes{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.rc-pag{display:flex;gap:12px;align-items:center;justify-content:center;flex-wrap:wrap}
+.rc-edicao{display:flex;flex-direction:column;gap:8px;background:var(--bg);border:1px solid var(--borda);border-radius:16px;padding:12px}.rc-edicao textarea,.rc-assist input:not([type=range]){width:100%;box-sizing:border-box}
+.rc-passos{display:flex;gap:8px;list-style:none;margin:0;padding:0;flex-wrap:wrap}
+.rc-passos li{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;background:var(--bg);border:1px solid var(--borda);color:var(--suave);transition:all .3s}
+.rc-passos li b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--borda);color:#fff;font-size:.78rem}
+.rc-passos li.on{color:#fff;background:linear-gradient(120deg,var(--mar),var(--uva));border-color:transparent;transform:scale(1.05)}.rc-passos li.on b{background:#fff3}
+.rc-passos li.ok{color:var(--menta)}.rc-passos li.ok b{background:var(--menta)}
+.rc-passo{display:flex;flex-direction:column;gap:12px;animation:rc-entra .35s ease both}.rc-passo label{display:flex;flex-direction:column;gap:4px}.rc-chips{display:flex;gap:8px;flex-wrap:wrap}
+.es-subabas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.es-subabas button{border:1px solid var(--borda);background:var(--bg);border-radius:999px;padding:6px 14px;cursor:pointer;font:inherit;transition:transform .15s}.es-subabas button.on{background:var(--mar);color:#fff;border-color:transparent}
+.es-notas button{transition:transform .15s,box-shadow .15s}.es-notas button:hover{transform:translateY(-2px) scale(1.03)}
+@keyframes rc-brilho{0%,100%{background-position:0 50%}50%{background-position:100% 50%}}
+@keyframes rc-reflexo{from{background-position:150% 0}to{background-position:-100% 0}}
+@keyframes rc-flutua{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes rc-vira{from{opacity:0;transform:rotateX(80deg)}to{opacity:1;transform:rotateX(0)}}
+@keyframes rc-entra{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.rc-moldura,.rc-arte span,.rc-verso,.rc-item,.rc-passo,.rc-lendaria .rc-moldura::after{animation:none!important}.rc:hover .rc-moldura{transform:none}}

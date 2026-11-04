@@ -4,7 +4,9 @@
 import QuadroTema from './QuadroTema.jsx';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { layout3D, projetar, escolherNo, faixaDesempenho } from './grafo3d.js';
+import { criarEntrada, estadoInicial, zoomEm, resetar } from './nav3d.js';
 import './estudo.css';
+import { CartaRPG, TodosCartoes, AssistenteCartoes } from './Cartoes.jsx';
 
 const AREAS = { clinica_medica: 'Clínica Médica', cirurgia: 'Cirurgia', ginecologia_obstetricia: 'Ginecologia e Obstetrícia', pediatria: 'Pediatria', mfc: 'Medicina de Família e Comunidade' };
 const CATEGORIAS = [['conhecimento', 'Conhecimento'], ['sequencia', 'Sequência'], ['comunicacao', 'Comunicação'], ['tempo', 'Tempo']];
@@ -111,6 +113,20 @@ function Trilha({ token, api, aoCartoes, aoMapa, aoPraticar, aoTema }) {
 
 /* ======================= cartões ======================= */
 function Cartoes({ token, api, tema }) {
+  const [modo, setModo] = useState('estudar');
+  useEffect(() => { if (tema) setModo('estudar'); }, [tema]);
+  const modos = [['estudar', 'Estudar hoje'], ['todos', 'Todos os cartões'], ['criar', 'Criar cartões']];
+  return (
+    <>
+      <div className="es-subabas" role="tablist" aria-label="Cartões">{modos.map(([k, n]) => <button key={k} role="tab" aria-selected={modo === k} className={modo === k ? 'on' : ''} onClick={() => setModo(k)}>{n}</button>)}</div>
+      {modo === 'estudar' && <EstudarCartoes token={token} api={api} tema={tema} />}
+      {modo === 'todos' && <TodosCartoes token={token} api={api} aoNovo={() => setModo('criar')} />}
+      {modo === 'criar' && <AssistenteCartoes token={token} api={api} temaInicial={tema} aoSalvo={() => {}} />}
+    </>
+  );
+}
+
+function EstudarCartoes({ token, api, tema }) {
   const [fila, setFila] = useState(null);
   const [i, setI] = useState(0);
   const [virado, setVirado] = useState(false);
@@ -133,10 +149,7 @@ function Cartoes({ token, api, tema }) {
   return (
     <div className="es-bloco" data-testid="cartao">
       <p className="sub">{i + 1} de {fila.length} · {c.tema} · série {c.serie}{c.estacao_titulo ? <> · <b data-testid="cartao-estacao">da estação “{c.estacao_titulo}”</b></> : null}</p>
-      <div className="es-carta" aria-live="polite">
-        <p className="es-frente">{c.frente}</p>
-        {virado ? <p className="es-verso" data-testid="verso">{c.verso}</p> : <button className="btn" onClick={() => setVirado(true)}>Mostrar resposta</button>}
-      </div>
+      <div aria-live="polite"><CartaRPG c={c} virada={virado} aoVirar={() => setVirado(true)} /></div>
       {virado && (
         <div className="es-notas" role="group" aria-label="Como foi?">
           <button className="btn mini coral" onClick={() => responder(0)}>Errei</button>
@@ -291,7 +304,7 @@ function Legenda() {
 
 function Canvas3D({ nos, arestas, sel, aoSel }) {
   const ref = useRef(null);
-  const est = useRef({ rotY: 0.6, rotX: 0.35, zoom: 1, arrasto: null, auto: true, proj: {}, hover: null, w: 600, h: 420 });
+  const est = useRef(estadoInicial({ arrasto: null, auto: true, proj: {}, hover: null }));
   const pos = useMemo(() => layout3D(nos, arestas), [nos, arestas]);
   const reduz = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const porId = useMemo(() => new Map(nos.map((n) => [n.id, n])), [nos]);
@@ -310,7 +323,8 @@ function Canvas3D({ nos, arestas, sel, aoSel }) {
     const desenhar = () => {
       if (!vivo) return;
       if (s.auto && !s.arrasto) s.rotY += 0.003;
-      const proj = projetar(pos, { rotY: s.rotY, rotX: s.rotX, zoom: s.zoom, largura: s.w, altura: s.h }); s.proj = proj;
+      cv.dataset.zoom = s.zoom.toFixed(3); cv.dataset.pan = `${Math.round(s.panX)},${Math.round(s.panY)}`; cv.dataset.rot = `${s.rotY.toFixed(2)},${s.rotX.toFixed(2)}`;   // estado da câmera (leitura por testes e leitores de tela)
+      const proj = projetar(pos, { rotY: s.rotY, rotX: s.rotX, zoom: s.zoom, largura: s.w, altura: s.h, panX: s.panX, panY: s.panY }); s.proj = proj;
       ctx.clearRect(0, 0, s.w, s.h);
       const vizinhos = new Set(); if (sel) for (const a of arestas) { if (a.de === sel) vizinhos.add(a.para); if (a.para === sel) vizinhos.add(a.de); }
       for (const a of arestas) {
@@ -336,30 +350,25 @@ function Canvas3D({ nos, arestas, sel, aoSel }) {
     return () => { vivo = false; cancelAnimationFrame(raf); ro.disconnect(); };
   }, [pos, nos, arestas, sel, reduz]);
 
-  const ponto = (e) => { const r = ref.current.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-  const baixar = (e) => { ref.current.setPointerCapture?.(e.pointerId); est.current.arrasto = { x: e.clientX, y: e.clientY, moveu: false }; };
-  const mover = (e) => {
-    const s = est.current;
-    if (s.arrasto) {
-      const dx = e.clientX - s.arrasto.x, dy = e.clientY - s.arrasto.y;
-      if (Math.abs(dx) + Math.abs(dy) > 3) s.arrasto.moveu = true;
-      s.rotY += dx * 0.008; s.rotX = Math.max(-1.3, Math.min(1.3, s.rotX + dy * 0.008)); s.arrasto.x = e.clientX; s.arrasto.y = e.clientY;
-    } else { const [x, y] = ponto(e); s.hover = escolherNo(s.proj, nos, x, y); ref.current.style.cursor = s.hover ? 'pointer' : 'grab'; }
-  };
-  const soltar = (e) => {
-    const s = est.current; const a = s.arrasto; s.arrasto = null;
-    if (a && !a.moveu) { const [x, y] = ponto(e); const id = escolherNo(s.proj, nos, x, y, { raioBase: e.pointerType === 'touch' ? 22 : 14 }); aoSel(id); }
-  };
-  const roda = (e) => { e.preventDefault(); est.current.zoom = Math.max(0.5, Math.min(3, est.current.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); };
-  const zoom = (f) => { est.current.zoom = Math.max(0.5, Math.min(3, est.current.zoom * f)); };
+  const entrada = useMemo(() => criarEntrada({ canvas: () => ref.current, est: est.current,
+    aoToque: (x, y, e) => aoSel(escolherNo(est.current.proj, nos, x, y, { raioBase: e.pointerType === 'touch' ? 22 : 14 })),
+    aoPassar: (x, y) => { const s = est.current; s.hover = escolherNo(s.proj, nos, x, y); if (ref.current) ref.current.style.cursor = s.hover ? 'pointer' : 'grab'; } }), [nos, aoSel]);
+  useEffect(() => { const cv = ref.current; if (!cv) return undefined; cv.addEventListener('wheel', entrada.roda, { passive: false }); return () => cv.removeEventListener('wheel', entrada.roda); }, [entrada]);
+  const zoom = (f) => zoomEm(est.current, est.current.w / 2, est.current.h / 2, f);
+  const girar = (d) => { est.current.rotY += d; };
   const [auto, setAuto] = useState(!reduz);
   return (
     <div className="es-mapa">
       <canvas ref={ref} data-testid="mapa3d" role="img" aria-label={`Mapa 3D com ${nos.length} temas. Use "Ver como lista" para navegar pelo teclado.`}
-        onPointerDown={baixar} onPointerMove={mover} onPointerUp={soltar} onPointerLeave={() => { est.current.hover = null; }} onWheel={roda} />
+        tabIndex={0} onPointerDown={entrada.baixar} onPointerMove={entrada.mover} onPointerUp={entrada.soltar} onPointerCancel={entrada.cancelar}
+        onPointerLeave={() => { est.current.hover = null; }} onDoubleClick={entrada.duplo} onKeyDown={entrada.tecla} onContextMenu={entrada.menu} />
+      <p className="es-dica" aria-hidden="true">Arraste para mover · roda ou pinça para aproximar · botão direito, Shift ou dois dedos para girar</p>
       <div className="es-zoom">
         <button className="btn mini" onClick={() => zoom(1.25)} aria-label="Aproximar">+</button>
         <button className="btn mini" onClick={() => zoom(0.8)} aria-label="Afastar">−</button>
+        <button className="btn mini" onClick={() => girar(-0.3)} aria-label="Girar para a esquerda">⟲</button>
+        <button className="btn mini" onClick={() => girar(0.3)} aria-label="Girar para a direita">⟳</button>
+        <button className="btn mini" onClick={() => resetar(est.current)} aria-label="Centralizar o mapa" data-testid="mapa-centralizar">◎</button>
         <button className="btn mini" aria-pressed={auto} onClick={() => { est.current.auto = !auto; setAuto(!auto); }}>{auto ? 'Parar' : 'Girar'}</button>
       </div>
     </div>

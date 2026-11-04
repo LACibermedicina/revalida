@@ -17,7 +17,8 @@ import { preencherAssinaturas } from './assinatura.js';
 import { registrarPainel } from './painel.js';
 import { registrarSocial } from './social.js';
 import { registrarDesempenho } from './desempenho.js';
-import { registrarDesempenho } from './desempenho.js';
+import { registrarSolo } from './solo.js';
+import { registrarPodcast } from './podcast.js';
 import { registrarEstudo } from './estudo.js';
 import { registrarCatalogo } from './catalogo.js';
 import { registrarExecucao } from './execucao.js';
@@ -29,8 +30,8 @@ import { registrarAdmin } from './admin.js';
 import { criarEmailer } from './email.js';
 import { garantirRoot } from './bootstrap.js';
 
+const SEGREDO = process.env.JWT_SEGREDO || 'troque-em-producao';
 if (process.env.NODE_ENV === 'production' && (SEGREDO === 'troque-em-producao' || /^troque/i.test(SEGREDO) || SEGREDO.length < 32)) {
-if (process.env.NODE_ENV === 'production' && (SEGREDO === 'troque-em-producao' || SEGREDO.length < 32)) {
   console.error('Defina JWT_SEGREDO com 32+ caracteres aleatórios em produção. Encerrando.');
   process.exit(1);
 }
@@ -100,7 +101,8 @@ registrarEstacoes(app, { q, autenticar, ia, emitir: emitirSala });
 registrarPainel(app, { q, autenticar });
 registrarSocial(app, { q, autenticar, difundir });
 registrarDesempenho(app, { q, autenticar });
-registrarDesempenho(app, { q, autenticar });
+registrarSolo(app, { q, autenticar, ia });
+registrarPodcast(app, { q, autenticar, ia, cfg });
 preencherAssinaturas(q).catch((e) => console.error('assinaturas das estações:', e.message)); // estações antigas ganham título/conteúdo normalizados
 registrarEstudo(app, { q, autenticar, ia });
 registrarCatalogo(app, { q, autenticar });

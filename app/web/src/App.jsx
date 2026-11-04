@@ -11,6 +11,9 @@ import { ConvitesRecebidos } from './SalaExtras.jsx';
 import TelaAnalise from './Analise.jsx';
 import TelaComunidade from './Comunidade.jsx';
 import TelaDesempenho from './Desempenho.jsx';
+import TelaSolo from './Solo.jsx';
+import Logo from './Logo.jsx';
+import TelaPodcast from './Podcast.jsx';
 import EscolhaInicial from './Inicio.jsx';
 import { AdminDenuncias } from './Seguranca.jsx';
 import { gravarModo, podeTrocarVersao } from './dispositivo.js';
@@ -122,7 +125,7 @@ function TelaEntrar({ aoEntrar, aviso = '' }) {
 
   return (
     <div className="tela estreita">
-      <span className="marca"><span className="logo" aria-hidden="true">✚</span>Revalida Prático</span>
+      <span className="marca"><Logo />Revalida Prático</span>
       <h1 className="hero">Treine a 2ª fase <em>em dupla</em>, com cronômetro e vídeo.</h1>
 
       <div className="seg" role="tablist" aria-label="Como você quer acessar">
@@ -216,7 +219,7 @@ function TelaRedefinir({ token, aoConcluir, aoCancelar }) {
   };
   return (
     <div className="tela estreita">
-      <span className="marca"><span className="logo" aria-hidden="true">✚</span>Revalida Prático</span>
+      <span className="marca"><Logo />Revalida Prático</span>
       <h1 className="hero">Crie uma <em>nova senha</em></h1>
       <p className="sub">Escolha uma senha que você não usa em outros lugares.</p>
       <div className="campo"><label htmlFor="rd-senha">Nova senha</label>
@@ -752,6 +755,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('rp-auth')); } catch { return null; }
   });
   const [tela, setTela] = useState('painel');
+  const [estacaoIA, setEstacaoIA] = useState(null);   // estação escolhida na lista para praticar com o paciente IA
   const [sala, setSala] = useState(null); // {id, papel}
   const [tokenSenha, setTokenSenha] = useState(lerHashRedefinir);
   const [aviso, setAviso] = useState('');
@@ -821,11 +825,15 @@ export default function App() {
   } else if (tela === 'sala' && sala) {
     conteudo = <TelaSala key={sala.id} sessaoId={sala.id} token={sessaoAuth.token} usuario={sessaoAuth.usuario} aoSair={() => setTela('painel')} />;
   } else if (tela === 'estacoes') {
-    conteudo = <TelaEstacoes token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} comando={comando} aoPraticar={(id) => { setSugestao(id); setChaveCiclos((k) => k + 1); setTela('ciclos'); }} />;
+    conteudo = <TelaEstacoes token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} comando={comando} aoPraticar={(id) => { setSugestao(id); setChaveCiclos((k) => k + 1); setTela('ciclos'); }} aoPraticarIA={(id) => { setEstacaoIA(id); setTela('solo'); }} />;
   } else if (tela === 'ciclos') {
     conteudo = <TelaCiclos key={chaveCiclos} token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} sugestao={sugestao} aoAnalise={abrirAnalise} aoRevisar={() => { setComando({ tela: 'estudo', aba: 'erros', n: Date.now() }); setTela('estudo'); }} />;
   } else if (tela === 'comunidade') {
     conteudo = <TelaComunidade token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} aoAbrirSala={abrirSalaCiclos} />;
+  } else if (tela === 'solo') {
+    conteudo = <TelaSolo estacaoInicial={estacaoIA} aoConsumir={() => setEstacaoIA(null)} token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} aoPraticarEstacao={(id) => { setSugestao(id); setChaveCiclos((k) => k + 1); setTela('ciclos'); }} />;
+  } else if (tela === 'podcast') {
+    conteudo = <TelaPodcast token={sessaoAuth.token} usuario={sessaoAuth.usuario} api={api} />;
   } else if (tela === 'desempenho') {
     conteudo = <TelaDesempenho token={sessaoAuth.token} api={api} />;
   } else if (tela === 'estudo') {
@@ -868,12 +876,15 @@ export default function App() {
       )}
       {instalado && sessaoAuth && !tokenSenha && (
         <nav className="nav" id="menu-principal" aria-label="Navegação" hidden={menuOculto}>
+          <span className="marca nav-marca"><Logo tamanho={26} />{menuModo !== 'icones' && <span>Revalida Prático</span>}</span>
           <button type="button" aria-current={tela === 'painel' ? 'page' : undefined} onClick={() => setTela('painel')}><span className="ni" aria-hidden="true"><Icone nome="inicio" /></span>Início</button>
           <button type="button" aria-current={tela === 'sala' ? 'page' : undefined} disabled={!sala}
             onClick={() => sala && setTela('sala')} style={!sala ? { opacity: .4 } : undefined}><span className="ni" aria-hidden="true"><Icone nome="sala" /></span>Sala</button>
           <button type="button" aria-current={tela === 'ciclos' ? 'page' : undefined} onClick={() => setTela('ciclos')}><span className="ni" aria-hidden="true"><Icone nome="ciclos" /></span>Ciclos</button>
           <button type="button" aria-current={tela === 'estacoes' ? 'page' : undefined} onClick={() => setTela('estacoes')}><span className="ni" aria-hidden="true"><Icone nome="catalogo" /></span>Estações</button>
           <button type="button" aria-current={tela === 'comunidade' ? 'page' : undefined} onClick={() => setTela('comunidade')}><span className="ni" aria-hidden="true"><Icone nome="comunidade" /></span>Comunidade</button>
+          <button type="button" aria-current={tela === 'solo' ? 'page' : undefined} onClick={() => setTela('solo')}><span className="ni" aria-hidden="true"><Icone nome="solo" /></span>Praticar com IA</button>
+          <button type="button" aria-current={tela === 'podcast' ? 'page' : undefined} onClick={() => setTela('podcast')}><span className="ni" aria-hidden="true"><Icone nome="podcast" /></span>Podcast e Rádio</button>
           <button type="button" aria-current={tela === 'desempenho' ? 'page' : undefined} onClick={() => setTela('desempenho')}><span className="ni" aria-hidden="true"><Icone nome="desempenho" /></span>Desempenho</button>
           <button type="button" aria-current={tela === 'estudo' ? 'page' : undefined} onClick={() => setTela('estudo')}><span className="ni" aria-hidden="true"><Icone nome="estudo" /></span>Estudo</button>
           {ehAdminApp && <button type="button" aria-current={tela === 'admin' ? 'page' : undefined} onClick={() => setTela('admin')}><span className="ni" aria-hidden="true"><Icone nome="admin" /></span>Admin</button>}

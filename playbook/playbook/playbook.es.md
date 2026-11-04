@@ -12,6 +12,7 @@ _Manuales, recorrido, arquitectura, datos y hoja de ruta en un solo lugar_
 - [Ruta guiada](#trilha)
 - [Ciclo aleatorio y llamado a la comunidad](#randomico)
 - [Seguridad social: bloquear y denunciar](#seguranca)
+- [Práctica solo, cartas, podcast y Radio Revalida](#radio)
 - [Retroalimentación gráfica de desempeño](#desempenho)
 - [Arquitectura y funcionamiento](#arquitetura)
 - [Instalación y operación (resumen)](#instalacao)
@@ -150,6 +151,14 @@ flowchart LR
   f --> h
   f -->|No resuelto| i
 ```
+
+<a id="radio"></a>
+## Práctica solo, cartas, podcast y Radio Revalida
+
+- **Practicar con IA:** la IA sortea el tema en el área de mayor necesidad; usted elige solo dificultad y tiempo (por defecto: tiempo de la estación, medio, 15 ítems).
+- **Cartas:** cada tarjeta es una carta de RPG; la lista muestra todas, 10 por página, por área; el asistente convierte un tema en cartas.
+- **Podcast:** listas de audio con transcripción, prompt de detalle, pausa y continuación, enlace privado (su credencial) o público para apps de podcast.
+- **Radio Revalida (radIA.m3d):** los episodios públicos entran en el programa; los temas exportados quedan en un pool con la fecha de solicitud hasta la sincronización.
 
 <a id="desempenho"></a>
 ## Retroalimentación gráfica de desempeño

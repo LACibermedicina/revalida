@@ -5,6 +5,7 @@ import { idValido, Limitador, rota } from './seguranca.js';
 import { ErroIA } from './ia.js';
 import { AREAS } from './estacao-esquema.js';
 import { CATEGORIAS, ERROS_TIPO, agruparErros, complexidadeDoTema, pesoEstacao, sortearPonderado, diasParaReteste, ordenarTrilha, proximoPasso, sm2 } from './estudo-logica.js';
+import { registrarCartoesLista, raridadeDoCartao } from './cartoes-lista.js';
 import { desempenhoTemas, diretrizesDoTema, garantirTema, semearBase } from './temas.js';
 
 /** array do Postgres como literal ({a,b}): é a convenção do projeto (igual a salas.js) e funciona no node-pg e no psql dos testes */
@@ -260,35 +261,44 @@ export function registrarEstudo(app, { q, autenticar, ia, rng = Math.random, lim
 
   /* ---------- cartões ---------- */
   // Nova série de cartões do tema (a IA recebe o que já existe e os seus erros recentes neste tema, para não repetir e para corrigir).
+  // Pede à IA a série (com o que já existe e os seus erros recentes, para não repetir e para corrigir). Não grava.
+  async function rascunhoIA(req, res, t) {
+    const n = Number.isInteger(req.body?.quantidade) ? Math.min(15, Math.max(3, req.body.quantidade)) : 8;
+    if (limite(req, res)) return null;
+    const existentes = (await q('select frente from cartoes where tema_id=$1 order by criado_em desc limit 40', [t.id])).rows.map((x) => x.frente);
+    const lacunas = (await q(`select l.descricao from lacunas l join estacao_temas et on et.estacao_id = l.estacao_id where l.usuario_id=$1 and et.tema_id=$2 and l.descricao <> '' order by l.criada_em desc limit 8`, [U(req), t.id])).rows.map((x) => x.descricao);
+    const dir = await diretrizesDoTema(q, t);
+    const lista = (v, max, tam) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string').map((x) => x.replace(/[\u0000-\u001F]/g, ' ').trim().slice(0, tam)).filter(Boolean).slice(0, max) : []);
+    const foco = String(req.body?.foco ?? '').replace(/[\u0000-\u001F]/g, ' ').trim().slice(0, 160);
+    const pontos = lista(req.body?.pontos, 8, 220);
+    // com argumento ou pontos escolhidos, os cartões aprofundam o escolhido (camadas), em vez de repetir o básico
+    const r = await ia.gerarCartoes({ tema: t.nome, area: t.area, diretrizes: dir, quantidade: n, existentes, lacunas, foco, pontos, aprofundar: req.body?.aprofundar !== false && Boolean(foco || pontos.length) });
+    return { cartoes: r.cartoes, dir, semDiretriz: dir.length === 0, aprofundado: Boolean(foco || pontos.length) };
+  }
+
   app.post('/api/estudo/temas/:id/cartoes/gerar', autenticar, ID, rota(async (req, res) => {
     const t = await tema(req.params.id); if (!t) return res.status(404).json({ erro: 'Tema não encontrado.' });
     if (!ia.configurado()) return ia503(res);
-    const n = Number.isInteger(req.body?.quantidade) ? Math.min(15, Math.max(3, req.body.quantidade)) : 8;
-    if (limite(req, res)) return;
     try {
-      const existentes = (await q('select frente from cartoes where tema_id=$1 order by criado_em desc limit 40', [t.id])).rows.map((x) => x.frente);
-      const lacunas = (await q(`select l.descricao from lacunas l join estacao_temas et on et.estacao_id = l.estacao_id where l.usuario_id=$1 and et.tema_id=$2 and l.descricao <> '' order by l.criada_em desc limit 8`, [U(req), t.id])).rows.map((x) => x.descricao);
-      const dir = await diretrizesDoTema(q, t);
-      const lista = (v, max, tam) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string').map((x) => x.replace(/[\u0000-\u001F]/g, ' ').trim().slice(0, tam)).filter(Boolean).slice(0, max) : []);
-      const foco = String(req.body?.foco ?? '').replace(/[\u0000-\u001F]/g, ' ').trim().slice(0, 160);
-      const pontos = lista(req.body?.pontos, 8, 220);
-      // com argumento ou pontos escolhidos, os cartões aprofundam o escolhido (camadas), em vez de repetir o básico
-      const r = await ia.gerarCartoes({ tema: t.nome, area: t.area, diretrizes: dir, quantidade: n, existentes, lacunas, foco, pontos, aprofundar: req.body?.aprofundar !== false && Boolean(foco || pontos.length) });
+      const r = await rascunhoIA(req, res, t); if (!r) return;
       const serie = ((await q('select coalesce(max(serie),0)+1 s from cartoes where tema_id=$1', [t.id])).rows[0].s);
       await q(`insert into cartoes (tema_id, serie, frente, verso, origem, diretriz_id, criado_por)
-        select $1, $2, x.frente, x.verso, 'ia', $3, $4 from jsonb_to_recordset($5::jsonb) as x(frente text, verso text)`, [t.id, serie, dir[0]?.id ?? null, U(req), JSON.stringify(r.cartoes)]);
-      res.status(201).json({ serie, total: r.cartoes.length, sem_diretriz: dir.length === 0, aprofundado: Boolean(foco || pontos.length) });
+        select $1, $2, x.frente, x.verso, 'ia', $3, $4 from jsonb_to_recordset($5::jsonb) as x(frente text, verso text)`, [t.id, serie, r.dir[0]?.id ?? null, U(req), JSON.stringify(r.cartoes)]);
+      res.status(201).json({ serie, total: r.cartoes.length, sem_diretriz: r.semDiretriz, aprofundado: r.aprofundado });
     } catch (e) { erroIA(res, e); }
   }));
+
+  registrarCartoesLista(app, { q, autenticar, ID, U, moderador, tema, diretrizesDoTema, rascunhoIA, ia503, erroIA, ia });
 
   // Cartões para estudar agora: vencidos primeiro, depois os novos. Opcional: um tema só.
   app.get('/api/estudo/cartoes/hoje', autenticar, rota(async (req, res) => {
     const tema_id = idValido(req.query?.tema) ? req.query.tema : null;
-    const r = await q(`select c.id, c.frente, c.verso, c.serie, c.diretriz_id is null sem_diretriz, t.id tema_id, t.nome tema, c.estacao_id, es.titulo estacao_titulo, p.cartao_id is null novo, p.proximo_em
+    const r = await q(`select c.id, c.frente, c.verso, c.serie, c.diretriz_id is null sem_diretriz, t.id tema_id, t.nome tema, coalesce(t.area,'sem_area') area, c.estacao_id, es.titulo estacao_titulo, p.cartao_id is null novo, p.proximo_em,
+        p.repeticoes::int, p.intervalo_dias::int, p.acertos::int, p.erros::int
         from cartoes c join temas t on t.id = c.tema_id left join estacoes es on es.id = c.estacao_id left join cartao_progresso p on p.cartao_id = c.id and p.usuario_id = $1
        where ($2::uuid is null or c.tema_id = $2) and (p.cartao_id is null or p.proximo_em <= now())
        order by p.proximo_em nulls last, c.criado_em limit 20`, [U(req), tema_id]);
-    res.json(r.rows);
+    res.json(r.rows.map((x) => ({ ...x, ...raridadeDoCartao(x.novo ? null : x) })));
   }));
 
   app.post('/api/estudo/cartoes/:id/revisar', autenticar, ID, rota(async (req, res) => {

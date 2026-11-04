@@ -4,6 +4,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CatalogoLista, CatalogoTemas, ImportarCaderno } from './Catalogo.jsx';
 import QuadroTema from './QuadroTema.jsx';
+import { ScriptEstudo } from './PraticaIA.jsx';
 import './estacoes.css';
 
 const AREAS = [['clinica_medica', 'Clínica Médica'], ['cirurgia', 'Cirurgia'], ['ginecologia_obstetricia', 'Ginecologia e Obstetrícia'], ['pediatria', 'Pediatria'], ['mfc', 'Medicina de Família e Comunidade']];
@@ -50,7 +51,8 @@ function AvisoDuplicada({ dup, aoUsarTitulo, aoPraticar }) {
 }
 const comoDup = (x) => (x?.dados?.existente ? { tipo: x.dados.tipo, existente: x.dados.existente, sugestao_titulo: x.dados.sugestao_titulo } : null);
 
-function Disponiveis({ token, api, usuario, aoPraticar, aoAbrir }) {
+function Disponiveis({ token, api, usuario, aoPraticar, aoAbrir, aoPraticarIA }) {
+  const [scriptDe, setScriptDe] = useState(null);
   const [lista, setLista] = useState(null);
   const [f, setF] = useState({ busca: '', area: '', dificuldade: '' });
   useEffect(() => { api('/api/estacoes', { token }).then(setLista).catch(() => setLista([])); }, [api, token]);
@@ -81,7 +83,10 @@ function Disponiveis({ token, api, usuario, aoPraticar, aoAbrir }) {
             <span className="sub">{nomeArea(e.area)} · {e.duracao_min} min{e.dificuldade ? ` · ${e.dificuldade}` : ''}{e.vezes_realizada ? ` · feita ${e.vezes_realizada}×` : ' · ainda não feita'}</span></div>
             <div className="acoes">{moderador && <button type="button" className="btn mini" onClick={() => aoAbrir(e.id)}>Abrir</button>}
               <button type="button" className="btn mini menta" onClick={() => aoPraticar?.(e.id)}>Praticar</button>
-              {(e.minha || admin) && <button type="button" className="btn mini coral" data-testid="excluir-estacao" aria-label={`Excluir ${e.titulo}`} onClick={() => excluir(e)}>Excluir</button>}</div></li>
+              {aoPraticarIA && <button type="button" className="btn mini" data-testid="praticar-ia" onClick={() => aoPraticarIA(e.id)}>Com paciente IA</button>}
+              {(e.vezes_realizada > 0 || moderador) && <button type="button" className="btn mini" data-testid="ver-script" onClick={() => setScriptDe(scriptDe === e.id ? null : e.id)}>Script do ator</button>}
+              {(e.minha || admin) && <button type="button" className="btn mini coral" data-testid="excluir-estacao" aria-label={`Excluir ${e.titulo}`} onClick={() => excluir(e)}>Excluir</button>}</div>
+            {scriptDe === e.id && <div className="est-script"><ScriptEstudo estacaoId={e.id} api={api} token={token} /></div>}</li>
         ))}
       </ul>
     </div>
@@ -107,7 +112,7 @@ function EmRevisao({ token, api, aoAbrir }) {
   );
 }
 
-export default function TelaEstacoes({ token, usuario, api, comando, aoPraticar }) {
+export default function TelaEstacoes({ token, usuario, api, comando, aoPraticar, aoPraticarIA }) {
   const [vista, setVista] = useState('lista');             // lista | gerar | importar | editor
   const moderador = ['moderador', 'admin', 'root'].includes(usuario.papel_app);
   const [aba, setAba] = useState('disponiveis');           // disponiveis | minhas | catalogo | temas | revisao
@@ -172,7 +177,7 @@ export default function TelaEstacoes({ token, usuario, api, comando, aoPraticar 
       <div className="ca-abas" role="tablist" aria-label="Seções das estações">
         {abas.map(([k, n]) => <button key={k} type="button" role="tab" aria-selected={aba === k} className={aba === k ? 'on' : ''} onClick={() => setAba(k)}>{n}{k === 'minhas' && lista ? ` (${lista.length})` : ''}</button>)}
       </div>
-      {aba === 'disponiveis' && <Disponiveis token={token} api={api} usuario={usuario} aoPraticar={aoPraticar} aoAbrir={abrir} />}
+      {aba === 'disponiveis' && <Disponiveis token={token} api={api} usuario={usuario} aoPraticar={aoPraticar} aoPraticarIA={aoPraticarIA} aoAbrir={abrir} />}
       {aba === 'catalogo' && <div className="ca-tela"><CatalogoLista token={token} api={api} aoAbrir={abrir} aoTema={setQuadro} /></div>}
       {aba === 'temas' && <div className="ca-tela"><CatalogoTemas token={token} api={api} aoTema={setQuadro} /></div>}
       {quadro && <QuadroTema key={quadro.nome} {...quadro} token={token} api={api} aoFechar={() => setQuadro(null)} aoPraticar={aoPraticar} />}

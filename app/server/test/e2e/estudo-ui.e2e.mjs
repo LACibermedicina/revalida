@@ -83,6 +83,14 @@ await passo('nova série de cartões por IA e estudo com repetição espaçada',
   assert.equal(prog.length, 2); assert.equal(prog[0].intervalo_dias, 1); assert.equal(prog[0].erros, 1);   // errou: volta amanhã
   await pa.screenshot({ path: join(saida, 'estudo-cartoes.png') });
 });
+await passo('cartões: lista de todos (cartas RPG, paginação 10 por área) e assistente tema → cartas', async () => {
+  await pa.locator('[role="tab"]:has-text("Todos os cartões")').click(); await pa.waitForSelector('[data-testid="todos-cartoes"]');
+  await pa.waitForSelector('[data-testid="carta-rpg"]', { timeout: 8000 }).catch(() => {});
+  assert.ok(await pa.locator('[data-testid="carta-rpg"]').count() >= 1, 'cartas em formato RPG');
+  if (await pa.locator('[data-testid="paginacao"]').count()) assert.match(await pa.textContent('[data-testid="paginacao"]'), /Página 1 de/);
+  await pa.locator('[role="tab"]:has-text("Criar cartões")').click(); await pa.waitForSelector('[data-testid="assistente-cartoes"]');
+  await pa.screenshot({ path: join(saida, 'estudo-cartoes-assistente.png') });
+});
 
 await passo('trilha: tema abre quadro móvel com o contexto; "Criar card do argumento" aprofunda; quadro arrasta e minimiza', async () => {
   await aba(pa, 'Trilha'); await pa.waitForSelector('[data-testid="trilha"] li');
@@ -96,13 +104,13 @@ await passo('trilha: tema abre quadro móvel com o contexto; "Criar card do argu
   await pa.locator('[data-testid="quadro-minimizar"]').click();
   srv.ia.chamadas.length = 0;
   await pa.locator('[data-testid="quadro-criar-cards"]').click();
-  await pa.waitForFunction(() => /cartõe?s?|cartão/i.test(document.querySelector('[data-testid="quadro-flutuante"]')?.textContent ?? '') );
+  await pa.waitForFunction(() => /Nova série \d+ com \d+ cartões/i.test(document.querySelector('[data-testid="quadro-flutuante"]')?.textContent ?? ''), null, { timeout: 15000 });
   const cham = srv.ia.chamadas.filter((x) => x[0] === 'cartoes').at(-1)?.[1]; assert.ok(cham?.aprofundar, 'a IA foi pedida para aprofundar'); assert.ok(cham.foco);
   await pa.screenshot({ path: join(saida, 'estudo-quadro-tema.png') });
   await pa.keyboard.press('Escape'); await pa.waitForSelector('[data-testid="quadro-flutuante"]', { state: 'detached' });
   srv.ia.chamadas.length = 0;
   await pa.locator('[data-testid="criar-card-argumento"]').first().click();
-  await pa.waitForFunction(() => document.body.textContent.match(/cartõe?s? (criado|novo)|criado|já/i));
+  for (let i = 0; i < 60 && !srv.ia.chamadas.some((x) => x[0] === 'cartoes'); i++) await pa.waitForTimeout(250);
   const c2 = srv.ia.chamadas.filter((x) => x[0] === 'cartoes').at(-1)?.[1]; assert.ok(c2?.aprofundar && c2.foco, 'card do argumento aprofunda o tema da trilha');
 });
 
@@ -210,6 +218,35 @@ await passo('celular: sem rolagem horizontal na trilha e no mapa', async () => {
   await p.screenshot({ path: join(saida, 'estudo-celular.png') });
 });
 
+await passo('quadros sem rolagem horizontal (celular e janela estreita) e mapa 3D navega como mapa online (arrastar, roda, duplo clique, órbita)', async () => {
+  const p = await nova(sessao(ana, 'Ana Souza', 'usuario'), { w: 380, h: 800 });
+  await aba(p, 'Trilha'); await p.waitForSelector('[data-testid="trilha"] li');
+  await p.locator('[data-testid="trilha"] [data-testid="tema-detalhe"]').first().click();
+  await p.waitForSelector('[data-testid="quadro-flutuante"]');
+  const estouro = await p.evaluate(() => [...document.querySelectorAll('[data-testid="quadro-flutuante"], [data-testid="quadro-flutuante"] *')]
+    .filter((el) => el.scrollWidth > el.clientWidth + 1 && /(auto|scroll)/.test(getComputedStyle(el).overflowX) || el.getBoundingClientRect().right > document.documentElement.clientWidth + 1)
+    .map((el) => `${el.tagName}.${String(el.className).slice(0, 30)}`));
+  assert.deepEqual(estouro, [], 'nada no quadro rola nem passa da tela na horizontal');
+  assert.ok(!(await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)), 'a página não rola na horizontal');
+  await p.keyboard.press('Escape');
+  await aba(p, 'Mapa 3D'); await p.waitForSelector('canvas');
+  const parar = p.locator('button:has-text("Parar")'); if (await parar.count()) await parar.first().click();
+  const cam = async () => p.evaluate(() => { const d = document.querySelector('canvas').dataset; const [px, py] = d.pan.split(',').map(Number); const [ry, rx] = d.rot.split(',').map(Number); return { zoom: Number(d.zoom), px, py, ry, rx }; });
+  const cv = p.locator('canvas'); const b = await cv.boundingBox(); const mx = b.x + b.width / 2; const my = b.y + b.height / 2;
+  await p.waitForTimeout(400); const a0 = await cam();
+  await p.mouse.move(mx, my); await p.mouse.down(); await p.mouse.move(mx + 70, my + 40, { steps: 8 }); await p.mouse.up(); await p.waitForTimeout(250);
+  const a1 = await cam(); assert.ok(a1.px - a0.px > 40 && a1.py - a0.py > 20 && a1.ry === a0.ry, `arrastar move o mapa sem girar (${a1.px - a0.px}, ${a1.py - a0.py})`);
+  await p.mouse.move(mx + 60, my + 20); await p.mouse.wheel(0, -400); await p.waitForTimeout(250);
+  const a2 = await cam(); assert.ok(a2.zoom > a1.zoom * 1.5, `a roda aproxima (${a1.zoom}→${a2.zoom})`);
+  await p.mouse.dblclick(mx, my); await p.waitForTimeout(250);
+  const a3 = await cam(); assert.ok(a3.zoom > a2.zoom * 1.3, 'duplo clique aproxima');
+  await p.mouse.move(mx, my); await p.mouse.down({ button: 'right' }); await p.mouse.move(mx + 60, my + 20, { steps: 6 }); await p.mouse.up({ button: 'right' }); await p.waitForTimeout(250);
+  const a4 = await cam(); assert.ok(Math.abs(a4.ry - a3.ry) > 0.2 && a4.px === a3.px && a4.py === a3.py, 'botão direito gira o mapa sem deslocá-lo');
+  assert.ok(!(await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)), 'o mapa 3D não cria rolagem horizontal na página');
+  await p.screenshot({ path: join(saida, 'mapa3d-navegacao.png') });
+  await p.context().close();
+});
+
 await nav.close(); srv.fechar();
-console.log(falhas.length ? `\n${falhas.length} falha(s)` : '\nTodos os passos passaram.');
+console.log(falhas.length ? `\n${falhas.length} falha(s): ${falhas.join(' | ')}` : '\nTodos os passos passaram.');
 process.exit(falhas.length ? 1 : 0);

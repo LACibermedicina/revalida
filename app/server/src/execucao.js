@@ -8,6 +8,7 @@ import { traduzirErro, calcularNota } from './salas.js';
 import { diasParaReteste } from './estudo-logica.js';
 import { garantirTema, diretrizesDoTema } from './temas.js';
 import { referenciasDaEstacao } from './temas.js';
+import { registrarPaciente } from './paciente.js';
 import { FONTES_GERAIS, agruparPorMinuto, notaAutomatica, analisarHeuristica, cartoesDoPEP, compararComMarcacao, compararSecoes, juntarTranscricao, pontosFortesEFracos, porSecao, sugestoesDeItens } from './analise-transcricao.js';
 
 const ERROS_IA = { IA_NAO_CONFIGURADA: 503, IA_CHAVE_INVALIDA: 502, IA_LIMITE: 429, IA_DEMORA: 504, IA_FALHA: 502, IA_ESQUEMA: 502 };
@@ -349,6 +350,8 @@ export function registrarExecucao(app, { q, autenticar, ia, difundir = async () 
     [tema.id, serie, U(req), x.estacao_id, JSON.stringify(novos)]);
     res.status(201).json({ serie, total: novos.length, tema_id: tema.id, tema: tema.nome, sem_diretriz: semDiretriz });
   }));
+
+  registrarPaciente(app, { q, autenticar, ia, contexto, analisar, guardarAnalise, guardarSegmento, itensDaEstacao, difundir, ID, U, falha, naoAchou, proibido });
 
   return { analisarFinal };
 }

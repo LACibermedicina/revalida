@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { QuadroFlutuante, usePref } from './Quadros.jsx';
 import { construir, posicoes3D, ROTULO } from './conduta.js';
 import { projetar, escolherNo } from './grafo3d.js';
+import { criarEntrada, zoomEm, resetar } from './nav3d.js';
 import './apoio.css';
 
 /** Fala do candidato guardada só no navegador: o que já foi reconhecido (final) + o trecho em andamento. */
@@ -70,7 +71,7 @@ function Grafo2D({ grafo, sel, aoSel }) {
 
 function Grafo3D({ grafo, sel, aoSel }) {
   const ref = useRef(null);
-  const est = useRef({ rotY: 0.5, rotX: 0.25, zoom: 1, arrasto: null, auto: true, proj: {}, hover: null, w: 500, h: 320 });
+  const est = useRef({ rotY: 0.5, rotX: 0.25, zoom: 1, panX: 0, panY: 0, arrasto: null, auto: true, proj: {}, hover: null, w: 500, h: 320 });
   const pos = useMemo(() => posicoes3D(grafo), [grafo]);
   const reduz = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const [auto, setAuto] = useState(false);
@@ -89,7 +90,7 @@ function Grafo3D({ grafo, sel, aoSel }) {
     const desenhar = () => {
       if (!vivo) return;
       if (s.auto && !s.arrasto && !reduz) s.rotY += 0.004;
-      const proj = projetar(pos, { rotY: s.rotY, rotX: s.rotX, zoom: s.zoom * (Math.min(s.w / 2 / 1.4, s.h / 2 / 0.7) / (Math.min(s.w, s.h) * 0.42)), largura: s.w, altura: s.h }); s.proj = proj;
+      const proj = projetar(pos, { rotY: s.rotY, rotX: s.rotX, zoom: s.zoom * (Math.min(s.w / 2 / 1.4, s.h / 2 / 0.7) / (Math.min(s.w, s.h) * 0.42)), largura: s.w, altura: s.h, panX: s.panX ?? 0, panY: s.panY ?? 0 }); s.proj = proj;
       ctx.clearRect(0, 0, s.w, s.h);
       for (const a of grafo.arestas) {
         const p = proj[a.de]; const q = proj[a.para]; if (!p || !q) continue;
@@ -118,33 +119,24 @@ function Grafo3D({ grafo, sel, aoSel }) {
     return () => { vivo = false; cancelAnimationFrame(raf); ro.disconnect(); };
   }, [pos, grafo, sel, reduz]);
 
-  const ponto = (e) => { const r = ref.current.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-  const baixar = (e) => { ref.current.setPointerCapture?.(e.pointerId); est.current.arrasto = { x: e.clientX, y: e.clientY, moveu: false }; };
-  const mover = (e) => {
-    const s = est.current;
-    if (s.arrasto) {
-      const dx = e.clientX - s.arrasto.x; const dy = e.clientY - s.arrasto.y;
-      if (Math.abs(dx) + Math.abs(dy) > 3) s.arrasto.moveu = true;
-      s.rotY += dx * 0.008; s.rotX = Math.max(-1.3, Math.min(1.3, s.rotX + dy * 0.008)); s.arrasto.x = e.clientX; s.arrasto.y = e.clientY;
-    } else { const [x, y] = ponto(e); s.hover = escolherNo(s.proj, nosRef.current, x, y); ref.current.style.cursor = s.hover ? 'pointer' : 'grab'; }
-  };
-  const soltar = (e) => {
-    const s = est.current; const a = s.arrasto; s.arrasto = null;
-    if (a && !a.moveu) { const [x, y] = ponto(e); const id = escolherNo(s.proj, nosRef.current, x, y, { raioBase: e.pointerType === 'touch' ? 22 : 14 }); aoSel(id); }
-  };
-  const zoomar = (f) => { est.current.zoom = Math.max(0.5, Math.min(3, est.current.zoom * f)); };
+  const entrada = useMemo(() => criarEntrada({ canvas: () => ref.current, est: est.current,
+    aoToque: (x, y, e) => aoSel(escolherNo(est.current.proj, nosRef.current, x, y, { raioBase: e.pointerType === 'touch' ? 22 : 14 })),
+    aoPassar: (x, y) => { const s = est.current; s.hover = escolherNo(s.proj, nosRef.current, x, y); if (ref.current) ref.current.style.cursor = s.hover ? 'pointer' : 'grab'; } }), [aoSel]);
+  useEffect(() => { const cv = ref.current; if (!cv) return undefined; cv.addEventListener('wheel', entrada.roda, { passive: false }); return () => cv.removeEventListener('wheel', entrada.roda); }, [entrada]);
+  const zoomar = (f) => zoomEm(est.current, est.current.w / 2, est.current.h / 2, f);
   const girar = (d) => { est.current.rotY += d; };
   return (
     <div className="ap-3d">
       <canvas ref={ref} data-testid="apoio-3d" role="img" aria-label={`Grafo da conduta em 3D com ${grafo.nos.length} nós. A visão 2D tem a mesma informação com navegação por teclado.`} tabIndex={0}
-        onPointerDown={baixar} onPointerMove={mover} onPointerUp={soltar} onPointerLeave={() => { est.current.hover = null; }}
-        onWheel={(e) => { e.preventDefault(); zoomar(e.deltaY < 0 ? 1.1 : 0.9); }}
+        onPointerDown={entrada.baixar} onPointerMove={entrada.mover} onPointerUp={entrada.soltar} onPointerCancel={entrada.cancelar} onPointerLeave={() => { est.current.hover = null; }}
+        onDoubleClick={entrada.duplo} onKeyDown={entrada.tecla} onContextMenu={entrada.menu}
         onKeyDown={(e) => { if (e.key === 'ArrowLeft') girar(-0.12); else if (e.key === 'ArrowRight') girar(0.12); else if (e.key === '+') zoomar(1.2); else if (e.key === '-') zoomar(0.8); }} />
       <div className="ap-zoom">
         <button type="button" className="btn mini" onClick={() => zoomar(1.25)} aria-label="Aproximar">+</button>
         <button type="button" className="btn mini" onClick={() => zoomar(0.8)} aria-label="Afastar">−</button>
         <button type="button" className="btn mini" onClick={() => girar(-0.3)} aria-label="Girar para a esquerda">⟲</button>
         <button type="button" className="btn mini" onClick={() => girar(0.3)} aria-label="Girar para a direita">⟳</button>
+        <button type="button" className="btn mini" onClick={() => resetar(est.current)} aria-label="Centralizar o grafo">◎</button>
         <button type="button" className="btn mini" aria-pressed={auto} onClick={() => { est.current.auto = !auto; setAuto(!auto); }}>{auto ? 'Parar' : 'Girar sozinho'}</button>
       </div>
     </div>

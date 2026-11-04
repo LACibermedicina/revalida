@@ -21,7 +21,7 @@ export function classificar(secao, descricao) {
   for (const b of BLOCOS) if (b.re.test(d)) return b.id;
   return 'outros';
 }
-export const MODALIDADES = ['sala', 'randomico', 'trilha', 'comunidade'];
+export const MODALIDADES = ['sala', 'randomico', 'trilha', 'comunidade', 'solo'];
 const AREAS = ['clinica_medica', 'cirurgia', 'ginecologia_obstetricia', 'pediatria', 'mfc'];
 const DIA = 86400e3;
 const pct = (a, b) => (b > 0 ? Math.round((a / b) * 1000) / 10 : null);
@@ -29,7 +29,9 @@ const data = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '')) && !Number.isNa
 
 export function registrarDesempenho(app, { q, autenticar }) {
   const consulta = (papel) => `select * from (select e.id, e.finalizada_em, e.iniciada_em, e.nota::float8 nota, e.checklist, t.area, t.titulo,
-          case when exists (select 1 from ciclos_randomicos r where r.sala_id = e.sala_id and r.origem = 'trilha') then 'trilha'
+          case when exists (select 1 from salas_ia si where si.sala_id = e.sala_id) then 'solo'
+               when exists (select 1 from praticas_solo ps where ps.estacao_id = i.estacao_id and ps.usuario_id = e.candidato_id) then 'solo'
+               when exists (select 1 from ciclos_randomicos r where r.sala_id = e.sala_id and r.origem = 'trilha') then 'trilha'
                when exists (select 1 from ciclos_randomicos r where r.sala_id = e.sala_id) then 'randomico'
                when exists (select 1 from ciclo_itens x where x.ciclo_id = e.ciclo_id and x.grupo = 'Chamado') then 'comunidade'
                else 'sala' end modalidade,

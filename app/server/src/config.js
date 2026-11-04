@@ -18,6 +18,8 @@ export const CHAVES = {
   OPENAI_API_KEY: { segredo: true }, OPENAI_MODEL: { segredo: false },
   AI_INTEGRATIONS_OPENAI_BASE_URL: { segredo: false }, AI_INTEGRATIONS_OPENAI_API_KEY: { segredo: true },
   POLLINATIONS_API_KEY: { segredo: true }, POLLINATIONS_MODEL: { segredo: false },
+  TTS_URL: { segredo: false }, TTS_CHAVE: { segredo: true }, TTS_MODELO: { segredo: false }, TTS_VOZ: { segredo: false },   // voz do podcast (compatível com OpenAI /audio/speech)
+  RADIA_URL: { segredo: false }, RADIA_TOKEN: { segredo: true },                                                         // sincronização com a rádio radIA.m3d
 };
 
 const PROVEDORES_IA = ['gemini', 'openai', 'pollinations', 'claude'];
@@ -33,6 +35,12 @@ const VALIDADORES = {
   AGORA_APP_ID: (v) => { if (!/^[0-9a-f]{32}$/i.test(v)) throw 0; return v.toLowerCase(); },
   AGORA_APP_CERTIFICATE: (v) => { if (!/^[0-9a-f]{32}$/i.test(v)) throw 0; return v.toLowerCase(); },
   IA_ORDEM: (v) => { const l = v.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean); if (!l.length || !l.every((x) => PROVEDORES_IA.includes(x))) throw 0; return [...new Set(l)].join(','); },
+  TTS_URL: (v) => urlHttp(v).toString(),
+  RADIA_URL: (v) => urlHttp(v).toString(),
+  TTS_CHAVE: (v) => { if (!/^[\x21-\x7e]{8,400}$/.test(v)) throw 0; return v; },
+  RADIA_TOKEN: (v) => { if (!/^[\x21-\x7e]{8,400}$/.test(v)) throw 0; return v; },
+  TTS_MODELO: (v) => { if (!/^[A-Za-z0-9._:\-\/]{1,80}$/.test(v)) throw 0; return v; },
+  TTS_VOZ: (v) => { if (!/^[A-Za-z0-9._:\-]{1,60}$/.test(v)) throw 0; return v; },
   AI_INTEGRATIONS_OPENAI_BASE_URL: (v) => { const u = urlHttp(v); return `${u.origin}${u.pathname}`.replace(/\/$/, ''); },
 };
 /** Valida e normaliza o valor de uma chave de configuração; lança se for inválido. Chaves de IA: sem espaços, tamanho razoável. */

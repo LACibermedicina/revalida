@@ -264,6 +264,15 @@ Manuais técnicos em `docs/`: `01` usuário · `02` desenvolvedor · `03` invest
 - **Desempenho:** gráficos por bloco do PEP, modalidade, área e semana, com filtros.
 - **Playbook em 4 idiomas** (pt-BR, es, en, 中文) com roadmap imersivo, MER e fluxogramas: `docs/playbook/playbook.html` (gerado por `python3 docs/playbook/gerar.py`; também `playbook.{pt,es,en,zh}.md` com Mermaid).
 
+## Praticar com IA, cartas RPG, podcast e Rádio Revalida
+
+- **Praticar com IA (solo)**: a IA sorteia o tema na área de maior necessidade (pelo desempenho e pelos temas fracos). O usuário só escolhe dificuldade e tempo; sem escolha: tempo padrão da estação, dificuldade **médio** e **15** itens de checklist. O resultado conta na modalidade `solo` do desempenho. Rotas `/api/solo/*`.
+- **Cartas**: cartões em formato de carta de RPG (raridade pelo estágio de revisão, ícone da área, verso animado). Listagem de todos os cartões, **10 por página, por área**, e assistente tema → cartas (escolher tema, gerar, revisar/editar, salvar).
+- **Podcast**: playlists de áudio por tema ou revisão de cartões, com prompt de detalhamento da playlist e do tópico, transcrição em linguagem natural, download, pausa/continuação (posição salva) e link RSS **privado** (credencial do usuário, revogável) ou **público** para apps de podcast. Voz (TTS) via provedor compatível com OpenAI (`TTS_URL`, `TTS_CHAVE`, `TTS_MODELO`, `TTS_VOZ`); sem provedor o episódio fica só com a transcrição e o navegador a lê em voz alta.
+- **Rádio Revalida (radIA.m3d)**: episódios públicos entram no programa; o player toca a programação na plataforma. Canal: radia.m3d.pro/revalida.
+- **Pacote de exportação**: temas para a rádio ficam num **pool** (pendente, com data da solicitação) até a sincronização (`RADIA_URL`, `RADIA_TOKEN`); o pacote também pode ser baixado.
+- **Limite honesto**: a sincronização foi testada só contra um servidor falso (a rede do ambiente de desenvolvimento não alcança radia.m3d.pro) e o áudio real depende de um provedor de TTS configurado.
+
 ## Logomarca
 
-Proposta em `docs/marca/` (guia em `marca.html`, com SVG e PNG): cruz médica facetada com batimento, referenciada nas facetas e cubos verde-água do anexo. Ainda **não aplicada** ao app nem ao playbook (ambos usam o ✚ antigo).
+Proposta em `docs/marca/` (guia em `marca.html`, com SVG e PNG): cruz médica facetada com batimento, referenciada nas facetas e cubos verde-água do anexo. Aplicada no app (cabeçalhos, favicon), nos ícones do desktop, mobile e relógio e no playbook.

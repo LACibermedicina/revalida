@@ -152,5 +152,46 @@ Gerada automaticamente a partir de `server/src/*.js` (`app.get/post/put/patch/de
 | social.js | POST | `/api/trilha/modo` |
 | social.js | POST | `/api/trilha/iniciar` |
 | desempenho.js | GET | `/api/desempenho` |
+| solo.js | GET | `/api/solo/sugestao` |
+| solo.js | GET | `/api/solo/historico` |
+| solo.js | POST | `/api/solo/iniciar` |
+| podcast.js | GET | `/api/podcast/config` |
+| podcast.js | GET | `/api/podcast/temas` |
+| podcast.js | GET | `/api/podcast/playlists` |
+| podcast.js | POST | `/api/podcast/playlists` |
+| podcast.js | GET | `/api/podcast/playlists/:id` |
+| podcast.js | PUT | `/api/podcast/playlists/:id` |
+| podcast.js | DELETE | `/api/podcast/playlists/:id` |
+| podcast.js | PUT | `/api/podcast/playlists/:id/ordem` |
+| podcast.js | POST | `/api/podcast/playlists/:id/publicar` |
+| podcast.js | POST | `/api/podcast/playlists/:id/itens` |
+| podcast.js | PUT | `/api/podcast/itens/:id` |
+| podcast.js | POST | `/api/podcast/itens/:id/gerar` |
+| podcast.js | DELETE | `/api/podcast/itens/:id` |
+| podcast.js | GET | `/api/podcast/itens/:id/audio` |
+| podcast.js | GET | `/api/podcast/itens/:id/transcricao` |
+| podcast.js | PUT | `/api/podcast/itens/:id/posicao` |
+| podcast.js | GET | `/api/podcast/continuar` |
+| podcast.js | GET | `/api/podcast/token` |
+| podcast.js | POST | `/api/podcast/token/renovar` |
+| podcast.js | DELETE | `/api/podcast/token` |
+| podcast.js | GET | `/api/podcast/feed/:id/:token` |
+| podcast.js | GET | `/api/podcast/audio/:id/:token` |
+| podcast.js | GET | `/api/radia/canal` |
+| podcast.js | GET | `/api/radia/programa` |
+| podcast.js | GET | `/api/radia/audio/:id` |
+| podcast.js | GET | `/api/radia/feed` |
+| podcast.js | PUT | `/api/podcast/itens/:id/radia` |
+| podcast.js | DELETE | `/api/radia/programa/:id` |
+| podcast.js | POST | `/api/radia/exportar` |
+| podcast.js | GET | `/api/radia/pool` |
+| podcast.js | GET | `/api/radia/pool/:id/pacote` |
+| podcast.js | DELETE | `/api/radia/pool/:id` |
+| podcast.js | POST | `/api/radia/sincronizar` |
+| cartoes-lista.js | GET | `/api/estudo/cartoes` |
+| cartoes-lista.js | POST | `/api/estudo/temas/:id/cartoes/rascunho` |
+| cartoes-lista.js | POST | `/api/estudo/temas/:id/cartoes` |
+| cartoes-lista.js | PUT | `/api/estudo/cartoes/:id` |
+| cartoes-lista.js | DELETE | `/api/estudo/cartoes/:id` |
 
-Total: 148 rotas.
+Total: 189 rotas.

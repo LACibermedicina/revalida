@@ -38,7 +38,7 @@ export function layout3D(nos, arestas, { iteracoes, semente = 7 } = {}) {
 }
 
 /** Projeção em perspectiva depois de girar em Y (rotY) e X (rotX). Devolve {id: {x, y, z, s}}: s = escala por profundidade (0.6–1.4). */
-export function projetar(pos, { rotY = 0, rotX = 0, zoom = 1, largura, altura }) {
+export function projetar(pos, { rotY = 0, rotX = 0, zoom = 1, largura, altura, panX = 0, panY = 0 }) {
   const cy = Math.cos(rotY), sy = Math.sin(rotY), cx = Math.cos(rotX), sx = Math.sin(rotX);
   const base = Math.min(largura, altura) * 0.42 * zoom; const cam = 3;
   const saida = {};
@@ -46,7 +46,7 @@ export function projetar(pos, { rotY = 0, rotX = 0, zoom = 1, largura, altura })
     const x1 = x0 * cy + z0 * sy, z1 = -x0 * sy + z0 * cy;
     const y2 = y0 * cx - z1 * sx, z2 = y0 * sx + z1 * cx;
     const f = cam / (cam - z2);
-    saida[id] = { x: largura / 2 + x1 * f * base, y: altura / 2 + y2 * f * base, z: z2, s: Math.max(0.6, Math.min(1.4, f)) };
+    saida[id] = { x: largura / 2 + panX + x1 * f * base, y: altura / 2 + panY + y2 * f * base, z: z2, s: Math.max(0.6, Math.min(1.4, f)) };
   }
   return saida;
 }

@@ -161,7 +161,7 @@ def fluxo_mermaid(nos, arestas, lang):
     L_.append('```'); return '\n'.join(L_)
 
 FLUXO = {f[0]: f for f in D.FLUXOS}
-ICONE = {'visao': '🩺', 'manuais': '📚', 'jornada': '🧭', 'trilha': '🗺️', 'randomico': '🎲', 'seguranca': '🛡️', 'desempenho': '📊',
+ICONE = {'visao': '🩺', 'manuais': '📚', 'jornada': '🧭', 'trilha': '🗺️', 'randomico': '🎲', 'seguranca': '🛡️', 'desempenho': '📊', 'radio': '🎙️',
          'arquitetura': '🧬', 'instalacao': '💊', 'negocio': '💼', 'testes': '🧪', 'roadmap': '🚀'}
 
 # ---------------- Markdown

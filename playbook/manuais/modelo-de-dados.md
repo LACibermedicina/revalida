@@ -47,3 +47,14 @@ PostgreSQL 16. Tabelas e colunas principais.
 - **chamados**: id, usuario_id, tipo (`randomico`|`comunidade`), origem (`plataforma`|`trilha`), area, estacoes, minutos, mensagem, estado, sala_id, criado_em, expira_em
 - **ciclos_randomicos**: sala_id, estacoes (sorteadas, em ordem), indice, fase (0|1 = papéis invertidos), origem, estado, criado_em
 - **trilhas**: usuario_id, minutos_dia, dias (0=domingo … 6=sábado; padrão todos), ultimo_modo, atualizada_em
+
+## Prática solo, podcast e rádio (migrações 014 e 015)
+
+| Tabela | Função |
+|---|---|
+| `praticas_solo` | cada prática solo iniciada: tema sorteado, área, dificuldade, tempo, nº de itens, motivo do sorteio e a estação gerada |
+| `podcast_playlists` | playlists do usuário (título, prompt de detalhamento, link público opcional) |
+| `podcast_itens` | episódios (tema ou revisão de cartões): prompt do tópico, roteiro/transcrição, arquivo de áudio, publicação na radIA |
+| `podcast_posicoes` | ponto em que o usuário parou em cada episódio (pausar e continuar depois) |
+| `podcast_tokens` | credencial por usuário dos links privados de feed (revogável) |
+| `radia_pool` | pool de pacotes de temas para a Rádio Revalida: data da solicitação, status (pendente/sincronizado/erro) e tentativas |

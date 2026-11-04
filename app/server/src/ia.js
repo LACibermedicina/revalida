@@ -5,6 +5,8 @@
 // Um provedor "quebrado" fica em pausa por um tempo (disjuntor), para a próxima chamada não esperar timeout de novo.
 
 import { promptCartoes, validarCartoes, promptResumo, validarResumo, promptExpandir, validarExpansao } from './estudo-ia.js';
+import { promptRoteiro, validarRoteiro } from './podcast-ia.js';
+import { promptPaciente, validarPaciente } from './paciente-ia.js';
 import { promptAnalise, validarAnalise, promptTranscreverAudio, validarTranscricaoAudio } from './analise-transcricao.js';
 import { AREAS, NOMES_AREA, TIPOS_MATERIAL, avisosDeCoerencia, sortearCampos, validarEstacao } from './estacao-esquema.js';
 
@@ -360,6 +362,16 @@ export function criarIA({ cfg, fetchImpl = (...a) => fetch(...a), relogio = Date
     async expandirTema(p) {
       const { sistema, usuario } = promptExpandir(p);
       try { const r = await gerarJSON({ sistema, usuario, validar: validarExpansao, maxTokens: 3000 }); return { ...validarExpansao(r.dados), provedor: r.provedor, modelo: r.modelo }; } catch (e) { throw traduzir(e); }
+    },
+    /** Roteiro falado de um episódio de podcast (aprofundamento de tema ou revisão de cartões). */
+    async gerarRoteiro(p) {
+      const { sistema, usuario } = promptRoteiro(p);
+      try { const r = await gerarJSON({ sistema, usuario, validar: validarRoteiro, maxTokens: 6000 }); const v = validarRoteiro(r.dados); return { titulo: v.titulo, roteiro: v.roteiro, provedor: r.provedor, modelo: r.modelo }; } catch (e) { throw traduzir(e); }
+    },
+    /** Fala do paciente/ator simulado a partir do script do ator (e quais materiais o pedido do candidato libera). */
+    async responderPaciente(p) {
+      const { sistema, usuario } = promptPaciente(p); const ids = (p.materiais ?? []).map((m) => m.id);
+      try { const r = await gerarJSON({ sistema, usuario, validar: (d) => validarPaciente(d, ids), maxTokens: 800 }); const v = validarPaciente(r.dados, ids); return { fala: v.fala, liberar: v.liberar, provedor: r.provedor, modelo: r.modelo }; } catch (e) { throw traduzir(e); }
     },
     /** Lê PDF/imagem e devolve um RASCUNHO com os campos incertos marcados para o revisor. */
     async extrairDeArquivo({ mime, base64 }) {
