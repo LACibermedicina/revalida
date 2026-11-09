@@ -44,3 +44,13 @@
 @keyframes pc-entra{from{opacity:0;transform:translateY(8px)}}
 @keyframes pc-sobe{from{opacity:0;transform:translateY(24px)}}
 @media(prefers-reduced-motion:reduce){.pc-cab,.pc-item,.pc-player,.pc-radia.on .pc-onda{animation:none}.pc-abas button,.pc-play,.pc-lista button{transition:none}}
+
+/* compartilhar, mover e agrupar */
+.pc-mais{flex-basis:100%}.pc-mais summary{cursor:pointer;font-weight:700;font-size:.86rem;color:var(--mar)}
+.pc-mais-corpo{display:flex;flex-direction:column;gap:8px;margin:.5rem 0 .2rem;padding:10px;border:1px dashed var(--linha-costura,var(--borda));border-radius:14px}
+.pc-linkbox{display:grid;grid-template-columns:1fr auto;gap:2px 8px;align-items:center;font-size:.8rem}.pc-linkbox span{grid-column:1/-1;color:var(--suave);font-weight:600}
+.pc-linkbox input{min-width:0;font-size:.82rem;padding:.4rem .6rem;border:1px solid var(--borda);border-radius:10px;background:var(--card);color:var(--fg)}
+.pc-pub{display:flex;flex-direction:column;gap:8px;margin-top:.6rem}
+.pc-selo{display:inline-block;font-size:.7rem;font-weight:800;color:var(--mar);border:1px solid var(--mar);border-radius:999px;padding:0 .5rem;margin-left:.3rem}
+.pc-marca{width:20px;height:20px;flex:none;accent-color:var(--mar)}
+.pc-agrupar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border-radius:14px;background:var(--mar-t)}

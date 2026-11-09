@@ -15,7 +15,9 @@ PostgreSQL 16. Tabelas e colunas principais.
 - **solicitacoes_acesso**: id, nome, email, mensagem, status, decidido_por, decidido_em, criado_em
 - **auditoria_admin**: id, ator_id, acao, alvo, detalhes, criado_em
 - **config_servidor**: chave, valor, segredo, atualizado_em
-- **salas**: id, dono_id, admin_id, canal_video, ciclo_ativo_id, estado, audio_observadores, versao, criada_em
+- **salas**: id, dono_id (só registra quem criou; não dá poder), admin_id (o chefe é uma função), nome, expira_vazia_horas (1–720, padrão 24), vazia_desde (preenchida por gatilho quando ninguém está na sala), canal_video, ciclo_ativo_id, estado, audio_observadores, versao, criada_em. `rv_salas_expirar()` encerra salas vazias além do prazo (a cada 10 min e ao listar); o histórico das estações fica.
+- **sala_mensagens**: id, sala_id, autor_id, texto (≤ 1000), em — chat interno; o candidato não envia durante a estação.
+- **execucoes**: ganhou `pausada_em` e `pausa_seg` (o tempo pausado não conta no relógio).
 - **ciclos**: id, sala_id, admin_id, candidato_id, estado, origem_id, motivo_pausa, versao, criado_em, pausado_em
 - **ciclo_itens**: id, ciclo_id, estacao_id, posicao, liberada_ao_candidato, grupo
 - **execucoes**: id, sala_id, ciclo_id, item_id, estado, avaliador_id, candidato_id, iniciada_em, finalizada_em, nota, versao
@@ -54,7 +56,7 @@ PostgreSQL 16. Tabelas e colunas principais.
 |---|---|
 | `praticas_solo` | cada prática solo iniciada: tema sorteado, área, dificuldade, tempo, nº de itens, motivo do sorteio e a estação gerada |
 | `podcast_playlists` | playlists do usuário (título, prompt de detalhamento, link público opcional) |
-| `podcast_itens` | episódios (tema ou revisão de cartões): prompt do tópico, roteiro/transcrição, arquivo de áudio, publicação na radIA |
+| `podcast_itens` | episódios (tema ou revisão de cartões): prompt do tópico, roteiro/transcrição, arquivo de áudio (MP3 padrão universal: `audio_normalizado`), `token_publico` do link público do episódio, publicação na radIA |
 | `podcast_posicoes` | ponto em que o usuário parou em cada episódio (pausar e continuar depois) |
 | `podcast_tokens` | credencial por usuário dos links privados de feed (revogável) |
 | `radia_pool` | pool de pacotes de temas para a Rádio Revalida: data da solicitação, status (pendente/sincronizado/erro) e tentativas |

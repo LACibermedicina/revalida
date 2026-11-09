@@ -41,6 +41,12 @@ const ERROS = {
   CONVITE_INEXISTENTE: [404, 'Convite não encontrado.'],
   CONVITE_INATIVO: [409, 'Este convite já foi respondido ou cancelado.'],
   BLOQUEADO: [403, 'Não é possível: há um bloqueio entre pessoas desta sala.'],
+  PRAZO_INVALIDO: [400, 'O prazo da sala vazia deve ficar entre 1 e 720 horas.'],
+  JA_E_CHEFE: [409, 'Você já é o chefe da sala.'],
+  CHEFE_PRESENTE: [409, 'O chefe está na sala (ou há estação em andamento). Peça a função a ele.'],
+  AGUARDE_CHEFE: [409, 'A estação está pausada à espera do chefe, que saiu há pouco. Aguarde alguns minutos.'],
+  MENSAGEM_INVALIDA: [400, 'Escreva uma mensagem de até 1000 caracteres.'],
+  CHAT_BLOQUEADO: [409, 'Durante a estação o candidato só vê a estação; o chat volta quando ela terminar.'],
   CANDIDATO_OCUPADO: [409, 'Já há um candidato na sala. Entre como observador ou aguarde a vaga.'],
 };
 
@@ -145,16 +151,56 @@ export function registrarSalas(app, { q, autenticar, agora, cfg, difundir, prese
     ? prox() : res.status(400).json({ erro: 'Identificador inválido.' }));
   const U = (req) => req.usuario.id;
 
+  // Sala aberta: nasce com nome e prazo (horas) para ser desfeita depois de vazia; ninguém "é dono" — o chefe é só um papel.
   app.post('/api/salas', autenticar, rota(async (req, res) => {
-    const id = (await q('select rv_sala_criar($1) as id', [U(req)])).rows[0].id;
-    res.status(201).json({ id });
+    try {
+      const nome = typeof req.body?.nome === 'string' ? req.body.nome : null;
+      const horas = req.body?.expira_vazia_horas === undefined ? 24 : Number(req.body.expira_vazia_horas);
+      if (!Number.isInteger(horas)) return res.status(400).json({ erro: ERROS.PRAZO_INVALIDO[1], codigo: 'PRAZO_INVALIDO' });
+      const id = (await q('select rv_sala_criar($1,$2,$3) as id', [U(req), nome, horas])).rows[0].id;
+      res.status(201).json({ id });
+    } catch (e) { falha(res, e); }
+  }));
+
+  // Painel de salas abertas (as vazias além do prazo são desfeitas antes de listar).
+  app.get('/api/salas', autenticar, rota(async (req, res) => {
+    await q('select rv_salas_expirar()');
+    res.json((await q('select rv_salas_abertas($1) as r', [U(req)])).rows[0].r);
+  }));
+
+  app.patch('/api/salas/:id', autenticar, validarId, rota(async (req, res) => {
+    try {
+      const h = req.body?.expira_vazia_horas === undefined ? null : Number(req.body.expira_vazia_horas);
+      if (h !== null && !Number.isInteger(h)) return res.status(400).json({ erro: ERROS.PRAZO_INVALIDO[1], codigo: 'PRAZO_INVALIDO' });
+      await q('select rv_sala_configurar($1,$2,$3,$4,$5)', [req.params.id, U(req), typeof req.body?.nome === 'string' ? req.body.nome : null, h, req.usuario.papel_app === 'admin']);
+      await difundir(req.params.id, 'sala_configurada');
+      res.json({ ok: true });
+    } catch (e) { falha(res, e); }
   }));
 
   app.post('/api/salas/:id/entrar', autenticar, validarId, rota(async (req, res) => {
     try {
       const r = (await q('select rv_sala_entrar($1,$2) as r', [req.params.id, U(req)])).rows[0].r;
-      await difundir(req.params.id, 'participante_entrou');
-      res.json(r);
+      presenca?.cancelar?.(req.params.id);
+      // volta à atividade: se a estação foi pausada porque alguém saiu e agora os dois (chefe e candidato) estão aqui, ela segue sozinha
+      const retomou = (await q('select rv_sala_retomar_auto($1,$2) as r', [req.params.id, U(req)])).rows[0].r;
+      await difundir(req.params.id, retomou ? 'ciclo_retomado' : 'participante_entrou');
+      res.json(retomou ? { ...r, retomado: retomou } : r);
+    } catch (e) { falha(res, e); }
+  }));
+
+  app.post('/api/salas/:id/assumir-chefe', autenticar, validarId, agir('chefe_assumido', 'rv_sala_assumir_chefe($1,$2)', (req) => [req.params.id, U(req)]));
+
+  // Chat interno da sala (o candidato não envia durante a estação).
+  app.get('/api/salas/:id/chat', autenticar, validarId, rota(async (req, res) => {
+    try { res.json((await q('select rv_chat_listar($1,$2,$3) as r', [req.params.id, U(req), Number(req.query?.apos) > 0 ? Math.floor(Number(req.query.apos)) : 0])).rows[0].r); }
+    catch (e) { falha(res, e); }
+  }));
+  app.post('/api/salas/:id/chat', autenticar, validarId, rota(async (req, res) => {
+    try {
+      const id = (await q('select rv_chat_enviar($1,$2,$3) as id', [req.params.id, U(req), typeof req.body?.texto === 'string' ? req.body.texto : ''])).rows[0].id;
+      await difundir(req.params.id, 'chat', { ator: U(req) });
+      res.status(201).json({ id });
     } catch (e) { falha(res, e); }
   }));
 

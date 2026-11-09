@@ -276,3 +276,18 @@ test('duplicidade: IA e arquivo renomeiam título repetido e recusam conteúdo i
   const b2 = await api('POST', '/api/estacoes', ana, { titulo: 'Em branco B', area: 'mfc' });
   assert.deepEqual([b1.status, b2.status], [201, 201]);
 });
+
+test('geração por IA com configurações avançadas: viram instruções objetivas, a duração vale, valores inválidos são ignorados', async () => {
+  const u = await novo('Avancada');
+  ia.chamadas.length = 0;
+  const g = await api('POST', '/api/estacoes/gerar', u, { area: 'cirurgia', subtema: 'apendicite', instrucoes: 'Paciente idoso.', duracao_min: 12, itens: 20, materiais: 2, comportamento: 'ansioso', enfase: ['conduta', 'comunicacao', 'inventado'], script_detalhado: true });
+  assert.equal(g.status, 201);
+  const ins = ia.chamadas[0][1].instrucoes;
+  assert.match(ins, /^Paciente idoso\./); assert.match(ins, /12 minutos/); assert.match(ins, /exatamente 20 itens/); assert.match(ins, /2 material/); assert.match(ins, /ansioso/); assert.match(ins, /conduta e prescrição; comunicação/); assert.match(ins, /script do ator, detalhe/);
+  assert.doesNotMatch(ins, /inventado/);
+  assert.deepEqual(g.corpo.configuracao.enfase, ['conduta', 'comunicacao']); assert.equal(g.corpo.estacao.duracao_min, 12);
+  const u2 = await novo('Avancada2'); ia.chamadas.length = 0;
+  const g2 = await api('POST', '/api/estacoes/gerar', u2, { area: 'cirurgia', duracao_min: 999, itens: 'x', comportamento: 'zumbi', materiais: 0 });
+  assert.equal(g2.status, 201); assert.deepEqual(g2.corpo.configuracao, { materiais: 0 });
+  assert.match(ia.chamadas[0][1].instrucoes, /Não inclua materiais/);
+});

@@ -9,6 +9,8 @@ import { CartasEstacao, TranscricaoCandidato, FalaDoCandidato, Sugestao, Analise
 import ApoioCognitivo, { useFalaLocal } from './ApoioCognitivo.jsx';
 import { Autocorrecao, BannerRandomico, ConvidarOnline, LiberarTranscricao } from './SalaExtras.jsx';
 import { AcoesUsuario } from './Seguranca.jsx';
+import { PainelSalas, ConfigurarSala, SalaChat, Solucionar, PRAZOS } from './SalaPainel.jsx';
+import { diagnosticarMidia, midiaDesconectada, mostrarSolucionar } from './midia.js';
 import './salas.css';
 
 const PAPEL = { admin: 'Chefe', candidato: 'Candidato', observador: 'Observador' };
@@ -22,30 +24,42 @@ const rotaToken = (id) => `/api/salas/${id}/agora-token`;
 /** Relógio que conta desde `inicio` (o relógio é do servidor: quem entra no meio vê o tempo certo). */
 const ROTULO_SITUACAO = { na_fila: 'ainda na fila', em_andamento: 'em andamento agora', pausada: 'pausada', finalizada: 'já feita neste ciclo', abandonada: 'cancelada' };
 
-function Relogio({ inicio, limiteMin }) {
+function Relogio({ inicio, limiteMin, pausaSeg = 0 }) {
   const [, forca] = useState(0);
   useEffect(() => { const t = setInterval(() => forca((n) => n + 1), 1000); return () => clearInterval(t); }, []);
-  const dec = Math.max(0, (Date.now() - new Date(inicio).getTime()) / 1000);
+  const dec = Math.max(0, (Date.now() - new Date(inicio).getTime()) / 1000 - pausaSeg);   // o tempo em que a estação ficou pausada não conta
   const resta = limiteMin ? limiteMin * 60 - dec : null;
   return <span className={`sl-relogio${resta !== null && resta < 60 ? ' fim' : ''}`} role="timer" aria-label="tempo da estação">{resta !== null ? fmt(resta) : fmt(dec)}</span>;
 }
 
 export default function TelaCiclos({ token, usuario, api, sugestao, aoRevisar, aoAnalise }) {
-  const [salaId, setSalaId] = useState(() => { try { return sessionStorage.getItem('rv_sala') || null; } catch { return null; } });
+  // a sala fica guardada também fora da aba: quem fechou o app volta e cai na mesma sala (e na mesma estação)
+  const [salaId, setSalaId] = useState(() => { try { return sessionStorage.getItem('rv_sala') || localStorage.getItem('rv_sala') || null; } catch { return null; } });
   const [codigo, setCodigo] = useState('');
+  const [nomeNova, setNomeNova] = useState('');
+  const [prazo, setPrazo] = useState(24);
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const guardar = (id) => { setSalaId(id); try { id ? sessionStorage.setItem('rv_sala', id) : sessionStorage.removeItem('rv_sala'); } catch { /* sem storage */ } };
+  const guardar = (id) => { setSalaId(id); try { if (id) { sessionStorage.setItem('rv_sala', id); localStorage.setItem('rv_sala', id); } else { sessionStorage.removeItem('rv_sala'); localStorage.removeItem('rv_sala'); } } catch { /* sem storage */ } };
   const abrir = async (fn) => { setOcupado(true); setErro(''); try { await fn(); } catch (e) { setErro(e.message); } finally { setOcupado(false); } };
-  const criar = () => abrir(async () => { const { id } = await api('/api/salas', { metodo: 'POST', token }); await api(`/api/salas/${id}/entrar`, { metodo: 'POST', token }); guardar(id); });
-  const entrar = () => abrir(async () => { const id = codigo.trim(); await api(`/api/salas/${id}/entrar`, { metodo: 'POST', token }); guardar(id); });
+  const criar = () => abrir(async () => { const { id } = await api('/api/salas', { metodo: 'POST', token, corpo: { nome: nomeNova.trim() || undefined, expira_vazia_horas: Number(prazo) } }); await api(`/api/salas/${id}/entrar`, { metodo: 'POST', token }); guardar(id); });
+  const entrarEm = (id) => abrir(async () => { await api(`/api/salas/${id}/entrar`, { metodo: 'POST', token }); guardar(id); });
+  const entrar = () => entrarEm(codigo.trim());
 
   if (salaId) return <Sala key={salaId} salaId={salaId} token={token} usuario={usuario} api={api} sugestao={sugestao} aoRevisar={aoRevisar} aoAnalise={aoAnalise} aoSair={() => guardar(null)} />;
   return (
     <div className="tela sl">
-      <h2>Ciclos de estações</h2>
-      <p className="sub">Uma sala reúne o chefe, o candidato e quem observa. Crie uma sala ou entre com o código que o chefe passou.</p>
-      <button className="btn" onClick={criar} disabled={ocupado}>Criar sala</button>
+      <h2>Salas</h2>
+      <p className="sub">Toda sala é aberta: qualquer pessoa entra, sai e volta, e ela segue com tudo em andamento. Ninguém é dono; quem está como chefe é só uma função. A sala vazia é desfeita depois do prazo.</p>
+      <PainelSalas api={api} token={token} aoEntrar={entrarEm} desabilitado={ocupado} />
+      <section className="sl-bloco" aria-label="Nova sala">
+        <h3>Nova sala</h3>
+        <label className="campo"><span>Nome da sala</span><input value={nomeNova} onChange={(e) => setNomeNova(e.target.value)} maxLength={60} placeholder="ex.: Treino de sábado" /></label>
+        <label className="campo"><span>Desfazer se ficar vazia por</span>
+          <select value={prazo} onChange={(e) => setPrazo(e.target.value)}>{PRAZOS.map(([v, r]) => <option key={v} value={v}>{r}</option>)}</select></label>
+        <button className="btn" onClick={criar} disabled={ocupado}>Criar sala</button>
+        <p className="sub">Os ciclos de estações são criados depois, já dentro da sala.</p>
+      </section>
       <label className="campo"><span>Código da sala</span>
         <input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="cole o código aqui" autoComplete="off" />
       </label>
@@ -69,7 +83,10 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
   const [pep, setPep] = useState(null);
   const [marcas, setMarcas] = useState({});
   const [video, setVideo] = useState({ cam: false, mic: false, modo: null, erro: '' });
-  const refs = useRef({ socket: null, video: null });
+  const refs = useRef({ socket: null, video: null, ligando: false });
+  const [tiqueChat, setTiqueChat] = useState(0);
+  const [diag, setDiag] = useState(null);
+  const [ajudaAberta, setAjudaAberta] = useState(false);
   const eu = usuario.id;
 
   const carregar = useCallback(async () => {
@@ -86,14 +103,17 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
   // estado em tempo real + reserva por consulta (se o socket cair, a tela continua certa)
   useEffect(() => {
     let vivo = true;
-    carregar();
+    // (re)entra na sala no servidor: quem fechou o app ou perdeu a conexão volta ao mesmo ponto; se os dois (chefe e candidato) estiverem
+    // aqui de novo, a estação pausada segue sozinha. Se a sala já foi desfeita, o erro aparece e dá para voltar.
+    const voltar = () => api(`/api/salas/${salaId}/entrar`, { metodo: 'POST', token }).catch((e) => { if (vivo) setErro(e.message); });
+    voltar().then(carregar);
     const socket = io({ auth: { token } });
     refs.current.socket = socket;
-    socket.on('connect', () => socket.emit('salav2:entrar', { salaId }, () => {}));
-    socket.on('sala:estado', (m) => { if (vivo && m?.estado) setEst(m.estado); });
+    socket.on('connect', async () => { await voltar(); socket.emit('salav2:entrar', { salaId }, () => {}); carregar(); });
+    socket.on('sala:estado', (m) => { if (!vivo || !m?.estado) return; setEst(m.estado); if (m.evento === 'chat') setTiqueChat((n) => n + 1); });
     const t = setInterval(carregar, 10000);
     return () => { vivo = false; clearInterval(t); socket.disconnect(); };
-  }, [salaId, token, carregar]);
+  }, [salaId, token, carregar, api]);
 
   useEffect(() => { api('/api/estacoes', { token }).then(setEstacoes).catch(() => {}); }, [api, token]);
 
@@ -106,6 +126,27 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
   useEffect(() => { if (!apoioPermitido) setApoio(false); }, [apoioPermitido]);
   useEffect(() => { setNotasApoio(''); if (!exe) setApoio(false); }, [exe?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const ciclo = est?.ciclo;
+  const euEAvaliador = Boolean(est?.participantes?.find((p) => p.usuario_id === eu)?.e_avaliador);
+  // consistência de mídia: UMA verificação automática depois da inversão de papéis ou da troca de chefe/avaliador
+  const chaveFuncao = est ? `${meu}|${est.sala.admin_id}|${euEAvaliador}` : null;
+  const funcaoAnterior = useRef(null);
+  const videoAtual = useRef(video); videoAtual.current = video;
+  useEffect(() => {
+    if (!chaveFuncao) return;
+    const mudou = funcaoAnterior.current !== null && funcaoAnterior.current !== chaveFuncao;
+    funcaoAnterior.current = chaveFuncao;
+    if (!mudou || !(meu === 'candidato' || meu === 'admin' || euEAvaliador)) return;
+    if (!midiaDesconectada(videoAtual.current)) return;       // já está tudo ligado: nada a conferir
+    let vivo = true;
+    (async () => {
+      const d = await diagnosticarMidia();
+      if (!vivo) return;
+      setDiag(d);
+      const livre = d.camera === 'ok' && d.microfone === 'ok';
+      if (livre) await religarMidia(); else setAjudaAberta(true);   // o navegador permite → liga; senão mostra o que fazer
+    })();
+    return () => { vivo = false; };
+  }, [chaveFuncao]); // eslint-disable-line react-hooks/exhaustive-deps
   const euAvalio = Boolean(exe && (exe.avaliador_id === eu || est?.sala.admin_id === eu));
 
   const aoVivo = useAoVivo({ execId: exe?.id, ativo: Boolean(exe && euAvalio), api, token });
@@ -132,6 +173,8 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
   // vídeo da sala
   const [tiles, setTiles] = useState({});
   const ligarVideo = async () => {
+    if (refs.current.video || refs.current.ligando) return;
+    refs.current.ligando = true;
     try {
       const v = await criarSalaVideo({
         sessaoId: salaId, tokenAuth: token, rotaToken,
@@ -144,16 +187,33 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
       });
       refs.current.video = v;
       setVideo((s) => ({ ...s, modo: v.modo, erro: '' }));
+      setVideo((s) => ({ ...s, cam: Boolean(v.cameraLigada?.()), mic: Boolean(v.microfoneLigado?.()) }));
     } catch (e) { setVideo((s) => ({ ...s, erro: e.message })); }
+    finally { refs.current.ligando = false; }
   };
   useEffect(() => () => { refs.current.video?.sair?.(); }, []);
+  // entra no vídeo sozinho assim que a sala carrega (um único botão para câmera e outro para microfone depois disso)
+  const salaPronta = Boolean(est);
+  useEffect(() => { if (salaPronta) ligarVideo(); }, [salaPronta]); // eslint-disable-line react-hooks/exhaustive-deps
   // admin pausou meu vídeo: relê o token (o servidor passa a negar a publicação)
   const minhaPausa = est?.participantes?.find((p) => p.usuario_id === eu)?.video_pausado;
   useEffect(() => { if (minhaPausa !== undefined) refs.current.video?.sincronizar?.(); }, [minhaPausa]);
   const alternar = async (que) => {
+    if (!refs.current.video) await ligarVideo();
     const v = refs.current.video; if (!v) return;
+    if (v.modo === 'demo') return setVideo((s) => ({ ...s, [que]: !s[que] }));        // demonstração: não há aparelho real
     const ligado = que === 'cam' ? await v.alternarCam(!video.cam) : await v.alternarMic(!video.mic);
     setVideo((s) => ({ ...s, [que]: ligado }));
+  };
+  // diagnóstico do navegador + religar (botão "solucionar problemas" e verificação automática depois da troca de funções)
+  const verificarMidia = async () => { const d = await diagnosticarMidia(); setDiag(d); return d; };
+  const religarMidia = async () => {
+    const v = refs.current.video;
+    if (!v) { await ligarVideo(); return; }
+    if (v.modo === 'demo') return;
+    try { await v.sincronizar?.(); } catch { /* o token é relido de novo na próxima ação */ }
+    const cam = await v.alternarCam(true); const mic = await v.alternarMic(true);
+    setVideo((s) => ({ ...s, cam, mic }));
   };
 
   const sair = async () => { try { await api(`/api/salas/${salaId}/sair`, { metodo: 'POST', token }); } catch { /* sai assim mesmo */ } refs.current.video?.sair?.(); aoSair(); };
@@ -197,6 +257,10 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
   const souAdmin = meu === 'admin';
   const podeConvidar = souAdmin || Boolean(est.participantes.find((p) => p.usuario_id === eu)?.e_avaliador);
   const emAndamento = Boolean(exe);
+  // candidato em estação: a tela mostra SÓ a estação (vídeo, relógio, cartas, fala, apoio); gestão, chat e fila ficam ocultos
+  const modoCandidato = meu === 'candidato' && emAndamento && exe.candidato_id === eu;
+  const pausadaPorSaida = est.ciclos_pausados.filter((c) => c.execucao_pausada && c.motivo === 'saida');
+  const chefeAusente = !est.participantes.some((p) => p.usuario_id === est.sala.admin_id);
   const pendentes = fila.filter((i) => i.estado === 'pendente');
   const minhaSolicitacao = est.solicitacoes.find((s) => s.solicitante_id === eu);
   const naFila = new Set(fila.map((i) => i.titulo));
@@ -222,17 +286,17 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
     el.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
     el.classList.add('sl-realce'); setTimeout(() => el.classList.remove('sl-realce'), 1500);
   };
+  const SO_ESTACAO = new Set(['cam', 'mic', 'estacao', 'transcricao', 'conduta']);
   const pedidosPendentes = est.solicitacoes.filter((x) => x.solicitante_id !== eu).length;
   // só aparecem as ferramentas que o papel e o momento permitem; a ordem escolhida pela pessoa é aplicada por cima (FerramentasSala)
   const ferramentas = [
-    video.modo === null
-      ? { id: 'video', rotulo: 'Entrar no vídeo', curto: 'Vídeo', aoClicar: ligarVideo }
-      : { id: 'cam', rotulo: video.cam ? 'Desligar câmera' : 'Ligar câmera', curto: 'Câmera', ativo: video.cam, aoClicar: () => alternar('cam') },
-    ...(video.modo !== null ? [{ id: 'mic', rotulo: video.mic ? 'Silenciar microfone' : 'Ligar microfone', curto: 'Mic', ativo: video.mic, aoClicar: () => alternar('mic') }] : []),
+    { id: 'cam', rotulo: video.cam ? 'Desligar câmera' : 'Ligar câmera', curto: 'Câmera', ativo: video.cam, aoClicar: () => alternar('cam') },
+    { id: 'mic', rotulo: video.mic ? 'Silenciar microfone' : 'Ligar microfone', curto: 'Mic', ativo: video.mic, aoClicar: () => alternar('mic') },
     ...(souAdmin ? [{ id: 'audio', rotulo: est.sala.audio_observadores ? 'Bloquear áudio dos observadores' : 'Liberar áudio dos observadores', curto: 'Áudio obs.', ativo: est.sala.audio_observadores, aoClicar: () => agir(`/api/salas/${salaId}/audio-observadores`, { liberado: !est.sala.audio_observadores }, 'PATCH') }] : []),
+    { id: 'chat', rotulo: 'Chat da sala', curto: 'Chat', aoClicar: () => irPara('sl-chat') },
     { id: 'pessoas', rotulo: 'Participantes', curto: 'Pessoas', aoClicar: () => irPara('sl-participantes') },
     ...(podeConvidar ? [{ id: 'convidar', rotulo: 'Convidar pessoas online', curto: 'Convidar', aoClicar: () => irPara('sl-participantes') }] : []),
-    ...(pedidosPendentes > 0 && (meu === 'admin' || meu === 'candidato') ? [{ id: 'pedidos', rotulo: 'Pedidos de papel', curto: 'Pedidos', aviso: pedidosPendentes, aoClicar: () => irPara('sl-pedidos') }] : []),
+    ...(pedidosPendentes > 0 && meu === 'admin' ? [{ id: 'pedidos', rotulo: 'Pedidos de papel', curto: 'Pedidos', aviso: pedidosPendentes, aoClicar: () => irPara('sl-pedidos') }] : []),
     ...(emAndamento ? [{ id: 'estacao', rotulo: 'Estação em andamento', curto: 'Estação', aoClicar: () => irPara('sl-estacao') },
       { id: 'transcricao', rotulo: euAvalio ? 'Fala do candidato em tempo real' : 'Minha transcrição', curto: 'Fala', aoClicar: () => irPara(euAvalio ? 'sl-transcricao' : 'sl-estacao') }] : []),
     ...(emAndamento && apoioPermitido && meu === 'candidato' && exe.candidato_id === eu ? [{ id: 'conduta', rotulo: apoio ? 'Fechar o apoio cognitivo' : 'Apoio cognitivo: grafo da conduta', curto: 'Apoio', ativo: apoio, aoClicar: () => setApoio((v) => !v) }] : []),
@@ -244,28 +308,33 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
 
   return (
     <div className="tela sl">
-      <FerramentasSala ferramentas={ferramentas} />
+      <FerramentasSala ferramentas={modoCandidato ? ferramentas.filter((f) => SO_ESTACAO.has(f.id)) : ferramentas} />
       <div className="sl-topo">
-        <div><h2>Sala</h2><button className="sl-cod" onClick={() => navigator.clipboard?.writeText(salaId)} title="Copiar código">{salaId}</button></div>
+        <div><h2 data-testid="nome-sala">{est.sala.nome || 'Sala'}</h2>{!modoCandidato && <button className="sl-cod" onClick={() => navigator.clipboard?.writeText(salaId)} title="Copiar código">{salaId}</button>}</div>
         <span className={`sl-papel p-${meu}`} data-testid="meu-papel">{PAPEL[meu] ?? meu}</span>
       </div>
       {aviso && <p className="aviso" role="alert">{aviso}</p>}
 
       <section className="sl-bloco" id="sl-video" aria-label="Vídeo">
         <div className="sl-tiles">{Object.entries(tiles).map(([uid, t]) => <Tile key={uid} track={t.track} rotulo={t.local ? 'Você' : 'Participante'} />)}</div>
-        {video.modo === null
-          ? <button className="btn mini" onClick={ligarVideo}>Entrar no vídeo</button>
-          : <div className="acoes">
-              {video.modo === 'demo' && <span className="sub">Modo demonstração (sem vídeo real)</span>}
-              <button className="btn mini" onClick={() => alternar('cam')} aria-pressed={video.cam}>{video.cam ? 'Desligar câmera' : 'Ligar câmera'}</button>
-              <button className="btn mini" onClick={() => alternar('mic')} aria-pressed={video.mic}>{video.mic ? 'Silenciar' : 'Ligar microfone'}</button>
-            </div>}
+        <div className="acoes">
+          {video.modo === 'demo' && <span className="sub">Modo demonstração (sem vídeo real)</span>}
+          <button className="btn mini sl-midia-btn" data-testid="botao-camera" onClick={() => alternar('cam')} aria-pressed={video.cam}>{video.cam ? 'Desligar câmera' : 'Ligar câmera'}</button>
+          <button className="btn mini sl-midia-btn" data-testid="botao-mic" onClick={() => alternar('mic')} aria-pressed={video.mic}>{video.mic ? 'Silenciar microfone' : 'Ligar microfone'}</button>
+        </div>
         {video.erro && <p className="aviso">{video.erro}</p>}
-        {souAdmin && <label className="sl-op"><input type="checkbox" data-testid="opcao-apoio" checked={est.sala.apoio_cognitivo !== false} onChange={(e) => agir(`/api/salas/${salaId}/apoio-cognitivo`, { liberado: e.target.checked }, 'PATCH')} /> Permitir o apoio cognitivo (grafo da conduta) ao candidato</label>}
-        {souAdmin && <label className="sl-op"><input type="checkbox" checked={est.sala.audio_observadores} onChange={(e) => agir(`/api/salas/${salaId}/audio-observadores`, { liberado: e.target.checked }, 'PATCH')} /> Liberar áudio dos observadores</label>}
+        {mostrarSolucionar({ papel: meu, eAvaliador: euEAvaliador, video }) && <Solucionar resultado={diag} aoVerificar={verificarMidia} aoReligar={religarMidia} aberto={ajudaAberta} setAberto={setAjudaAberta} />}
+        {souAdmin && !modoCandidato && <label className="sl-op"><input type="checkbox" data-testid="opcao-apoio" checked={est.sala.apoio_cognitivo !== false} onChange={(e) => agir(`/api/salas/${salaId}/apoio-cognitivo`, { liberado: e.target.checked }, 'PATCH')} /> Permitir o apoio cognitivo (grafo da conduta) ao candidato</label>}
+        {souAdmin && !modoCandidato && <label className="sl-op"><input type="checkbox" checked={est.sala.audio_observadores} onChange={(e) => agir(`/api/salas/${salaId}/audio-observadores`, { liberado: e.target.checked }, 'PATCH')} /> Liberar áudio dos observadores</label>}
       </section>
 
-      {est.ciclos_pausados.length > 0 && (
+      {pausadaPorSaida.length > 0 && (
+        <p className="sl-pausa-aviso" role="status" data-testid="pausa-aviso"><b>Estação pausada.</b> Ela segue sozinha quando o chefe e o candidato estiverem conectados ao mesmo tempo.{chefeAusente ? ' O chefe não está na sala.' : ''}</p>
+      )}
+      {!modoCandidato && souAdmin && <ConfigurarSala sala={est.sala} api={api} token={token} aoSalvar={carregar} />}
+      {!modoCandidato && <SalaChat salaId={salaId} api={api} token={token} eu={eu} tique={tiqueChat} />}
+
+      {!modoCandidato && est.ciclos_pausados.length > 0 && (
         <section className="sl-bloco" aria-label="Ciclos pausados">
           <h3>Ciclos pausados</h3>
           {est.ciclos_pausados.map((c) => (
@@ -277,9 +346,9 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
         </section>
       )}
 
-      <BannerRandomico salaId={salaId} api={api} token={token} versao={est?.sala?.versao} souAdmin={souAdmin} podeSeguir={souAdmin && !emAndamento && Boolean(ultima)} aoMudou={carregar} />
+      {!modoCandidato && <BannerRandomico salaId={salaId} api={api} token={token} versao={est?.sala?.versao} souAdmin={souAdmin} podeSeguir={souAdmin && !emAndamento && Boolean(ultima)} aoMudou={carregar} />}
 
-      <section className="sl-bloco" id="sl-participantes" aria-label="Participantes">
+      {!modoCandidato && <section className="sl-bloco" id="sl-participantes" aria-label="Participantes">
         <h3>Participantes ({est.participantes.length})</h3>
         {est.participantes.map((p) => (
           <div key={p.usuario_id} className="sl-linha">
@@ -299,10 +368,11 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
           <div className="acoes">{PAPEIS_PEDIDO.filter(([p]) => p !== meu).map(([p, rot]) => <button key={p} className="btn mini" onClick={() => agir(`/api/salas/${salaId}/solicitacoes`, { papel: p })}>{rot}</button>)}</div>
         ) : null}
         {meu === 'candidato' && !emAndamento && <div className="acoes"><button type="button" className="btn mini" onClick={() => agir(`/api/salas/${salaId}/candidato/abandonar`)}>Deixar de ser candidato (passo a observar)</button></div>}
+        {chefeAusente && !emAndamento && meu !== 'admin' && <div className="acoes"><button type="button" className="btn mini menta" data-testid="assumir-chefe" onClick={() => agir(`/api/salas/${salaId}/assumir-chefe`)}>O chefe saiu: assumir a chefia</button></div>}
         {minhaSolicitacao && <div className="sl-linha"><span>Seu pedido ({PAPEL[minhaSolicitacao.papel]}) aguarda resposta.</span><button className="btn mini" onClick={() => agir(`/api/solicitacoes/${minhaSolicitacao.id}/cancelar`)}>Cancelar</button></div>}
-      </section>
+      </section>}
 
-      {est.solicitacoes.filter((s) => s.solicitante_id !== eu).length > 0 && (meu === 'admin' || meu === 'candidato') && (
+      {est.solicitacoes.filter((s) => s.solicitante_id !== eu).length > 0 && meu === 'admin' && (
         <section className="sl-bloco" id="sl-pedidos" aria-label="Pedidos de papel">
           <h3>Pedidos de papel</h3>
           {est.solicitacoes.filter((s) => s.solicitante_id !== eu).map((s) => (
@@ -316,7 +386,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
         <section className="sl-bloco sl-exec" id="sl-estacao" aria-label="Estação em andamento">
           <h3>{exe.titulo}</h3>
           <p className="sub">Candidato: {nome(exe.candidato_id)} · Avalia: {nome(exe.avaliador_id)}</p>
-          <Relogio inicio={exe.iniciada_em} limiteMin={pep?.duracao_min} />
+          <Relogio inicio={exe.iniciada_em} pausaSeg={exe.pausa_seg ?? 0} limiteMin={pep?.duracao_min} />
           <CartasEstacao execId={exe.id} papel={euAvalio ? 'avaliador' : meu} api={api} token={token} segmentos={aoVivo.segmentos} />
           <span id="sl-transcricao" />
           {meu === 'candidato' && exe.candidato_id === eu && <TranscricaoCandidato execId={exe.id} api={api} token={token} aoFala={falaLocal.registrar} />}
@@ -370,7 +440,12 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
                 <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'encerrar' })}>Encerrar ciclo</button>
               </div>
             </>
-          ) : <p className="sub">Aguardando o chefe decidir o próximo passo. O vídeo continua aberto.</p>}
+          ) : (
+            <>
+              <p className="sub">Aguardando o chefe decidir o próximo passo. O vídeo continua aberto.</p>
+              {meu === 'candidato' && <div className="acoes"><button className="btn mini" data-testid="inverter-candidato" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'inverter' })}>Inverter papéis</button></div>}
+            </>
+          )}
           {(meu === 'candidato' || euAvaliou(ultima, est, eu)) && <Autocorrecao key={ultima.id} execId={ultima.id} api={api} token={token} aoAdotar={async () => { await carregar(); try { const r = await api(`/api/salas/${salaId}/ultima-execucao`, { token }); setUltima(r.ultima ?? null); } catch { /* mantém */ } }} />}
           {euAvaliou(ultima, est, eu) && <LiberarTranscricao key={`lib-${ultima.id}`} execId={ultima.id} api={api} token={token} />}
           {aoAnalise && (meu === 'candidato' || euAvaliou(ultima, est, eu)) && <button className="btn mini menta" onClick={() => aoAnalise(ultima.id)}>Ver análise completa da estação</button>}
@@ -378,7 +453,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
         </section>
       )}
 
-      {ciclo ? (
+      {modoCandidato ? null : ciclo ? (
         <section className="sl-bloco" id="sl-fila" aria-label="Fila do ciclo">
           <h3>Fila do ciclo</h3>
           {fila.length === 0 && <p className="sub">Nenhuma estação visível ainda.</p>}
@@ -412,7 +487,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
         </section>
       ) : <p className="sub">Aguardando o chefe montar o ciclo.</p>}
 
-      <button className="btn mini sl-sair" onClick={sair}>Sair da sala</button>
+      {!modoCandidato && <button className="btn mini sl-sair" onClick={sair}>Sair da sala</button>}
     </div>
   );
 }

@@ -11,7 +11,8 @@ import { emailValido, Limitador, normalizarEmail, rota, senhaValida, MSG_SENHA, 
 import { aplicarConfig } from './config.js';
 
 export const TABELAS = ['usuarios', 'estacoes', 'pep_itens', 'sessoes', 'sessao_participantes', 'avaliacoes',
-  'comentarios_observador', 'tokens_acesso', 'recuperacoes_senha', 'solicitacoes_acesso', 'auditoria_admin', 'config_servidor'];
+  'comentarios_observador', 'tokens_acesso', 'recuperacoes_senha', 'solicitacoes_acesso', 'auditoria_admin', 'config_servidor',
+  'podcast_playlists', 'podcast_itens', 'radia_pool', 'praticas_solo', 'bloqueios', 'trilhas'];
 export const COLUNAS = [['usuarios', 'sessao_versao'], ['usuarios', 'senha_provisoria'], ['sessoes', 'audio_observadores']];
 
 export const gerarCodigoInstalacao = () => {

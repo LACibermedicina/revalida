@@ -80,15 +80,58 @@ function Player({ item, api, token, publico, aoFechar }) {
   );
 }
 
-function Itens({ itens, aoTocar, aoMudar, api, token, publico }) {
+const copiarTexto = (t, avisar) => navigator.clipboard?.writeText(t).then(() => avisar?.('Link copiado.')).catch(() => avisar?.(t));
+function LinhaLink({ rotulo, url, avisar }) {
+  return (
+    <label className="pc-linkbox"><span>{rotulo}</span>
+      <input readOnly value={url} onFocus={(e) => e.target.select()} />
+      <button type="button" className="botao ghost" onClick={() => copiarTexto(url, avisar)}>Copiar</button>
+    </label>
+  );
+}
+
+/** Compartilhar o episódio fora da plataforma (link público, opt-in) e mover/copiar para outra playlist. */
+function Mais({ item, playlists, atual, api, token, aoMudar }) {
+  const [links, setLinks] = useState(null); const [dest, setDest] = useState(''); const [aviso, setAviso] = useState('');
+  useEffect(() => { let vivo = true; if (item.compartilhado) api(`/api/podcast/itens/${item.id}/links`, { token }).then((r) => vivo && setLinks(r.links ?? null)).catch(() => {}); return () => { vivo = false; }; }, [item.id, item.compartilhado, api, token]);
+  const ligar = async (ativo) => { try { const r = await api(`/api/podcast/itens/${item.id}/compartilhar`, { metodo: 'POST', token, corpo: { ativo } }); setLinks(r.links ?? null); aoMudar(); } catch (e) { setAviso(e.message); } };
+  const levar = async (copiar) => { if (!dest) return; try { await api(`/api/podcast/itens/${item.id}/mover`, { metodo: 'POST', token, corpo: { playlist_id: dest, copiar } }); setAviso(copiar ? 'Copiado para a outra playlist.' : 'Movido.'); setDest(''); aoMudar(); } catch (e) { setAviso(e.message); } };
+  const outras = playlists.filter((p) => p.id !== atual);
+  return (
+    <details className="pc-mais">
+      <summary>{item.compartilhado ? '🔗 Compartilhado' : 'Compartilhar / mover'}</summary>
+      <div className="pc-mais-corpo">
+        {item.roteiro && (links
+          ? (<>
+              <LinhaLink rotulo="Página para ouvir" url={links.pagina} avisar={setAviso} />
+              {item.tem_audio && <LinhaLink rotulo="MP3 (importar em outro app)" url={links.audio} avisar={setAviso} />}
+              <LinhaLink rotulo="Transcrição (.txt)" url={links.transcricao} avisar={setAviso} />
+              <button type="button" className="botao ghost perigo" onClick={() => ligar(false)}>Desativar link</button>
+            </>)
+          : <button type="button" className="botao ghost" onClick={() => ligar(true)}>Criar link público do episódio</button>)}
+        {outras.length > 0 && (
+          <div className="pc-linha">
+            <select value={dest} onChange={(e) => setDest(e.target.value)} aria-label="Playlist de destino"><option value="">Levar para a playlist…</option>{outras.map((p) => <option key={p.id} value={p.id}>{p.titulo}</option>)}</select>
+            <button type="button" className="botao ghost" disabled={!dest} onClick={() => levar(false)}>Mover</button>
+            <button type="button" className="botao ghost" disabled={!dest} onClick={() => levar(true)}>Copiar</button>
+          </div>)}
+        {aviso && <p className="sub" role="status">{aviso}</p>}
+      </div>
+    </details>
+  );
+}
+
+function Itens({ itens, aoTocar, aoMudar, api, token, publico, playlists = [], atual = null, marcados = null, alternar = null }) {
   return (
     <ol className="pc-itens">
       {itens.map((i) => (
         <li key={i.id} className={`pc-item s-${i.status}`}>
+          {!publico && alternar && <input type="checkbox" className="pc-marca" aria-label={`Selecionar ${i.titulo}`} checked={marcados?.has(i.id) ?? false} onChange={() => alternar(i.id)} />}
           <button type="button" className="pc-play" onClick={() => aoTocar(i)} aria-label={`Tocar ${i.titulo}`} disabled={!i.roteiro && !i.transcricao}>▶</button>
           <div className="pc-info">
             <b>{i.titulo}</b>
             <span className="sub">{[i.area, i.topico, i.duracao_s ? fmt(i.duracao_s) : null, publico ? i.autor : ESTADO[i.status]].filter(Boolean).join(' · ')}</span>
+            {!publico && i.tem_audio && i.audio_normalizado && <span className="pc-selo" title="MP3 mono, 44,1 kHz, 64 kbps, com tags ID3: pronto para importar em qualquer plataforma">MP3 universal</span>}
             {!publico && i.erro && <span className="pc-erro">{i.erro}</span>}
             {!publico && i.posicao_s > 5 && !i.concluido && <span className="pc-cont">Parou em {fmt(i.posicao_s)}</span>}
           </div>
@@ -98,6 +141,7 @@ function Itens({ itens, aoTocar, aoMudar, api, token, publico }) {
               {i.roteiro && <a className="botao ghost" href="#transc" onClick={async (e) => { e.preventDefault(); const r = await fetch(`/api/podcast/itens/${i.id}/transcricao`, { headers: { Authorization: `Bearer ${token}` } }); if (r.ok) { const u = URL.createObjectURL(await r.blob()); const a = document.createElement('a'); a.href = u; a.download = `${i.titulo}.txt`; a.click(); URL.revokeObjectURL(u); } }}>Transcrição</a>}
               {i.roteiro && <button type="button" className={`botao ghost${i.publico ? ' on' : ''}`} onClick={async () => { await api(`/api/podcast/itens/${i.id}/radia`, { metodo: 'PUT', token, corpo: { publico: !i.publico } }).catch(() => {}); aoMudar(); }}>{i.publico ? '📻 Na rádio' : 'Enviar à rádio'}</button>}
               {i.status !== 'pronto' && <button type="button" className="botao ghost" onClick={async () => { await api(`/api/podcast/itens/${i.id}/gerar`, { metodo: 'POST', token, corpo: {} }).catch(() => {}); aoMudar(); }}>{i.roteiro ? 'Gerar áudio' : 'Tentar de novo'}</button>}
+              <Mais item={i} playlists={playlists} atual={atual} api={api} token={token} aoMudar={aoMudar} />
               <button type="button" className="botao ghost perigo" onClick={async () => { if (window.confirm('Apagar este episódio?')) { await api(`/api/podcast/itens/${i.id}`, { metodo: 'DELETE', token }).catch(() => {}); aoMudar(); } }}>Apagar</button>
             </div>
           )}
@@ -111,12 +155,15 @@ function MinhasPlaylists({ api, token, cfg, aoTocar }) {
   const [msg, setMsg] = useState(''); const [ocupado, setOcupado] = useState(false); const [cont, setCont] = useState([]);
   const [np, setNp] = useState({ titulo: '', prompt: '' });
   const [ne, setNe] = useState({ tipo: 'tema', tema: '', topico: '', prompt: '', minutos: 5 });
-  const [sugest, setSugest] = useState([]); const [feed, setFeed] = useState(null);
+  const [sugest, setSugest] = useState([]); const [feed, setFeed] = useState(null); const [pub, setPub] = useState(null); const [marcados, setMarcados] = useState(() => new Set());
 
   const carregar = useCallback(async () => {
     setLista(await api('/api/podcast/playlists', { token }).catch(() => []));
     setCont(await api('/api/podcast/continuar', { token }).catch(() => []));
-    if (sel) setDet(await api(`/api/podcast/playlists/${sel}`, { token }).catch(() => null));
+    if (sel) {
+      const d = await api(`/api/podcast/playlists/${sel}`, { token }).catch(() => null); setDet(d);
+      setPub(d?.publica ? await api(`/api/podcast/playlists/${sel}/links`, { token }).catch(() => null) : null);
+    }
   }, [api, token, sel]);
   useEffect(() => { void carregar(); }, [carregar]);
   useEffect(() => { if (ne.tema.length < 2) { setSugest([]); return undefined; } const t = setTimeout(() => api(`/api/podcast/temas?busca=${encodeURIComponent(ne.tema)}`, { token }).then(setSugest).catch(() => {}), 250); return () => clearTimeout(t); }, [ne.tema, api, token]);
@@ -127,7 +174,9 @@ function MinhasPlaylists({ api, token, cfg, aoTocar }) {
     try { const r = await api(`/api/podcast/playlists/${sel}/itens`, { metodo: 'POST', token, corpo: ne }); setMsg(r.aviso || 'Episódio criado.'); setNe({ ...ne, tema: '', topico: '', prompt: '' }); await carregar(); }
     catch (er) { setMsg(er.message); } finally { setOcupado(false); }
   };
-  const publicar = async (liga) => { const r = await api(`/api/podcast/playlists/${sel}/publicar`, { metodo: 'POST', token, corpo: { publica: liga } }); setFeed(r.feed_publico || null); await carregar(); };
+  const publicar = async (liga) => { const r = await api(`/api/podcast/playlists/${sel}/publicar`, { metodo: 'POST', token, corpo: { publica: liga } }); setFeed(null); setPub(liga ? r : null); await carregar(); };
+  const alternar = (id) => setMarcados((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const agrupar = async () => { const titulo = window.prompt('Nome do novo grupo (playlist) com os episódios marcados:'); if (!titulo) return; try { const r = await api('/api/podcast/playlists/agrupar', { metodo: 'POST', token, corpo: { titulo, itens: [...marcados], copiar: true } }); setMarcados(new Set()); setMsg(`Grupo criado com ${r.itens} episódio(s).`); setSel(r.playlist.id); await carregar(); } catch (er) { setMsg(er.message); } };
   const linkPrivado = async () => { if (!window.confirm('Gerar a credencial dos seus links privados? A anterior deixa de valer.')) return; const r = await api('/api/podcast/token/renovar', { metodo: 'POST', token }); setFeed(r.feeds.find((f) => f.playlist_id === sel)?.url || null); };
   const copiar = (t) => navigator.clipboard?.writeText(t).then(() => setMsg('Link copiado.')).catch(() => setMsg(t));
 
@@ -150,7 +199,8 @@ function MinhasPlaylists({ api, token, cfg, aoTocar }) {
             <h3>{det.titulo}</h3>
             {det.prompt && <p className="sub">Prompt: {det.prompt}</p>}
             {!cfg.tts && <p className="pc-aviso">O servidor não tem voz configurada: os episódios ficam com a transcrição e o navegador a lê em voz alta. Um administrador pode configurar a voz (TTS) para gerar áudio baixável.</p>}
-            <Itens itens={det.itens} aoTocar={aoTocar} aoMudar={carregar} api={api} token={token} />
+            {marcados.size > 0 && <div className="pc-agrupar"><span>{marcados.size} selecionado(s)</span><button type="button" className="botao" onClick={agrupar}>Agrupar em nova playlist</button><button type="button" className="botao ghost" onClick={() => setMarcados(new Set())}>Limpar</button></div>}
+            <Itens itens={det.itens} aoTocar={aoTocar} aoMudar={carregar} api={api} token={token} playlists={lista} atual={sel} marcados={marcados} alternar={alternar} />
             <form onSubmit={addItem} className="pc-form pc-novo">
               <h4>Novo episódio</h4>
               <div className="pc-linha">
@@ -164,13 +214,14 @@ function MinhasPlaylists({ api, token, cfg, aoTocar }) {
               <button className="botao" type="submit" disabled={ocupado || ne.tema.trim().length < 2}>{ocupado ? 'Gerando… pode levar um minuto' : 'Gerar episódio'}</button>
             </form>
             <div className="pc-links">
-              <h4>Ouvir em outro aplicativo de podcast</h4>
-              <p className="sub">O link privado usa a sua credencial (renová-la revoga os links anteriores). O link público deixa qualquer pessoa com o endereço assinar a playlist.</p>
+              <h4>Compartilhar esta playlist e ouvir em outro aplicativo</h4>
+              <p className="sub">O link público (página para ouvir + RSS) deixa qualquer pessoa com o endereço ouvir ou assinar a playlist, sem conta. O link privado usa a sua credencial (renová-la revoga os links anteriores). Os áudios saem em MP3 padrão (mono, 44,1 kHz, 64 kbps, com tags) e o RSS segue o padrão de podcast: serve para importar em outras plataformas.</p>
               <div className="pc-linha">
                 <button type="button" className="botao ghost" onClick={linkPrivado}>Gerar link privado</button>
                 {det.publica ? <button type="button" className="botao ghost" onClick={() => publicar(false)}>Desligar link público</button> : <button type="button" className="botao ghost" onClick={() => publicar(true)}>Criar link público</button>}
                 <button type="button" className="botao ghost perigo" onClick={async () => { if (window.confirm('Apagar a playlist e seus episódios?')) { await api(`/api/podcast/playlists/${sel}`, { metodo: 'DELETE', token }); setSel(null); setDet(null); await carregar(); } }}>Apagar playlist</button>
               </div>
+              {det.publica && pub?.pagina && <div className="pc-pub"><LinhaLink rotulo="Página para ouvir (qualquer pessoa)" url={pub.pagina} avisar={setMsg} /><LinhaLink rotulo="RSS (apps de podcast)" url={pub.rss} avisar={setMsg} /></div>}
               {feed && <div className="pc-feed"><code>{feed}</code><button type="button" className="botao" onClick={() => copiar(feed)}>Copiar</button></div>}
             </div>
           </>)}

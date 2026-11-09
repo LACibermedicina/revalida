@@ -29,6 +29,7 @@ import { registrarRecuperacao } from './recuperacao.js';
 import { registrarAdmin } from './admin.js';
 import { criarEmailer } from './email.js';
 import { garantirRoot } from './bootstrap.js';
+import { aplicarMigracoes } from './migrar.js';
 
 const SEGREDO = process.env.JWT_SEGREDO || 'troque-em-producao';
 if (process.env.NODE_ENV === 'production' && (SEGREDO === 'troque-em-producao' || /^troque/i.test(SEGREDO) || SEGREDO.length < 32)) {
@@ -444,6 +445,7 @@ io.on('connection', (socket) => {
 app.get('/api/saude', (_req, res) => res.json({ ok: true, agora: agora.configurado() ? 'configurado' : 'demo' }));
 
 try {
+  if (process.env.AUTO_MIGRAR !== '0') await aplicarMigracoes({ q });   // instalações antigas ganham as tabelas novas sem passo manual
   await cfg.carregar().catch((e) => console.warn('Configuração do servidor não carregada (banco sem a migração 003?):', e.message));
   await garantirRoot({ q, bcrypt });
   const instalado = await reconhecerInstalacaoExistente(q).catch(() => true);
@@ -458,4 +460,6 @@ try {
   console.error('Não foi possível preparar a conta root:', e.message);
   process.exit(1);
 }
+// salas vazias além do prazo (padrão 24 h, definido por quem criou ou pelo chefe) são desfeitas; o histórico das estações fica
+setInterval(() => q('select rv_salas_expirar()').catch((e) => console.error('expirar salas:', e?.message ?? e)), 10 * 60 * 1000).unref();
 servidor.listen(PORTA, () => console.log(`API Revalida Prático na porta ${PORTA}`));

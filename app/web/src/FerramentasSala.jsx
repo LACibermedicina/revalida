@@ -20,6 +20,7 @@ const P = {
   audio: 'M4 10v4h4l5 4V6L8 10zM16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11',
   conduta: 'M5 5h4v4H5zM15 5h4v4h-4zM10 15h4v4h-4zM9 7h6M7 9l4 6M17 9l-4 6',
   fim: 'M5 21V4M5 4h12l-2 4 2 4H5',
+  chat: 'M4 5h16v11H9l-5 4zM8 9h8M8 12h5',
 };
 export const Ic = ({ n }) => <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={P[n] ?? P.estacao} /></svg>;
 

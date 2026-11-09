@@ -1,12 +1,25 @@
 // Ícones do menu: SVG com gradiente e animação própria (ao passar o mouse e quando a tela está ativa). Sem biblioteca externa.
 import React from 'react';
 
-const Base = ({ nome, children }) => (
-  <svg className={`ic ic-${nome}`} viewBox="0 0 32 32" width="26" height="26" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
-    <defs><linearGradient id={`g-${nome}`} gradientUnits="userSpaceOnUse" x1="4" y1="4" x2="28" y2="28"><stop offset="0" stopColor="var(--ic-a, #2b7cf0)" /><stop offset="1" stopColor="var(--ic-b, #19c2a0)" /></linearGradient></defs>
-    <g stroke={`url(#g-${nome})`}>{children}</g>
-  </svg>
-);
+// Estilo "lowpoly": gema de facetas triangulares em tons claros (uma cor por ícone) com o desenho em traço branco grosso, como brinquedo 3D.
+const MATIZ = { inicio: 200, sala: 165, ciclos: 268, estudo: 36, catalogo: 14, criar: 328, admin: 248, conta: 190, comunidade: 22, desempenho: 140, solo: 300, podcast: 6, sair: 352, menu: 215 };
+const PONTOS = [[16, 1.5], [27, 5.5], [30.5, 16], [26.5, 27], [16, 30.5], [5.5, 27], [1.5, 16], [5, 5.5]];
+const LUZ = [82, 72, 78, 66, 74, 84, 70, 80];
+const Base = ({ nome, children }) => {
+  const h = MATIZ[nome] ?? 190; const c = [14.5, 13.5];
+  return (
+    <svg className={`ic ic-${nome}`} viewBox="0 0 32 32" width="28" height="28" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <g className="ic-gema">
+        {PONTOS.map((pt, i) => { const q = PONTOS[(i + 1) % PONTOS.length]; return <polygon key={i} className={`ic-f ic-f${i % 4}`} points={`${c} ${pt} ${q}`} fill={`hsl(${h + (i % 2 ? 8 : -6)} 78% ${LUZ[i]}%)`} stroke={`hsl(${h} 70% 90%)`} strokeWidth=".4" />; })}
+        <polygon points={PONTOS.map((x) => x.join(',')).join(' ')} fill="none" stroke={`hsl(${h} 55% 52% / .55)`} strokeWidth="1" />
+      </g>
+      <g className="ic-traco" transform="translate(16 16) scale(.7) translate(-16 -16)">
+        <g stroke={`hsl(${h} 60% 30% / .55)`} strokeWidth="4.6" transform="translate(0 1)">{children}</g>
+        <g stroke="#fff" strokeWidth="2.6">{children}</g>
+      </g>
+    </svg>
+  );
+};
 
 const D = {
   inicio: <><path className="ic-teto" d="M5 15 16 5l11 10" /><path d="M8 13v13h16V13" /><path className="ic-porta" d="M13 26v-7h6v7" /></>,

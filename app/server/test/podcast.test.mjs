@@ -291,3 +291,16 @@ test('sincronização com a rádio (site FALSO): ordem, credenciais, erro com no
   assert.equal(ult.status, 'erro'); assert.equal(ult.tentativas, 5);
   radiaStatus = 200;
 });
+
+test('falha inesperada (não é ErroIA) na IA ou na gravação do áudio não vira "Erro interno": o episódio guarda o motivo', async () => {
+  desligarTTS();
+  const ana = await uid('Ana9'); const pl = await novaPlaylist(ana);
+  ia.falha = new TypeError('fetch failed');
+  const r = await api('POST', `/api/podcast/playlists/${pl.id}/itens`, ana, { tema: 'Sepse' });
+  ia.falha = null;
+  assert.equal(r.status, 201); assert.equal(r.corpo.item.status, 'erro'); assert.match(r.corpo.item.erro, /IA não conseguiu/);
+  ligarTTS(); ttsStatus = 200;
+  const ok = await api('POST', `/api/podcast/playlists/${pl.id}/itens`, ana, { tema: 'Sepse 2' });
+  assert.equal(ok.status, 201);
+  desligarTTS();
+});

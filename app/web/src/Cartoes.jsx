@@ -1,6 +1,7 @@
 // Cartões de estudo em formato de carta de RPG: carta com moldura por raridade, ícone da área e atributos;
 // listagem de TODOS os cartões (10 por página, por área) e assistente didático tema → gerar → revisar → salvar.
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import Baralho from './Baralho.jsx';
 import './cartoes.css';
 
 export const AREAS_C = { clinica_medica: 'Clínica Médica', cirurgia: 'Cirurgia', ginecologia_obstetricia: 'Ginecologia e Obstetrícia', pediatria: 'Pediatria', mfc: 'Medicina de Família e Comunidade', sem_area: 'Sem área' };
@@ -64,6 +65,8 @@ export function TodosCartoes({ token, api, aoNovo }) {
     if (!window.confirm('Excluir este cartão?')) return;
     try { await api(`/api/estudo/cartoes/${c.id}`, { metodo: 'DELETE', token }); await carregar(); } catch (e) { setErro(e.message); }
   };
+  const itensMesa = useMemo(() => (d?.itens ?? []).map((c) => ({ id: c.id, titulo: c.tema ?? 'Cartão', area: c.area })), [d]);
+  const porId = useMemo(() => new Map((d?.itens ?? []).map((c) => [c.id, c])), [d]);
   const areas = Object.keys(AREAS_C);
   const totalGeral = d ? Object.values(d.por_area).reduce((s, n) => s + n, 0) : 0;
   return (
@@ -83,9 +86,10 @@ export function TodosCartoes({ token, api, aoNovo }) {
       {!d ? <p className="sub" role="status">Carregando cartões…</p> : d.itens.length === 0
         ? <p className="sub" data-testid="sem-cartoes">Nenhum cartão {area ? `em ${AREAS_C[area]}` : 'encontrado'}. Use “Criar cartões” para transformar um tema em cartas.</p>
         : (
-          <div className="rc-grade">
-            {d.itens.map((c) => (
-              <div key={c.id} className="rc-item" data-testid="cartao-lista">
+          <Baralho chave={`cartoes:${area || 'todas'}:${pagina}`} itens={itensMesa} larg={270} alt={400} testid="cartoes-mesa" testidCarta="cartao-lista"
+            rotuloPilha={(g) => g[0]?.titulo ?? ''} renderizar={(it) => {
+              const c = porId.get(it.id); if (!c) return null;
+              return (<div className="rc-item">
                 {edit?.id === c.id ? (
                   <div className="rc-edicao">
                     <label>Frente<textarea value={edit.frente} onChange={(e) => setEdit({ ...edit, frente: e.target.value })} rows={3} /></label>
@@ -101,9 +105,8 @@ export function TodosCartoes({ token, api, aoNovo }) {
                     </div>
                   </>
                 )}
-              </div>
-            ))}
-          </div>
+              </div>);
+            }} />
         )}
       {d && d.total > 0 && (
         <nav className="rc-pag" aria-label="Paginação" data-testid="paginacao">

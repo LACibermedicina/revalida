@@ -30,7 +30,7 @@
 .pq-corpo{display:flex;flex-direction:column;gap:10px}
 
 /* quadro redimensionável: o canto inferior direito estica; o limite acompanha a janela */
-.qf.redim{resize:both;overflow:hidden;min-width:300px;min-height:240px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px)}
+.qf.redim{resize:both;overflow:hidden;min-width:300px;min-height:240px;max-width:calc(100vw / var(--zoom,1) - 16px);max-height:calc(100vh / var(--zoom,1) - 16px)}
 .qf.redim .qf-corpo{flex:1;min-height:0}
 
 /* quadros: nada de rolagem horizontal; o conteúdo quebra linha e se ajusta à largura (só o mapa 3D navega por arrastar) */

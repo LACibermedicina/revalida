@@ -2,6 +2,7 @@
 // Sem escolha: dificuldade média, tempo da estação e 15 itens de checklist.
 import React, { useCallback, useEffect, useState } from 'react';
 import PraticaIA from './PraticaIA.jsx';
+import Mascote from './Mascote.jsx';
 import HistoricoEstacoes from './Historico.jsx';
 import './solo.css';
 
@@ -49,7 +50,7 @@ export default function TelaSolo({ token, api, aoPraticarEstacao, estacaoInicial
   if (exec) return <PraticaIA execId={exec} token={token} api={api} aoSair={() => { setExec(null); carregarHist(); }} aoNova={() => { setExec(null); setPronta(null); carregarHist(); }} />;
   return (
     <div className="solo" data-testid="tela-solo">
-      <h2>Praticar com IA sozinho</h2>
+      <div className="solo-revi"><Mascote tamanho={56} titulo="Secreto-Bot, o paciente IA" /><h2>Praticar com IA sozinho</h2></div>
       <p className="sub">A IA escolhe o tema entre os que você mais precisa treinar. Você só decide a dificuldade e o tempo.</p>
 
       <section className={`solo-sorteio${girando ? ' girando' : ''}`} aria-live="polite">

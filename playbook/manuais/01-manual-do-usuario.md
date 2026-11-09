@@ -51,6 +51,15 @@ O Início mostra, em quadros: estações sugeridas pelo seu desempenho, estaçõ
 
 ## 4. Salas
 
+### 4.0 Salas abertas (sem dono)
+- A tela **Salas** lista as salas abertas (nome, pessoas, chefe, candidato, se há estação). Qualquer pessoa entra pela lista; **ninguém é dono**: chefe é só uma função.
+- Ao criar, dê um **nome** e o prazo para **desfazer a sala se ficar vazia** (6 h a 30 dias; padrão 24 h). O chefe muda nome e prazo depois em *Nome e prazo da sala*. Os **ciclos** são criados depois, já dentro da sala.
+- Quem sai pode voltar (mesmo fechando o app): a sala segue com tudo. Se o **chefe ou o candidato** sair durante uma estação, ela **pausa na hora** e **segue sozinha** quando os dois estiverem conectados; o tempo parado não conta no relógio.
+- Se o chefe sumir (e não houver estação à espera dele), um participante pode **assumir a chefia**.
+- **Chat** da sala para todos. O **candidato em estação vê só a estação** (vídeo, relógio, cartas, fala, apoio): gestão, chat e fila ficam ocultos.
+- **Inverter papéis** ao fim da estação: pode o chefe ou o candidato atual; depois da troca o botão passa a quem ficou como candidato.
+- **Câmera e microfone**: um botão para cada. Depois de inverter ou trocar o chefe/avaliador, o sistema confere **uma vez** se o navegador permite ligá-los. Se estiverem desconectados, quem é chefe, avaliador ou candidato vê um botão discreto **Solucionar problemas** com o que fazer.
+
 ### 4.1 Criar e entrar
 - **Criar sala**: você vira o **chefe**. O código da sala aparece no alto; clique nele para copiar.
 - **Entrar**: cole o código (ou use o link/convite). Você entra como observador e pode **pedir para ser candidato** ou chefe; o chefe aceita ou recusa em *Pedidos*.
@@ -216,11 +225,62 @@ A tela **Desempenho** mostra, para as estações que você fez como candidato, o
 
 - **Praticar com IA**: menu *Praticar com IA*. A IA escolhe o tema onde você mais precisa treinar; você só ajusta dificuldade e tempo. Sem ajuste: tempo da estação, dificuldade médio e 15 itens de checklist.
 - **Cartas**: em *Estudo → Cartões*, *Todos os cartões* lista as cartas de 10 em 10 por área; *Criar cartões* guia a conversão de um tema em cartas (escolher, gerar, revisar, salvar).
-- **Podcast**: menu *Podcast e Rádio*. Crie uma playlist, escreva o prompt de detalhamento, gere episódios por tema ou revisão de cartões, baixe, pause e continue depois. *Gerar link privado* cria o endereço para o seu app de podcast (guarde-o como senha); o link público é opcional.
+- **Podcast**: menu *Podcast e Rádio*. Crie uma playlist, escreva o prompt de detalhamento, gere episódios por tema ou revisão de cartões, baixe, pause e continue depois. *Gerar link privado* cria o endereço para o seu app de podcast (guarde-o como senha); o link público é opcional. Para compartilhar episódios e playlists com quem não está na plataforma, veja **Podcast: compartilhar fora da plataforma**.
 - **Rádio Revalida**: aba *Rádio Revalida* toca a programação (radia.m3d.pro/revalida). Marque um episódio como público para entrar no programa.
 - **Exportar para a rádio**: aba *Exportar para a rádio* envia temas ao pool; eles aguardam sincronização, listados com a data da solicitação.
+
+## Podcast: compartilhar fora da plataforma e importar em outros aplicativos
+
+Tudo o que o Revalida gera no podcast sai num **padrão universal**, para que outra pessoa (ou outro programa) possa ouvir, assinar ou importar sem ter conta aqui.
+
+### O padrão de entrada (o que sai do Revalida)
+
+| Item | Padrão |
+|---|---|
+| **Áudio do episódio** | MP3 (MPEG-1 Layer III), **mono, 44 100 Hz, 64 kbps CBR** (cerca de 0,5 MB por minuto). Tags **ID3v2.3**: título, artista (*Revalida Prático*), álbum (nome da playlist), faixa (posição), gênero *Podcast*, ano e comentário. |
+| **Transcrição** | Texto simples **UTF-8 (.txt)**, um por episódio; é o mesmo texto que a voz lê. |
+| **Feed da playlist** | **RSS 2.0** com os espaços de nomes iTunes, `content`, Atom e Podcasting 2.0. Canal: `title`, `link`, `description`, `language` (pt-br), `itunes:author`, `itunes:summary`, `itunes:type` (episodic), `itunes:category` (Education), `itunes:explicit` (false), `itunes:image`, `atom:link rel="self"`. Episódio: `title`, `description`, `content:encoded`, `guid` (fixo), `pubDate` (RFC 822), `enclosure` (url, length e type `audio/mpeg`), `itunes:duration` (H:MM:SS), `itunes:episode` e `podcast:transcript` (texto simples). |
+| **Páginas para ouvir** | HTML simples, sem JavaScript, que toca no navegador de qualquer aparelho, com botões *Baixar MP3*, *Transcrição* e *Assinar por RSS*. |
+
+O selo **MP3 universal** aparece no episódio quando o áudio passou por essa padronização. Se o servidor não tiver o programa de conversão (ffmpeg), o MP3 original da voz é mantido e a duração fica estimada; o episódio continua tocando e compartilhável, só sem o selo. Quem administra o servidor pode desligar a padronização com `AUDIO_NORMALIZAR=0`.
+
+### Compartilhar um episódio
+
+1. Em *Podcast e Rádio*, abra a playlist e, no episódio, clique em **Compartilhar / mover → Criar link público do episódio**.
+2. Aparecem três endereços: **página para ouvir** (para mandar a qualquer pessoa), **MP3** (para importar em outro aplicativo) e **transcrição (.txt)**. Use *Copiar*.
+3. Quem tem o link ouve e baixa **sem conta**. *Desativar link* apaga o endereço: ele deixa de funcionar na hora.
+
+### Compartilhar uma playlist (grupo de gravações)
+
+1. Na playlist, clique em **Criar link público**. Aparecem a **página para ouvir** (lista todos os episódios com player) e o **RSS**.
+2. Para ouvir no app de podcast de outra pessoa, ela copia o **RSS** e usa *adicionar podcast por URL* (o nome do menu varia: Apple Podcasts, Pocket Casts, Overcast, AntennaPod, Podcast Addict e similares aceitam esse endereço).
+3. Novos episódios aparecem sozinhos no app dela, e *Desligar link público* encerra o acesso.
+
+### Agrupar trilhas em grupos de gravações
+
+- **Mover ou copiar** um episódio para outra playlist: em **Compartilhar / mover → Levar para a playlist…**. Copiar leva também o áudio e mantém o original.
+- **Agrupar vários de uma vez**: marque as caixinhas dos episódios e clique em **Agrupar em nova playlist**. Dê o nome do grupo; os episódios são copiados e as playlists de origem ficam como estavam. Depois é só criar o link público do grupo.
+- Limites: 50 playlists por pessoa e 100 episódios por playlist.
+
+### Importar em outras plataformas
+
+- **Aplicativos de podcast**: assine pelo **RSS** da playlist (acima).
+- **Outro sistema, curso ou plataforma de áudio**: baixe o **MP3** e a **transcrição (.txt)** de cada episódio; o MP3 já traz título, álbum e faixa nas tags. Sistemas que leem JSON podem consultar os endereços públicos `/api/publico/podcast/p/<código>` (playlist) e `/api/publico/podcast/e/<código>` (episódio).
+- **Diretórios públicos (Spotify, Apple Podcasts etc.)**: o RSS segue o padrão, mas esses diretórios pedem capa de pelo menos 1400 × 1400 px, e-mail e dados do autor, que o Revalida não preenche. Para publicar lá, use o MP3 e a transcrição e cadastre o programa direto na plataforma.
+
+### Segurança e cuidados
+
+- O link é um **código longo e secreto**: quem o tiver, ouve. Não coloque em lugares públicos se não quiser que qualquer pessoa ouça, e desative quando não precisar mais. As páginas pedem aos buscadores que não as indexem.
+- Os acessos públicos têm limite por endereço de rede (anti-abuso) e não mostram nome nem e-mail de quem criou.
+- O conteúdo é gerado com IA a partir de roteiros de estudo e **não substitui orientação médica**.
+- Para quem instala: os links usam o endereço configurado em `APP_URL` e passam pelo mesmo proxy de `/api/` (nenhuma regra nova no servidor web).
 
 ## Quadros e navegação do mapa 3D
 
 - Os quadros (tema, ferramentas da sala) não têm rolagem horizontal: o texto quebra linha e tabelas, campos e imagens se ajustam à largura.
 - No mapa 3D (Estudo e apoio cognitivo) a navegação é como em um mapa online: **arrastar** move o mapa; **roda do mouse** ou **pinça** aproxima no ponto apontado; **duplo clique** aproxima (Shift + duplo clique afasta); **botão direito** (ou Ctrl/Shift + arrastar) ou dois dedos giram e inclinam; setas movem, `+`/`−` dão zoom, `Q/E/W/S` orbitam e `0` volta ao início.
+
+## Baralho e zoom
+
+- Em *Estudo → Trilha* e *Cartões → Todos os cartões*, as cartas são móveis: arraste, solte sobre outra para empilhar, toque na pilha para abrir; *Agrupar parecidos* reúne temas semelhantes; *Organizar* volta à grade.
+- No menu, **− / +** mudam o zoom e **⤢** ajusta automaticamente para o conteúdo caber na janela.

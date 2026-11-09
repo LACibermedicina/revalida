@@ -78,3 +78,19 @@
 .sl-auto{margin-top:10px;border-top:1px dashed var(--borda);padding-top:8px}.sl-auto h4{margin:0 0 6px}.sl-auto h4 em{font-style:normal;font-weight:500;font-size:.75rem;color:var(--suave)}
 .sl-auto-div{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:6px}.sl-auto-div li{display:flex;flex-direction:column;gap:2px;padding:8px 10px;border-radius:12px;background:var(--sol-t)}.sl-auto-div li.d-avaliador_mais_generoso{background:var(--coral-t)}.sl-auto-div li.d-avaliador_mais_rigoroso{background:var(--menta-t)}
 .sl-minutos ol{margin:6px 0;padding-left:18px}.sl-minutos time{font-variant-numeric:tabular-nums;color:var(--suave);font-size:.8rem;margin-right:4px}
+
+/* painel de salas, chat, configuração e solução de problemas */
+.sl-sala-card { align-items: center; gap: .5rem; }
+.sl-meta { opacity: .75; font-style: normal; }
+.sl-sel-tag { margin-left: .35rem; padding: 0 .45rem; border-radius: 999px; background: #d9f3e5; font-size: .75rem; font-style: normal; }
+.sl-sel-tag.pausa { background: #fff1c9; }
+.sl-chat-lista { max-height: 14rem; overflow-y: auto; overflow-x: hidden; display: grid; gap: .25rem; margin-bottom: .5rem; overflow-wrap: anywhere; }
+.sl-chat-lista p { margin: 0; }
+.sl-chat-lista p.eu { text-align: right; }
+.sl-chat-form { display: flex; gap: .4rem; }
+.sl-chat-form input { flex: 1; min-width: 0; }
+.sl-discreto { background: none; border: 0; padding: .2rem .1rem; font-size: .78rem; opacity: .6; text-decoration: underline; cursor: pointer; color: inherit; }
+.sl-discreto:hover, .sl-discreto:focus-visible { opacity: 1; }
+.sl-pausa-aviso { border-left: 4px solid #f0b429; background: #fff8e1; padding: .6rem .8rem; border-radius: 8px; }
+.sl-config { margin: .4rem 0; }
+.sl-midia-btn[aria-pressed="false"] { opacity: .75; }

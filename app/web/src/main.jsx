@@ -1,7 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App.jsx';
 import './styles.css';
+import App from './App.jsx';
+import './tema-secreto.css';
 import { destinoInicial, ligar, lerModo } from './dispositivo.js';
 
 // Identifica o aparelho (celular/desktop/relógio), mede o quadro do app e, num relógio, abre direto a versão mini.

@@ -42,5 +42,8 @@ export class Limitador {
 export const rota = (fn) => (req, res, prox) =>
   Promise.resolve(fn(req, res, prox)).catch((e) => {
     console.error('erro na rota', req.method, req.path, e?.message ?? e);
-    if (!res.headersSent) res.status(500).json({ erro: 'Erro interno. Tente de novo.' });
+    if (res.headersSent) return;
+    // tabela/coluna inexistente = banco desatualizado (volume antigo sem as migrações): diz o que fazer em vez de "Erro interno"
+    if (e?.code === '42P01' || e?.code === '42703') return res.status(503).json({ erro: 'O banco de dados está desatualizado para este recurso. Reinicie a API (aplica as migrações sozinha) ou rode bash scripts/atualizar.sh.', codigo: 'ESQUEMA_DESATUALIZADO' });
+    res.status(500).json({ erro: 'Erro interno. Tente de novo.' });
   });

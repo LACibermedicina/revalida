@@ -66,3 +66,7 @@ html[data-layout=largo] .est-editor{align-content:start}
 .est-lista-disp{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}.est-lista-disp .est-item{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .est-lista-disp .corpo{display:flex;flex-direction:column;gap:2px;flex:1 1 220px}.est-lista-disp .acoes{display:flex;gap:6px}
 .est-relatorio li.dup span{color:var(--sol)}
+.est-modos{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.est-av{border:1px dashed var(--borda);border-radius:14px;padding:10px 12px;display:flex;flex-direction:column;gap:10px;min-width:0}.est-av legend{font-weight:700;font-size:.85rem;padding:0 6px}
+.est-enfase{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}.est-enfase>span{font-size:.85rem;color:var(--suave);flex-basis:100%}
+.est-chk{display:inline-flex;gap:6px;align-items:center;font-size:.9rem}

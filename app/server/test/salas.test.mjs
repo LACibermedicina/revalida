@@ -236,11 +236,11 @@ test('pausar o vídeo de qualquer usuário: só o admin', async () => {
   assert.equal((await estado(c.sala, c.ana)).participantes.find((p) => p.usuario_id === c.caio).video_pausado, false);
 });
 
-test('saída: após o tempo de graça, a falta do candidato pausa o ciclo; quem volta retoma', async () => {
+test('saída com estação rodando: pausa NA HORA (sem esperar a graça); quem volta retoma', async () => {
   const c = await cenario();
   const e = await chama('rv_execucao_iniciar($1,$2)', [c.ciclo, c.ana]);
   await chama('rv_sala_sair($1,$2)', [c.sala, c.bia]);
-  assert.equal(await chama('rv_sala_pausar_por_saida($1)', [c.sala]), true);
+  assert.equal(await chama('rv_sala_pausar_por_saida($1)', [c.sala]), false, 'já pausou ao sair; a graça não tem mais o que fazer');
   assert.equal((await q(`select motivo_pausa from ciclos where id=$1`, [c.ciclo])).rows[0].motivo_pausa, 'saida');
   assert.equal(await chama('rv_sala_pausar_por_saida($1)', [c.sala]), false, 'sem ciclo ativo não faz nada');
   assert.equal(await erro(() => chama('rv_ciclo_retomar($1,$2)', [c.ciclo, c.ana])), 'PARTICIPANTE_AUSENTE');
@@ -248,6 +248,13 @@ test('saída: após o tempo de graça, a falta do candidato pausa o ciclo; quem 
   const r = await chama('rv_ciclo_retomar($1,$2)', [c.ciclo, c.ana]);
   assert.equal(r.execucao_id, e.execucao_id);
   assert.equal((await papeis(c.sala)).Bia, 'candidato');
+});
+
+test('saída sem estação rodando: só após o tempo de graça o ciclo pausa', async () => {
+  const c = await cenario();
+  await chama('rv_sala_sair($1,$2)', [c.sala, c.bia]);
+  assert.equal((await q(`select estado from ciclos where id=$1`, [c.ciclo])).rows[0].estado, 'ativo', 'ainda dentro da graça');
+  assert.equal(await chama('rv_sala_pausar_por_saida($1)', [c.sala]), true);
 });
 
 test('quem voltou antes do tempo de graça não derruba o ciclo', async () => {

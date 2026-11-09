@@ -5,6 +5,7 @@
 # Uso: bash scripts/empacotar.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
+bash scripts/sincronizar-migracoes.sh >/dev/null
 V="$(date +%Y%m%d)"; NOME="revalida-pratico"
 SAIDA="dist-pacote"; TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT

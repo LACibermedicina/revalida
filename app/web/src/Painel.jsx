@@ -37,6 +37,8 @@ function Evolucao({ pontos }) {
   );
 }
 
+import Mascote from './Mascote.jsx';
+
 export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise, aoPraticar, aoIr, aoAbrirSala, aoAbrirSalaAntiga }) {
   const [p, setP] = useState(null);
   const [sugestoes, setSugestoes] = useState(null);
@@ -61,7 +63,10 @@ export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise,
   return (
     <div className="tela pn-tela" data-testid="painel">
       <div className="pn-topo">
-        <div><div className="sub">Bom treino,</div><div className="hello">{usuario.nome.split(' ')[0]} 👋</div></div>
+        <div className="pn-saudacao">
+          <Mascote corpo pose="em-pe" tamanho={104} className="pn-bot" titulo="Secreto-Bot, o mascote" />
+          <div><div className="sub">Bom treino,</div><div className="hello">{usuario.nome.split(' ')[0]} 👋</div></div>
+        </div>
         <div className="pn-atalhos" role="group" aria-label="Atalhos">
           <button type="button" className="btn mini menta" onClick={() => aoIr('ciclos')}>Praticar</button>
           <button type="button" className="btn mini" onClick={() => aoIr('estacoes')}>Estações</button>

@@ -37,3 +37,5 @@
 .pia-nota{font-size:1.4rem}
 .pia-hist li{display:grid;gap:2px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,.08);overflow-wrap:anywhere}
 .pia-sel{display:inline-block;font-size:.72rem;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--uva);color:#fff;margin-right:4px}
+
+.solo-revi{display:flex;align-items:center;gap:.7rem}.solo-revi h2{margin:0}

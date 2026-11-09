@@ -268,11 +268,27 @@ Manuais técnicos em `docs/`: `01` usuário · `02` desenvolvedor · `03` invest
 
 - **Praticar com IA (solo)**: a IA sorteia o tema na área de maior necessidade (pelo desempenho e pelos temas fracos). O usuário só escolhe dificuldade e tempo; sem escolha: tempo padrão da estação, dificuldade **médio** e **15** itens de checklist. O resultado conta na modalidade `solo` do desempenho. Rotas `/api/solo/*`.
 - **Cartas**: cartões em formato de carta de RPG (raridade pelo estágio de revisão, ícone da área, verso animado). Listagem de todos os cartões, **10 por página, por área**, e assistente tema → cartas (escolher tema, gerar, revisar/editar, salvar).
-- **Podcast**: playlists de áudio por tema ou revisão de cartões, com prompt de detalhamento da playlist e do tópico, transcrição em linguagem natural, download, pausa/continuação (posição salva) e link RSS **privado** (credencial do usuário, revogável) ou **público** para apps de podcast. Voz (TTS) via provedor compatível com OpenAI (`TTS_URL`, `TTS_CHAVE`, `TTS_MODELO`, `TTS_VOZ`); sem provedor o episódio fica só com a transcrição e o navegador a lê em voz alta.
+- **Podcast**: playlists de áudio por tema ou revisão de cartões, com prompt de detalhamento da playlist e do tópico, transcrição em linguagem natural, download, pausa/continuação (posição salva) e link RSS **privado** (credencial do usuário, revogável) ou **público** para apps de podcast. O áudio sai em **MP3 universal** (mono, 44,1 kHz, 64 kbps CBR, ID3v2.3; precisa de `ffmpeg` no servidor, `AUDIO_NORMALIZAR=0` desliga) e episódios ou playlists (grupos de gravações) têm **link público opt-in** (página para ouvir, MP3, transcrição e RSS 2.0 com iTunes/Podcasting 2.0), revogável. O padrão de entrada para importar em outras plataformas está no manual do usuário. Voz (TTS) via provedor compatível com OpenAI (`TTS_URL`, `TTS_CHAVE`, `TTS_MODELO`, `TTS_VOZ`); sem provedor o episódio fica só com a transcrição e o navegador a lê em voz alta.
 - **Rádio Revalida (radIA.m3d)**: episódios públicos entram no programa; o player toca a programação na plataforma. Canal: radia.m3d.pro/revalida.
 - **Pacote de exportação**: temas para a rádio ficam num **pool** (pendente, com data da solicitação) até a sincronização (`RADIA_URL`, `RADIA_TOKEN`); o pacote também pode ser baixado.
 - **Limite honesto**: a sincronização foi testada só contra um servidor falso (a rede do ambiente de desenvolvimento não alcança radia.m3d.pro) e o áudio real depende de um provedor de TTS configurado.
 
+## Baralho, zoom e ícones lowpoly
+
+- **Baralho**: as cartas (cartões de estudo e os temas da trilha) ficam lado a lado numa mesa. Arraste para posicionar, solte uma sobre a outra para **empilhar**, toque na pilha para abrir em leque; *Agrupar parecidos* junta temas semelhantes (mesmo radical de palavra e mesma área). O arranjo é guardado no navegador, por mesa. Sem rolagem horizontal: a grade se adapta à largura.
+- **Zoom do sistema**: controles − / + e ⤢ (ajustar) no menu; em janelas de desktop estreitas o ajuste automático reduz a escala (mínimo 65%) para caber todo o conteúdo; manual de 60% a 130%.
+- **Ícones**: estilo lowpoly (gemas de facetas claras, traço branco, cintilam e balançam; respeitam "reduzir movimento").
+- **IA failsafe**: as chaves ficam só em variáveis de ambiente (`server/.env`, fora do pacote) ou no instalador (cifradas no banco); a ordem padrão é Gemini → OpenAI → Pollinations → Claude (`IA_ORDEM`).
+
 ## Logomarca
 
-Proposta em `docs/marca/` (guia em `marca.html`, com SVG e PNG): cruz médica facetada com batimento, referenciada nas facetas e cubos verde-água do anexo. Aplicada no app (cabeçalhos, favicon), nos ícones do desktop, mobile e relógio e no playbook.
+O mascote é o **Secreto-Bot** (boneco de juta com cabeça cúbica, olho de vidro e de botão, antena, jaleco, monitor de ECG e balão): a foto de referência e a folha de poses ficam em `docs/marca/secreto-bot/`, e o modelo 3D (three.js) em `web/public/secreto-bot-3d.html` (tela de login, poses `sit|stand|wave`, `?embed=1` para fundo transparente). Para funcionar sem CDN, rode uma vez `bash scripts/baixar-three.sh` (baixa o three.js r128 do npm para `web/public/vendor/`). A foto também é o **fundo do sistema** (desfocada fora do cartão do app, suave dentro dele; ver `.fundo-bot` e `--bot-img` em `web/src/styles.css` e `web/index.html`) e o bot 3D aparece no login e na saudação do Início. O avatar redondo é a logomarca do cabeçalho, e os ícones do app (web, desktop, mobile, relógio) vêm da mesma foto. O personagem vetorial anterior (Revi) segue em `docs/marca/` como alternativa; `docs/marca/gerar-marca.py` só sobrescreve o app com `REVI_VETORIAL=1`. Guia: `docs/marca/marca.html`.
+
+
+## Salas abertas (sem dono)
+- **Painel de salas**: toda sala nasce aberta, com nome e um prazo para ser desfeita se ficar vazia (padrão 24 h, 1 h a 30 dias; o chefe muda depois). Quem cria não é dono; chefe é só uma função. Os ciclos são criados dentro da sala.
+- **Sair e voltar**: a sala segue em execução. Se o chefe ou o candidato sair durante uma estação, ela pausa na hora e retoma sozinha quando os dois estiverem conectados (o tempo parado não conta no relógio). Sem chefe e sem estação à espera dele, um participante pode assumir a chefia.
+- **Chat interno**; o candidato em estação vê só a estação (gestão, chat e fila ocultos).
+- **Inverter papéis** vale para o chefe e para o candidato atual. Pedidos de chefia/candidatura são decididos pelo chefe.
+- **Mídia**: um botão para câmera e outro para microfone; uma verificação automática (única) do que o navegador permite depois de inverter/trocar chefe; botão discreto *Solucionar problemas* só com a mídia desconectada e para quem tem função na estação.
+- Banco: migração `017_salas_abertas.sql` (aplicada sozinha na partida). Testes: `server/test/salas-abertas.test.mjs`, `web/test/midia.test.mjs`, `server/test/e2e/salas-abertas-ui.e2e.mjs`.

@@ -51,6 +51,23 @@ export async function inserirEstacao(q, { estacao, origem, status, usuarioId, se
   return r.rows[0].id;
 }
 
+/** Configurações avançadas da geração por IA → instruções objetivas (limitadas e saneadas). Tudo é opcional; o que faltar o sistema decide. */
+export const COMPORTAMENTOS = { colaborativo: 'colaborativo e objetivo', ansioso: 'ansioso, pede reasseguramento', reticente: 'reticente, só responde o que for perguntado de forma direta', falante: 'falante, desvia do assunto e exige que o candidato conduza', irritado: 'impaciente e irritado (sem agressividade), testa a comunicação do candidato' };
+export const ENFASES = { anamnese: 'anamnese dirigida', exame_fisico: 'exame físico', exames: 'solicitação e interpretação de exames', conduta: 'conduta e prescrição', comunicacao: 'comunicação e empatia', etica: 'aspectos éticos e legais' };
+export function diretivasAvancadas(b = {}) {
+  const inteiro = (v, a, z) => { const n = Number(v); return Number.isInteger(n) && n >= a && n <= z ? n : null; };
+  const partes = []; const cfg = {};
+  const dur = inteiro(b.duracao_min, 5, 20); if (dur) { cfg.duracao_min = dur; partes.push(`A estação dura ${dur} minutos.`); }
+  const itens = inteiro(b.itens, 8, 40); if (itens) { cfg.itens = itens; partes.push(`O checklist (PEP) deve ter exatamente ${itens} itens observáveis.`); }
+  const mat = b.materiais === 0 || b.materiais === '0' ? 0 : inteiro(b.materiais, 1, 8);
+  if (mat === 0) { cfg.materiais = 0; partes.push('Não inclua materiais liberáveis (exames/imagens); o paciente informa tudo por fala.'); } else if (mat) { cfg.materiais = mat; partes.push(`Inclua ${mat} material(is) liberável(is) por gatilho (exames laboratoriais, imagem ou ECG), coerentes com o caso.`); }
+  if (COMPORTAMENTOS[b.comportamento]) { cfg.comportamento = b.comportamento; partes.push(`Comportamento do paciente (descreva no script do ator): ${COMPORTAMENTOS[b.comportamento]}.`); }
+  const en = (Array.isArray(b.enfase) ? b.enfase : []).filter((k) => ENFASES[k]).slice(0, 4);
+  if (en.length) { cfg.enfase = en; partes.push(`Dê mais peso no checklist a: ${en.map((k) => ENFASES[k]).join('; ')}.`); }
+  if (b.script_detalhado === true) { cfg.script_detalhado = true; partes.push('No script do ator, detalhe as respostas para as perguntas previsíveis (história, antecedentes, hábitos, medicações, alergias) e o que o paciente NÃO sabe.'); }
+  return { texto: partes.join(' '), cfg };
+}
+
 export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, limitador = new Limitador({ max: 8, janelaMs: 3_600_000 }) }) {
   const ehModerador = (u) => ['moderador', 'admin', 'root'].includes(u.papel_app);
   const ehAdmin = (u) => ['admin', 'root'].includes(u.papel_app);
@@ -174,14 +191,17 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
       const subtema = str(b.subtema);
       // base de referência: "relevantes" sorteia pelos temas mais cobrados; "fracos" pelos seus piores desempenhos
       const candidatosTema = !subtema && ['relevantes', 'fracos'].includes(b.prioridade) ? await candidatosPorPrioridade(q, b.prioridade, req.usuario.id) : undefined;
-      const r = await ia.gerarEstacao({ area: b.area || undefined, subtema, dificuldade: b.dificuldade, instrucoes: b.instrucoes, candidatosTema,
+      const av = diretivasAvancadas(b);
+      const instrucoes = [str(b.instrucoes).trim(), av.texto].filter(Boolean).join('\n').slice(0, 3000);   // prompt livre + configurações avançadas
+      const r = await ia.gerarEstacao({ area: b.area || undefined, subtema, dificuldade: b.dificuldade, instrucoes, candidatosTema,
         cenario: str(b.cenario), perfil: str(b.perfil), queixa: str(b.queixa), diagnostico_alvo: str(b.diagnostico_alvo), objetivos: Array.isArray(b.objetivos) ? b.objetivos.filter((o) => typeof o === 'string') : [],
         diretrizes: await diretrizesDoTema(q, { nome: str(b.diagnostico_alvo) || subtema, area: b.area || undefined }) });
+      if (av.cfg.duracao_min) r.estacao.duracao_min = av.cfg.duracao_min;   // a duração pedida vale mesmo que a IA proponha outra
       const u = await inserirUnica({ estacao: r.estacao, origem: 'ia', status: 'rascunho', usuarioId: req.usuario.id, semente: r.sorteio.semente, dificuldade: r.sorteio.dificuldade }, req);
       if (u.duplicada) return recusar(res, u.duplicada);
       const id = u.id; if (u.titulo_ajustado) r.estacao.titulo = u.titulo_ajustado;
-      await q('update estacoes set variacao_de = $2, variacao_tema = $3 where id = $1', [id, base.id, String(str(b.diagnostico_alvo) || base.variacao_tema || base.diagnostico_alvo || base.titulo).slice(0, 160)]);
-      res.status(201).json({ id, titulo_ajustado: u.titulo_ajustado, estacao: r.estacao, avisos: r.avisos, sorteados: r.sorteio.sorteados, semente: r.sorteio.semente });
+      await q('update estacoes set variacao_tema = $2 where id = $1', [id, String(str(b.diagnostico_alvo) || subtema || r.estacao.diagnostico_alvo || r.estacao.titulo).slice(0, 160)]);   // variação temática principal do caso
+      res.status(201).json({ id, titulo_ajustado: u.titulo_ajustado, estacao: r.estacao, avisos: r.avisos, sorteados: r.sorteio.sorteados, semente: r.sorteio.semente, configuracao: av.cfg });
     } catch (e) { erroIA(res, e); }
   }));
 
@@ -200,6 +220,7 @@ export function registrarEstacoes(app, { q, autenticar, ia, emitir = () => {}, l
       const u = await inserirUnica({ estacao: r.estacao, origem: 'ia', status: 'rascunho', usuarioId: req.usuario.id, dificuldade: DIFICULDADES.includes(str(b.dificuldade)) ? str(b.dificuldade) : base.dificuldade }, req);
       if (u.duplicada) return recusar(res, u.duplicada);
       const id = u.id; if (u.titulo_ajustado) r.estacao.titulo = u.titulo_ajustado;
+      await q('update estacoes set variacao_de = $2, variacao_tema = $3 where id = $1', [id, base.id, String(str(b.diagnostico_alvo) || base.variacao_tema || base.diagnostico_alvo || base.titulo).slice(0, 160)]);   // de qual caso/tema esta variação se estende
       res.status(201).json({ id, titulo_ajustado: u.titulo_ajustado, estacao: r.estacao, avisos: r.avisos, base_id: base.id });
     } catch (e) { erroIA(res, e); }
   }));

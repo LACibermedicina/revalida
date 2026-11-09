@@ -1,10 +1,12 @@
 // Estudo: trilha de aprendizagem (do menor ao maior desempenho, ou o contrário), cartões com repetição espaçada,
 // mapa 3D de temas, caderno de erros com revisão por estação e diretrizes de referência.
 // A IA gera resumos, cartões e novas ligações do mapa; o que não tem diretriz cadastrada aparece marcado "sem diretriz de referência".
+import Baralho from './Baralho.jsx';
 import QuadroTema from './QuadroTema.jsx';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { layout3D, projetar, escolherNo, faixaDesempenho } from './grafo3d.js';
 import { criarEntrada, estadoInicial, zoomEm, resetar } from './nav3d.js';
+import Mapa2D, { VISTAS } from './Mapa2D.jsx';
 import './estudo.css';
 import { CartaRPG, TodosCartoes, AssistenteCartoes } from './Cartoes.jsx';
 
@@ -69,6 +71,8 @@ function Trilha({ token, api, aoCartoes, aoMapa, aoPraticar, aoTema }) {
       setD((x) => (x ? { ...x, temas: x.temas.map((y) => (y.id === t.id ? { ...y, cartoes_total: y.cartoes_total + r.total, cartoes_vencidos: y.cartoes_vencidos + r.total } : y)) } : x));
     } catch (e) { setAvisoCard((a) => ({ ...a, [t.id]: e.message })); } finally { setCriando(''); }
   };
+  const itensTrilha = useMemo(() => (d?.temas ?? []).map((t) => ({ id: t.id, titulo: t.nome, area: t.area, classe: `es-tema f-${faixaDesempenho(t.desempenho)}` })), [d]);
+  const porId = useMemo(() => new Map((d?.temas ?? []).map((t) => [t.id, t])), [d]);
   if (erro) return <p className="aviso" role="alert">{erro}</p>;
   if (!d) return <p className="sub" role="status">Montando sua trilha…</p>;
   return (
@@ -81,9 +85,11 @@ function Trilha({ token, api, aoCartoes, aoMapa, aoPraticar, aoTema }) {
         </div>
       </div>
       {d.temas.length === 0 && <p className="sub">Ainda não há temas. Faça uma estação em 🔁 Ciclos ou crie uma em ✏️ Criar.</p>}
-      <ol className="es-trilha" data-testid="trilha">
-        {d.temas.map((t) => (
-          <li key={t.id} className={`es-tema f-${faixaDesempenho(t.desempenho)}`}>
+      <Baralho como="ol" chave={`trilha:${ordem}`} itens={itensTrilha} larg={300} alt={380} testid="trilha" rotuloPilha={(g) => g[0]?.area ? AREAS[g[0].area] : 'temas'}
+        renderizar={(it) => {
+          const t = porId.get(it.id); if (!t) return null;
+          return (
+            <>
             <div className="es-linha"><button type="button" className="ln es-tema-nome" data-testid="tema-detalhe" onClick={() => aoTema({ temaId: t.id, nome: t.nome, area: t.area })} title="Abrir o quadro explicativo do tema"><strong>{t.nome}</strong></button><span className="es-pct">{pct(t.desempenho)}</span></div>
             <Barra valor={t.desempenho} />
             <p className="sub">{t.area ? `${AREAS[t.area]} · ` : ''}{t.execucoes} estação(ões) · {t.cartoes_total} cartões{t.cartoes_vencidos > 0 ? ` (${t.cartoes_vencidos} para hoje)` : ''}</p>
@@ -97,9 +103,9 @@ function Trilha({ token, api, aoCartoes, aoMapa, aoPraticar, aoTema }) {
               {t.estacoes.length > 0 && aoPraticar && <button className="btn mini" onClick={() => aoPraticar(t.estacoes[0].id)}>Praticar: {t.estacoes[0].titulo}</button>}
             </div>
             {avisoCard[t.id] && <p className="aviso" role="status">{avisoCard[t.id]}</p>}
-          </li>
-        ))}
-      </ol>
+                      </>
+          );
+        }} />
       {d.retestes.length > 0 && (
         <section className="es-bloco" aria-label="Retestes">
           <h3>Refazer</h3>
@@ -215,6 +221,7 @@ function Mapa({ token, api, inicial, aoCartoes, aoPraticar }) {
   const [erro, setErro] = useState('');
   const [sel, setSel] = useState(inicial ?? null);
   const [lista, setLista] = useState(false);
+  const [vista, setVista] = useState('3d');   // 3d | grafo | plano | fluxo | mental
   const [filtro, setFiltro] = useState('');
   const [niveis, setNiveis] = useState(new Set());
   const [tipos, setTipos] = useState(new Set());
@@ -241,9 +248,14 @@ function Mapa({ token, api, inicial, aoCartoes, aoPraticar }) {
   return (
     <>
       <div className="es-linha">
-        <p className="sub">Cada ponto é um tema; a cor mostra o seu desempenho e as linhas, as relações clínicas. Arraste para girar.</p>
+        <p className="sub">Cada ponto é um tema; a cor mostra o seu desempenho e as linhas, as relações clínicas. Arraste para mover, use a roda para aproximar{vista === '3d' ? '; botão direito gira' : ''}.</p>
         <button className="btn mini" onClick={() => setLista((v) => !v)} aria-pressed={lista}>{lista ? 'Ver o mapa' : 'Ver como lista'}</button>
       </div>
+      {g.nos.length > 0 && !lista && (
+        <div className="es-vistas" role="tablist" aria-label="Como ver o mapa" data-testid="vistas-mapa">
+          {VISTAS.map(([k, n]) => <button key={k} type="button" role="tab" aria-selected={vista === k} className={`btn mini${vista === k ? ' menta' : ''}`} onClick={() => setVista(k)} data-testid={`vista-${k}`}>{n}</button>)}
+        </div>
+      )}
       {g.nos.length > 0 && (
         <details className="es-filtros" data-testid="filtros-mapa" open={ativos > 0}>
           <summary>Filtros {ativos > 0 && <em>{ativos} ativo(s) · {vis.nos.length} de {g.nos.length} temas</em>}</summary>
@@ -259,7 +271,7 @@ function Mapa({ token, api, inicial, aoCartoes, aoPraticar }) {
       )}
       {g.nos.length === 0 ? <p className="sub">O mapa começa quando há estações com conceitos. Crie ou publique uma estação.</p> : vis.nos.length === 0 ? <p className="sub" role="status">Nenhum tema com esses filtros.</p> : lista
         ? <ul className="es-lista" data-testid="lista-temas">{vis.nos.map((n) => <li key={n.id}><button className={`es-item f-${faixaDesempenho(n.desempenho)}${sel === n.id ? ' on' : ''}`} onClick={() => setSel(n.id)}>{n.nome} <em>{pct(n.desempenho)} · nível {n.complexidade} · {n.estacoes} estação(ões) · {n.cartoes_total} cartão(ões)</em></button></li>)}</ul>
-        : <Canvas3D nos={vis.nos} arestas={vis.arestas} sel={sel} aoSel={setSel} />}
+        : vista === '3d' ? <Canvas3D nos={vis.nos} arestas={vis.arestas} sel={sel} aoSel={setSel} /> : <Mapa2D vista={vista} nos={vis.nos} arestas={vis.arestas} sel={sel} aoSel={setSel} />}
       <Legenda />
       {sel && <TemaPainel id={sel} token={token} api={api} aoCartoes={aoCartoes} aoPraticar={aoPraticar} aoMudou={carregar} />}
     </>

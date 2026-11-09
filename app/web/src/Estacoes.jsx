@@ -219,6 +219,10 @@ export default function TelaEstacoes({ token, usuario, api, comando, aoPraticar,
 /* ======================= gerar por IA ======================= */
 function Gerar({ token, api, ia, aoPronta, aoVoltar, aoPraticar }) {
   const [f, setF] = useState({ area: '', subtema: '', dificuldade: '', instrucoes: '', prioridade: '', cenario: '', perfil: '', queixa: '', diagnostico_alvo: '', objetivos: '' });
+  const [modo, setModo] = useState('rapido');   // rapido: só um texto; avancado: todas as configurações
+  const [av, setAv] = useState({ duracao_min: '', itens: '', materiais: '', comportamento: '', enfase: [], script_detalhado: false });
+  const setA = (k) => (e) => setAv((x) => ({ ...x, [k]: e.target.value }));
+  const alternaEnfase = (k) => setAv((x) => ({ ...x, enfase: x.enfase.includes(k) ? x.enfase.filter((y) => y !== k) : [...x.enfase, k].slice(0, 4) }));
   const [ocupado, setOcupado] = useState(false);
   const [erro, setErro] = useState('');
   const [dup, setDup] = useState(null);
@@ -227,7 +231,10 @@ function Gerar({ token, api, ia, aoPronta, aoVoltar, aoPraticar }) {
     setErro(''); setDup(null); setOcupado(true);
     try {
       const { objetivos, ...resto } = f;
-      const r = await api('/api/estacoes/gerar', { metodo: 'POST', token, corpo: { ...resto, objetivos: objetivos.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 6) } });
+      const base = modo === 'rapido' ? { instrucoes: f.instrucoes, area: f.area } : { ...resto, objetivos: objetivos.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 6) };
+      const num = (v) => (v === '' ? undefined : Number(v));
+      const extra = modo === 'rapido' ? {} : { duracao_min: num(av.duracao_min), itens: num(av.itens), materiais: num(av.materiais), comportamento: av.comportamento || undefined, enfase: av.enfase.length ? av.enfase : undefined, script_detalhado: av.script_detalhado || undefined };
+      const r = await api('/api/estacoes/gerar', { metodo: 'POST', token, corpo: { ...base, ...extra } });
       const rot = { area: 'a área', subtema: 'o tema', dificuldade: 'a dificuldade' };
       const sorteados = (r.sorteados ?? []).map((k) => rot[k]).filter(Boolean);
       const aviso = r.titulo_ajustado ? ` Já existia uma estação com esse título; esta ficou como «${r.titulo_ajustado}».` : '';
@@ -240,7 +247,19 @@ function Gerar({ token, api, ia, aoPronta, aoVoltar, aoPraticar }) {
       <div className="est-topo"><h2>Gerar com IA</h2><button type="button" className="ln" onClick={aoVoltar}>Voltar</button></div>
       {semIA && <div className="aviso" role="alert">A IA não está configurada neste servidor. Peça ao administrador para cadastrar uma chave de IA.</div>}
       <div className="cartao est-form">
-        <p className="est-ajuda">Deixe em branco o que quiser que o sistema escolha: a área, o tema e a dificuldade são sorteados e você vê o que foi sorteado.</p>
+        <div className="est-modos" role="tablist" aria-label="Modo de criação">
+          <button type="button" role="tab" aria-selected={modo === 'rapido'} className={`btn mini${modo === 'rapido' ? ' menta' : ''}`} onClick={() => setModo('rapido')} data-testid="modo-rapido">Rápido: só descrevo</button>
+          <button type="button" role="tab" aria-selected={modo === 'avancado'} className={`btn mini${modo === 'avancado' ? ' menta' : ''}`} onClick={() => setModo('avancado')} data-testid="modo-avancado">Avançado: eu configuro</button>
+        </div>
+        {modo === 'rapido' && (
+          <>
+            <p className="est-ajuda">Escreva em poucas palavras o que você quer e as considerações importantes. O que não disser, o sistema escolhe (área, tema e dificuldade) e mostra o que foi sorteado.</p>
+            <label className="campo"><span>Descreva a estação que você quer</span>
+              <textarea value={f.instrucoes} maxLength={2000} rows={5} onChange={set('instrucoes')} data-testid="prompt-rapido" placeholder="Ex.: caso de pediatria com criança de 3 anos com febre e convulsão; foco em orientar os pais; sem exame de imagem." /></label>
+          </>
+        )}
+        {modo === 'avancado' && <p className="est-ajuda">Configure o que quiser; o que ficar em “Sortear/Automático” o sistema decide.</p>}
+        {modo === 'avancado' && (<>
         <div className="est-grade">
           <label className="campo"><span>Área</span>
             <select value={f.area} onChange={set('area')}><option value="">Sortear</option>{AREAS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
@@ -261,8 +280,22 @@ function Gerar({ token, api, ia, aoPronta, aoVoltar, aoPraticar }) {
           <label className="campo"><span>Diagnóstico alvo</span><input value={f.diagnostico_alvo} maxLength={200} onChange={set('diagnostico_alvo')} placeholder="Asma agudizada" /></label>
           <label className="campo"><span>Objetivos de avaliação (um por linha, até 6)</span><textarea value={f.objetivos} maxLength={1500} onChange={set('objetivos')} placeholder={'Investigar fatores desencadeantes\nPrescrever broncodilatador de resgate'} /></label>
         </details>
-        <label className="campo"><span>Instruções extras (opcional)</span>
-          <textarea value={f.instrucoes} maxLength={2000} onChange={set('instrucoes')} placeholder="Ex.: paciente idoso, atendimento na UPA, com exame de imagem para liberar." /></label>
+          <fieldset className="est-av" data-testid="config-avancada"><legend>Configurações avançadas</legend>
+            <div className="est-grade">
+              <label className="campo"><span>Duração</span><select value={av.duracao_min} onChange={setA('duracao_min')}><option value="">Automática</option>{[5, 8, 10, 12, 15, 20].map((m) => <option key={m} value={m}>{m} min</option>)}</select></label>
+              <label className="campo"><span>Itens do checklist (PEP)</span><input type="number" min="8" max="40" value={av.itens} onChange={setA('itens')} placeholder="Automático (8 a 40)" /></label>
+              <label className="campo"><span>Materiais liberáveis (exames/imagens)</span><select value={av.materiais} onChange={setA('materiais')}><option value="">Automático</option><option value="0">Nenhum</option>{[1, 2, 3, 4, 5, 6].map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
+              <label className="campo"><span>Comportamento do paciente</span><select value={av.comportamento} onChange={setA('comportamento')}><option value="">Automático</option><option value="colaborativo">Colaborativo</option><option value="ansioso">Ansioso</option><option value="reticente">Reticente</option><option value="falante">Falante</option><option value="irritado">Impaciente</option></select></label>
+            </div>
+            <div className="est-enfase"><span>Dar mais peso a (até 4)</span>
+              {[['anamnese', 'Anamnese'], ['exame_fisico', 'Exame físico'], ['exames', 'Exames'], ['conduta', 'Conduta'], ['comunicacao', 'Comunicação'], ['etica', 'Ética']].map(([k, n]) => (
+                <label key={k} className="est-chk"><input type="checkbox" checked={av.enfase.includes(k)} onChange={() => alternaEnfase(k)} />{n}</label>))}
+            </div>
+            <label className="est-chk"><input type="checkbox" checked={av.script_detalhado} onChange={(e) => setAv((x) => ({ ...x, script_detalhado: e.target.checked }))} />Script do ator bem detalhado (respostas para as perguntas previsíveis)</label>
+          </fieldset>
+        </>)}
+        {modo === 'avancado' && <label className="campo"><span>Instruções extras (opcional)</span>
+          <textarea value={f.instrucoes} maxLength={2000} onChange={set('instrucoes')} placeholder="Ex.: paciente idoso, atendimento na UPA, com exame de imagem para liberar." /></label>}
         {ocupado && <Espera>Gerando a estação… isso pode levar até um minuto.</Espera>}
         <div className="msg e" role="alert">{erro}</div>
         <AvisoDuplicada dup={dup} aoPraticar={aoPraticar} />

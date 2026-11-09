@@ -1,6 +1,6 @@
 // E2E: prática solo com IA, cartas RPG com paginação, podcast/playlist e rádio Revalida (pool de exportação).
 import { createRequire } from 'node:module';
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, cpSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
@@ -21,6 +21,7 @@ await esbuild.build({ entryPoints: [join(web, 'src/main.jsx')], bundle: true, ou
 writeFileSync(join(pub, 'index.html'), readFileSync(join(web, 'index.html'), 'utf8')
   .replace('<script type="module" src="/src/main.jsx"', '<script type="module" src="/main.js"').replace('</head>', '<link rel="stylesheet" href="/main.css">\n</head>'));
 
+cpSync(join(web, 'public'), pub, { recursive: true });
 const srv = await iniciar({ pastaWeb: pub });
 const nav = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
 const falhas = [];
@@ -45,11 +46,32 @@ const abrir = async ({ w = 1280, h = 900 } = {}) => {
 };
 const ir = async (p, rot) => { await p.locator(`nav button:has-text("${rot}")`).click(); };
 
-await passo('logomarca nova no cabeçalho (SVG facetado, sem o ✚ antigo)', async () => {
+await passo('logomarca: M facetado + robozinho com balão no cabeçalho (SVG inline, sem o ✚ antigo)', async () => {
   const p = await abrir(); await p.waitForSelector('svg.logo');
-  assert.ok(await p.locator('svg.logo polygon').count() >= 12);
+  assert.ok((await p.locator('svg.logo path').count()) > 10, 'o SVG da logomarca desenhou as facetas e o robô');
   assert.ok(!(await p.locator('.marca').first().textContent()).includes('✚'));
   await p.context().close();
+});
+
+await passo('fundo do sistema com a foto do Secreto-Bot e bot 3D no Início', async () => {
+  const p = await abrir(); await p.waitForSelector('[data-testid=painel] .pn-bot iframe', { state: 'attached' });
+  assert.match(await p.locator('.fundo-bot').evaluate((e) => getComputedStyle(e).backgroundImage), /secreto-bot\.jpg/);
+  assert.match(await p.locator('.pn-bot iframe').getAttribute('src'), /pose=stand/);
+  await p.waitForTimeout(2500); await p.screenshot({ path: join(saida, 'painel-bot.png') });
+  await p.context().close();
+});
+
+await passo('login: mascote Secreto-Bot 3D embutido (iframe) com a foto como alternativa; página 3D servida', async () => {
+  const c = await nav.newContext({ viewport: { width: 1000, height: 800 } });
+  await c.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
+  const p = await c.newPage(); await p.goto(srv.url + '/');
+  await p.waitForSelector('.mascote3d iframe', { state: 'attached' });
+  assert.match(await p.locator('.mascote3d iframe').getAttribute('src'), /secreto-bot-3d\.html\?embed=1&pose=wave/);
+  await p.waitForSelector('.mascote3d-foto');
+  assert.ok(await p.locator('.mascote3d-foto').evaluate((i) => i.complete && i.naturalWidth > 0), 'a foto (alternativa) carregou');
+  const r = await p.request.get(srv.url + '/secreto-bot-3d.html');
+  assert.equal(r.status(), 200); const h = await r.text(); assert.ok(h.includes('Secreto') && h.includes('embed'));
+  await c.close();
 });
 
 await passo('solo: padrões médio/15 itens, sorteio de tema e início da prática', async () => {
@@ -85,6 +107,7 @@ await passo('paciente IA: estação aleatória do banco, conversa pelo script, c
   await srv.q(`update estacoes set status='rascunho' where titulo <> 'Asma no adulto' and script_ator = 'x'`);
   const p = await abrir(); globalThis.__p = p; await ir(p, 'Praticar com IA'); await p.waitForSelector('[data-testid=solo-banco]');
   await p.click('[data-testid=solo-banco]'); await p.waitForSelector('[data-testid=pratica-ia]', { timeout: 15000 });
+  await p.waitForFunction(() => /Asma no adulto/.test(document.querySelector('[data-testid=pratica-ia]')?.textContent ?? ''), null, { timeout: 15000 });   // o título chega junto com a ficha do paciente (assíncrono)
   assert.match(await p.textContent('[data-testid=pratica-ia]'), /Asma no adulto/);
   assert.ok(await p.locator('[data-testid=pia-tempo]').isVisible());
   await p.fill('[data-testid=pia-texto]', 'Há quanto tempo o senhor sente falta de ar?'); await p.click('[data-testid=pia-enviar]');
@@ -111,11 +134,27 @@ await passo('podcast: cria playlist, gera episódio (roteiro), link privado, aba
   p.on('dialog', (d) => d.accept());
   await p.click('button:has-text("Gerar link privado")');
   await p.waitForSelector('.pc-feed code'); assert.match(await p.textContent('.pc-feed code'), /^https?:\/\//);
+  // compartilhar fora da plataforma: link do episódio e da playlist abrem SEM login
+  await p.click('summary:has-text("Compartilhar / mover")');
+  await p.click('button:has-text("Criar link público do episódio")');
+  await p.waitForSelector('.pc-linkbox input');
+  const linkEp = await p.inputValue('.pc-linkbox input'); assert.match(linkEp, /\/api\/ouvir\/e\//);
+  const anon = await nav.newContext(); const pgAnon = await anon.newPage();
+  const respEp = await pgAnon.request.get(linkEp.replace(/^https?:\/\/[^/]+/, srv.url)); assert.equal(respEp.status(), 200);
+  const tituloEp = (await p.locator('.pc-info b').first().textContent()).trim();
+  const htmlEp = await respEp.text(); assert.ok(htmlEp.includes(tituloEp.replace(/&/g, '&amp;')) && htmlEp.includes('Transcrição'), `a página pública mostra o episódio (${tituloEp})`);
+  await p.click('button:has-text("Criar link público")');
+  await p.waitForSelector('.pc-pub input');
+  const linkPl = await p.locator('.pc-pub input').first().inputValue(); const rss = await p.locator('.pc-pub input').nth(1).inputValue();
+  assert.equal((await pgAnon.request.get(linkPl.replace(/^https?:\/\/[^/]+/, srv.url))).status(), 200);
+  const xml = await (await pgAnon.request.get(rss.replace(/^https?:\/\/[^/]+/, srv.url))).text(); assert.ok(xml.includes('<itunes:author>') && xml.includes('<item>'));
+  await anon.close();
+  await p.screenshot({ path: join(saida, 'podcast-compartilhar.png') });
   await p.click('[role=tab]:has-text("Rádio Revalida")'); await p.waitForSelector('text=radia.m3d.pro/revalida');
   await p.click('[role=tab]:has-text("Exportar para a rádio")'); await p.waitForSelector('[placeholder="Buscar tema…"]');
   await p.context().close();
 });
 
 await nav.close(); srv.fechar();
-console.log(falhas.length ? `\n${falhas.length} falha(s)` : '\nTudo certo');
+console.log(falhas.length ? `\n${falhas.length} falha(s):\n- ${falhas.join('\n- ')}` : '\nTudo certo');
 process.exit(falhas.length ? 1 : 0);

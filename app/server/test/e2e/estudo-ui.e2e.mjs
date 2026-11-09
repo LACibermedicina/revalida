@@ -203,10 +203,10 @@ await passo('início: 5 estações sugeridas pelo desempenho e a lista de estaç
   await p.locator('[data-testid="estacoes-disponiveis"] select').first().selectOption('cirurgia');
   assert.ok((await p.locator('[data-testid="estacoes-disponiveis"] li').count()) <= 2);
   await p.locator('[data-testid="estacoes-disponiveis"] li button:has-text("Praticar")').first().click();
-  await p.waitForSelector('h2:has-text("Ciclos de estações")');
+  await p.waitForSelector('h2:has-text("Salas")');
   await p.locator('nav button:has-text("Início")').click(); await p.waitForSelector('[data-testid="sugestao-estacao"]');
   await p.locator('[data-testid="sugestao-estacao"]').first().click();
-  await p.waitForSelector('h2:has-text("Ciclos de estações")');
+  await p.waitForSelector('h2:has-text("Salas")');
 });
 
 await passo('celular: sem rolagem horizontal na trilha e no mapa', async () => {
@@ -244,6 +244,57 @@ await passo('quadros sem rolagem horizontal (celular e janela estreita) e mapa 3
   const a4 = await cam(); assert.ok(Math.abs(a4.ry - a3.ry) > 0.2 && a4.px === a3.px && a4.py === a3.py, 'botão direito gira o mapa sem deslocá-lo');
   assert.ok(!(await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)), 'o mapa 3D não cria rolagem horizontal na página');
   await p.screenshot({ path: join(saida, 'mapa3d-navegacao.png') });
+  await p.context().close();
+});
+
+await passo('mapa de temas em 5 vistas (3D, gráfico, plano 2D, fluxograma, mapa mental) com navegação por arrastar e roda, sem rolagem lateral', async () => {
+  const p = await nova(sessao(ana, 'Ana Souza', 'usuario'), { w: 900, h: 800 });
+  await aba(p, 'Mapa 3D'); await p.waitForSelector('[data-testid="vistas-mapa"]');
+  assert.equal(await p.locator('[data-testid="vistas-mapa"] button').count(), 5);
+  for (const v of ['grafo', 'plano', 'fluxo', 'mental']) {
+    await p.click(`[data-testid="vista-${v}"]`); await p.waitForSelector(`[data-testid="mapa-2d"][data-vista="${v}"]`);
+    assert.ok(await p.locator('.m2-no').count() >= 1, `${v}: desenha os temas`);
+    await p.waitForTimeout(250);
+    const svg = p.locator('[data-testid="mapa-2d"]'); const b = await svg.boundingBox(); const mx = b.x + b.width / 2; const my = b.y + b.height / 2;
+    const z0 = Number(await svg.getAttribute('data-zoom')); const p0 = await svg.getAttribute('data-pan');
+    await p.mouse.move(mx, my); await p.mouse.down(); await p.mouse.move(mx + 50, my + 30, { steps: 6 }); await p.mouse.up(); await p.waitForTimeout(150);
+    assert.notEqual(await svg.getAttribute('data-pan'), p0, `${v}: arrastar move o mapa`);
+    await p.mouse.wheel(0, -300); await p.waitForTimeout(150);
+    assert.ok(Number(await svg.getAttribute('data-zoom')) > z0 * 1.3, `${v}: a roda aproxima`);
+    assert.ok(!(await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)), `${v}: sem rolagem lateral`);
+  }
+  await p.click('[data-testid="vista-3d"]'); await p.waitForSelector('canvas');
+  await p.click('[data-testid="vista-fluxo"]'); await p.locator('.m2-no').first().click({ force: true }).catch(() => {});
+  await p.screenshot({ path: join(saida, 'mapa-vistas-fluxo.png') });
+  await p.context().close();
+});
+
+await passo('baralho: trilha em cartas lado a lado, arrastar, empilhar, abrir, agrupar parecidos, desfazer; zoom ajusta à janela', async () => {
+  const p = await nova(sessao(ana, 'Ana Souza', 'usuario'), { w: 1280, h: 800 });
+  await aba(p, 'Trilha'); await p.waitForSelector('[data-testid="trilha"] li');
+  const n = await p.locator('[data-testid="trilha"] li').count(); assert.ok(n >= 2, 'há pelo menos 2 temas na trilha');
+  const pos = (i) => p.locator('[data-testid="trilha"] li').nth(i).boundingBox();
+  const a = await pos(0); const b = await pos(1);
+  assert.ok(Math.abs(a.y - b.y) < 5 && b.x > a.x + 100, `a segunda carta fica ao lado da primeira (${JSON.stringify([a, b])} largura ${await p.evaluate(() => document.querySelector('.bj').getBoundingClientRect().width)})`);
+  assert.ok(!(await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1)), 'sem rolagem horizontal');
+  // arrasta a 2ª sobre a 1ª pelo cabeçalho (fora de botões)
+  await p.mouse.move(b.x + b.width - 14, b.y + 10); await p.mouse.down(); await p.mouse.move(a.x + 60, a.y + 60, { steps: 10 }); await p.mouse.up(); await p.waitForTimeout(500);
+  assert.equal(await p.locator('[data-testid="trilha"] li[data-n="2"]').count(), 2, 'soltar sobre a outra forma uma pilha de 2');
+  await p.locator('[data-testid="trilha"] li[data-n="2"]').last().click({ position: { x: 232, y: 10 } }); await p.waitForTimeout(500);
+  let ab = [0, 0]; for (let i = 0; i < 12; i++) { ab = await p.locator('[data-testid="trilha"] li[data-n="2"]').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().x)); if (Math.abs(ab[0] - ab[1]) > 40) break; await p.waitForTimeout(250); }
+  assert.ok(Math.abs(ab[0] - ab[1]) > 40, `tocar na pilha a abre em leque ${JSON.stringify(ab)} ${await p.evaluate(() => JSON.stringify([...document.querySelectorAll('[data-testid=trilha] li')].map((e) => [e.dataset.n, e.style.transform, e.className.slice(0, 60)])))}`);
+  await p.click('[data-testid="bj-desagrupar"]'); await p.waitForTimeout(400);
+  assert.equal(await p.locator('[data-testid="trilha"] li[data-n="2"]').count(), 0, 'desfazer pilhas');
+  await p.click('[data-testid="bj-agrupar"]'); await p.waitForTimeout(400);
+  assert.ok(await p.locator('[data-testid="trilha"] li').count() === n, 'agrupar não perde cartas');
+  // arranjo guardado
+  await p.reload(); await p.waitForSelector('nav'); await p.locator('nav button:has-text("Estudo")').click(); await aba(p, 'Trilha'); await p.waitForSelector('[data-testid="trilha"] li');
+  assert.ok((await p.locator('[data-testid="trilha"] li').count()) === n, 'cartas após recarregar');
+  // zoom: janela de 900 px → ajuste automático abaixo de 100% e botões
+  await p.setViewportSize({ width: 900, height: 800 }); await p.waitForTimeout(400);
+  const z = await p.textContent('[data-testid="zoom-valor"]'); assert.ok(parseInt(z, 10) < 100, `ajuste automático em 900 px (${z})`);
+  await p.click('button[aria-label="Aumentar o zoom"]'); assert.ok(parseInt(await p.textContent('[data-testid="zoom-valor"]'), 10) > parseInt(z, 10));
+  await p.screenshot({ path: join(saida, 'baralho-trilha.png') });
   await p.context().close();
 });
 

@@ -248,6 +248,22 @@ await passo('excluir estação criada pela listagem: pede confirmação, cancela
   await p.screenshot({ path: join(saida, '67-excluir.png') });
 });
 
+await passo('gerar com IA: modo rápido (só um texto) e modo avançado (configurações) chegam ao servidor', async () => {
+  srv.ia.chamadas.length = 0;
+  const p = await nova(); await p.locator('button:has-text("Gerar com IA")').click();
+  assert.equal(await p.locator('[data-testid=config-avancada]').count(), 0, 'rápido não mostra as configurações avançadas');
+  await p.fill('[data-testid=prompt-rapido]', 'Criança com febre e convulsão; foco em orientar os pais.');
+  await p.locator('button:has-text("Gerar estação")').click(); await p.waitForSelector('text=Revise tudo antes de publicar', { timeout: 15000 });
+  const g1 = srv.ia.chamadas.filter((c) => c[0] === 'gerar').at(-1)[1]; assert.match(g1.instrucoes, /orientar os pais/);
+  const p2 = await nova(); await p2.locator('button:has-text("Gerar com IA")').click(); await p2.click('[data-testid=modo-avancado]');
+  await p2.selectOption('[data-config-avancada] select, [data-testid=config-avancada] select >> nth=0', '12');
+  await p2.fill('[data-testid=config-avancada] input[type=number]', '20');
+  await p2.locator('[data-testid=config-avancada] label:has-text("Conduta") input').check();
+  await p2.locator('button:has-text("Gerar estação")').click(); await p2.waitForSelector('text=Revise tudo antes de publicar', { timeout: 15000 });
+  const g2 = srv.ia.chamadas.filter((c) => c[0] === 'gerar').at(-1)[1];
+  assert.match(g2.instrucoes, /12 minutos/); assert.match(g2.instrucoes, /exatamente 20 itens/); assert.match(g2.instrucoes, /conduta e prescrição/);
+});
+
 await nav.close(); srv.fechar();
 if (falhas.length) { console.log(falhas); process.exit(1); }
 console.log('\nTodos os passos passaram.');

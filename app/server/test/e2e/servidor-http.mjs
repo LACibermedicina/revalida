@@ -158,7 +158,11 @@ export async function iniciar({ pastaWeb, porta = 0, instalado = true, extras = 
       if (!alvo) return enviarJson(404, { erro: 'não encontrado' });
       const params = {}; alvo.c.split('/').forEach((p, i) => { if (p.startsWith(':')) params[p.slice(1)] = url.pathname.split('/')[i]; });
       const rq = { method: req.method, path: url.pathname, body: corpo, params, headers: req.headers, ip: '127.0.0.1', query: Object.fromEntries(url.searchParams) };
-      const rs = { statusCode: 200, headersSent: false, status(n) { this.statusCode = n; return this; }, json(o) { this.headersSent = true; enviarJson(this.statusCode, o); } };
+      const cab = {};   // cabeçalhos definidos pela rota (áudio, RSS, HTML, download)
+      const rs = { statusCode: 200, headersSent: false, status(n) { this.statusCode = n; return this; },
+        set(k, v) { if (typeof k === 'object') for (const [x, y] of Object.entries(k)) cab[x] = String(y); else cab[k] = String(v); return this; }, setHeader(k, v) { return this.set(k, v); },
+        json(o) { this.headersSent = true; enviarJson(this.statusCode, o); },
+        send(x) { this.headersSent = true; resp.writeHead(this.statusCode, cab); resp.end(Buffer.isBuffer(x) ? x : String(x ?? '')); }, end(x) { return this.send(x); } };
       let i = 0; const prox = () => { const h = alvo.hs[i++]; if (h) void Promise.resolve(h(rq, rs, prox)).catch(() => enviarJson(500, { erro: 'erro' })); };
       return prox();
     }

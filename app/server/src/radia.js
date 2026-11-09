@@ -9,24 +9,36 @@ const MAX_AUDIO_PACOTE = 25 * 1024 * 1024;       // áudio em base64 só entra n
 
 const esc = (s) => String(s ?? '').replace(/[<>&'"\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c] ?? ''));
 
-/** RSS 2.0 com tags iTunes: serve para qualquer app de podcast. `itens[].audio` = { url, mime, bytes } ou null. */
-export function montarRSS({ titulo, descricao, link, imagem = null, itens }) {
-  const corpo = itens.map((i) => `    <item>
+const hms = (s) => { const n = Math.max(0, Math.round(Number(s) || 0)); return [Math.floor(n / 3600), Math.floor(n % 3600 / 60), n % 60].map((v, k) => (k ? String(v).padStart(2, '0') : String(v))).join(':'); };
+
+/** RSS 2.0 com tags iTunes e Podcasting 2.0: serve para qualquer app de podcast (padrão de entrada para importação).
+ *  `itens[].audio` = { url, mime, bytes } ou null; `itens[].transcricao_url` (opcional) vira <podcast:transcript>. */
+export function montarRSS({ titulo, descricao, link, imagem = null, itens, autor = 'Revalida Prático', self = null }) {
+  const corpo = itens.map((i, k) => `    <item>
       <title>${esc(i.titulo)}</title>
       <description>${esc(String(i.roteiro).slice(0, 4000))}</description>
+      <itunes:summary>${esc(String(i.roteiro).slice(0, 4000))}</itunes:summary>
       <content:encoded><![CDATA[${String(i.roteiro).replace(/\]\]>/g, ']]]]><![CDATA[>').replace(/\n/g, '<br/>')}]]></content:encoded>
       <guid isPermaLink="false">${esc(i.id)}</guid>
       <pubDate>${new Date(i.data).toUTCString()}</pubDate>${i.audio ? `\n      <enclosure url="${esc(i.audio.url)}" length="${Number(i.audio.bytes) || 0}" type="${esc(i.audio.mime || 'audio/mpeg')}"/>` : ''}
-      <itunes:duration>${Number(i.duracao_s) || 0}</itunes:duration>
+      <itunes:duration>${hms(i.duracao_s)}</itunes:duration>
+      <itunes:episode>${k + 1}</itunes:episode>
+      <itunes:explicit>false</itunes:explicit>${i.transcricao_url ? `\n      <podcast:transcript url="${esc(i.transcricao_url)}" type="text/plain" language="pt-BR"/>` : ''}
     </item>`).join('\n');
   return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:podcast="https://podcastindex.org/namespace/1.0">
   <channel>
     <title>${esc(titulo)}</title>
     <link>${esc(link)}</link>
     <description>${esc(descricao)}</description>
-    <language>pt-br</language>
-    <itunes:explicit>false</itunes:explicit>${imagem ? `\n    <itunes:image href="${esc(imagem)}"/>` : ''}
+    <language>pt-br</language>${self ? `\n    <atom:link href="${esc(self)}" rel="self" type="application/rss+xml"/>` : ''}
+    <generator>Revalida Prático</generator>
+    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+    <itunes:author>${esc(autor)}</itunes:author>
+    <itunes:summary>${esc(descricao)}</itunes:summary>
+    <itunes:type>episodic</itunes:type>
+    <itunes:category text="Education"/>
+    <itunes:explicit>false</itunes:explicit>${imagem ? `\n    <itunes:image href="${esc(imagem)}"/>\n    <image><url>${esc(imagem)}</url><title>${esc(titulo)}</title><link>${esc(link)}</link></image>` : ''}
 ${corpo}
   </channel>
 </rss>

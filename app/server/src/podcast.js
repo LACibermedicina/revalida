@@ -12,6 +12,8 @@ import { garantirTema, diretrizesDoTema } from './temas.js';
 import { AREAS } from './estacao-esquema.js';
 import { criarTTS } from './tts.js';
 import { duracaoEstimada } from './podcast-ia.js';
+import { normalizarMP3, PADRAO_AUDIO } from './audio-universal.js';
+import { registrarPublico } from './podcast-publico.js';
 import { CANAL, montarPacote, montarRSS, pacoteComAudio, sincronizarPool, MAX_TENTATIVAS } from './radia.js';
 
 const ERROS_IA = { IA_NAO_CONFIGURADA: 503, IA_CHAVE_INVALIDA: 502, IA_LIMITE: 429, IA_DEMORA: 504, IA_FALHA: 502, IA_ESQUEMA: 502 };
@@ -20,9 +22,9 @@ const sha256 = (s) => crypto.createHash('sha256').update(String(s)).digest('hex'
 const novoToken = () => crypto.randomBytes(24).toString('base64url');
 const igual = (a, b) => { const x = Buffer.from(String(a)), y = Buffer.from(String(b)); return x.length === y.length && crypto.timingSafeEqual(x, y); };
 const COLS = `i.id, i.playlist_id, i.posicao, i.tipo, i.tema_id, i.titulo, i.topico, i.prompt, i.minutos, i.roteiro, i.status, i.erro,
-  (i.audio_arquivo is not null) tem_audio, i.audio_mime, i.audio_bytes, i.duracao_s, i.publico, i.publicado_em, i.criado_em, i.atualizado_em`;
+  (i.audio_arquivo is not null) tem_audio, i.audio_normalizado, (i.token_publico is not null) compartilhado, i.audio_mime, i.audio_bytes, i.duracao_s, i.publico, i.publicado_em, i.criado_em, i.atualizado_em`;
 
-export function registrarPodcast(app, { q, autenticar, ia, cfg, fetchImpl = globalThis.fetch, dir = process.env.PODCAST_DIR || path.resolve('dados/podcast'), tts, intervaloSyncMin = Number(process.env.RADIA_SYNC_MIN) || 0 }) {
+export function registrarPodcast(app, { q, autenticar, ia, cfg, fetchImpl = globalThis.fetch, dir = process.env.PODCAST_DIR || path.resolve('dados/podcast'), tts, normalizar = normalizarMP3, intervaloSyncMin = Number(process.env.RADIA_SYNC_MIN) || 0 }) {
   const voz = tts ?? criarTTS({ cfg, fetchImpl });
   const U = (req) => req.usuario.id;
   const ehAdmin = (u) => ['admin', 'root'].includes(u?.papel_app);
@@ -34,6 +36,7 @@ export function registrarPodcast(app, { q, autenticar, ia, cfg, fetchImpl = glob
   const arquivo = (nome) => path.join(dir, path.basename(nome));
   const apagarAudio = async (nome) => { if (nome) await fs.rm(arquivo(nome), { force: true }).catch(() => {}); };
 
+  const linksPlaylist = (req, token) => ({ pagina: `${base(req)}/api/ouvir/p/${token}`, rss: `${base(req)}/api/publico/podcast/p/${token}/feed.xml` });
   const minhaPlaylist = async (id, usuarioId) => (await q('select * from podcast_playlists where id=$1 and usuario_id=$2', [id, usuarioId])).rows[0];
   const meuItem = async (id, usuarioId) => (await q(`select i.*, p.usuario_id, p.prompt prompt_playlist, p.titulo playlist_titulo from podcast_itens i join podcast_playlists p on p.id = i.playlist_id where i.id=$1 and p.usuario_id=$2`, [id, usuarioId])).rows[0];
   const itemPublico = (item) => ({ id: item.id, titulo: item.titulo, tema: item.tema ?? null, area: item.area ?? null, topico: item.topico, duracao_s: item.duracao_s, tem_audio: item.tem_audio, publicado_em: item.publicado_em, autor: item.autor ?? null,
@@ -73,8 +76,10 @@ export function registrarPodcast(app, { q, autenticar, ia, cfg, fetchImpl = glob
       try {
         const r = await ia.gerarRoteiro({ tipo: item.tipo, tema: nomeTema, area: tema?.area, topico: item.topico, minutos: item.minutos, promptPlaylist: item.prompt_playlist ?? '', promptItem: item.prompt, diretrizes, cartoes });
         roteiro = r.roteiro; titulo = item.titulo_auto ? r.titulo : (item.titulo || r.titulo);
-      } catch (e) {
-        if (!(e instanceof ErroIA)) throw e;
+      } catch (e0) {
+        // qualquer falha vira estado do episódio (com motivo claro), nunca "Erro interno": o usuário pode tentar de novo pelo botão
+        const e = e0 instanceof ErroIA ? e0 : new ErroIA('IA_FALHA', 'A IA não conseguiu escrever o roteiro agora. Tente de novo em instantes.');
+        if (!(e0 instanceof ErroIA)) console.error('podcast: roteiro falhou —', e0?.message ?? e0);
         await q(`update podcast_itens set status = case when roteiro <> '' then 'roteiro' else 'erro' end, erro=$2, atualizado_em=now() where id=$1`, [item.id, e.message.slice(0, 300)]);
         return { ...resultado, aviso: e.message, codigo: e.codigo };
       }
@@ -83,13 +88,19 @@ export function registrarPodcast(app, { q, autenticar, ia, cfg, fetchImpl = glob
     }
     if (!voz.configurado()) return { ...resultado, aviso: 'Voz (TTS) não configurada: o episódio ficou só com a transcrição; o navegador pode lê-la em voz alta.' };
     try {
-      const { buffer, mime } = await voz.sintetizar(roteiro);
+      const { buffer: bruto, mime: mimeBruto } = await voz.sintetizar(roteiro);
+      // padrão universal: MP3 mono 44,1 kHz 64 kbps CBR + tags ID3 (se o ffmpeg faltar, segue o MP3 do provedor)
+      const n = await normalizar(bruto, { titulo, album: item.playlist_titulo || 'Revalida Prático', faixa: Number(item.posicao ?? 0) + 1, comentario: 'Gerado no Revalida Prático' });
+      const buffer = n.buffer, mime = n.normalizado ? PADRAO_AUDIO.mime : mimeBruto;
       await fs.mkdir(dir, { recursive: true });
       const nome = `${item.id}.mp3`;
       await fs.writeFile(arquivo(nome), buffer);
-      await q(`update podcast_itens set status='pronto', erro='', audio_arquivo=$2, audio_mime=$3, audio_bytes=$4, atualizado_em=now() where id=$1`, [item.id, nome, mime, buffer.length]);
-    } catch (e) {
-      if (!(e instanceof ErroIA)) throw e;
+      await q(`update podcast_itens set status='pronto', erro='', audio_arquivo=$2, audio_mime=$3, audio_bytes=$4, audio_normalizado=$5, duracao_s=coalesce($6, duracao_s), atualizado_em=now() where id=$1`,
+        [item.id, nome, mime, buffer.length, n.normalizado, n.duracao_s]);
+      if (!n.normalizado) resultado.audio_aviso = `Áudio mantido no formato do provedor de voz (${n.motivo}).`;
+    } catch (e0) {
+      const e = e0 instanceof ErroIA ? e0 : new ErroIA('TTS_FALHA', 'Não consegui gravar o áudio agora (o roteiro foi guardado). Tente de novo.');
+      if (!(e0 instanceof ErroIA)) console.error('podcast: áudio falhou —', e0?.message ?? e0);
       await q(`update podcast_itens set status='roteiro', erro=$2, atualizado_em=now() where id=$1`, [item.id, e.message.slice(0, 300)]);
       return { ...resultado, aviso: e.message, codigo: e.codigo };
     }
@@ -160,7 +171,7 @@ export function registrarPodcast(app, { q, autenticar, ia, cfg, fetchImpl = glob
     if (req.body?.publica === true) {
       const token = p.token_publico || novoToken();
       await q('update podcast_playlists set publica=true, token_publico=$2 where id=$1', [p.id, token]);
-      return res.json({ publica: true, feed_publico: `${base(req)}/api/podcast/feed/${p.id}/${token}` });
+      return res.json({ publica: true, feed_publico: `${base(req)}/api/podcast/feed/${p.id}/${token}`, ...linksPlaylist(req, token) });
     }
     await q('update podcast_playlists set publica=false, token_publico=null where id=$1', [p.id]);
     res.json({ publica: false });
@@ -191,7 +202,7 @@ export function registrarPodcast(app, { q, autenticar, ia, cfg, fetchImpl = glob
       [p.id, pos, tipo, temaId, tituloDado || (tipo === 'revisao_cards' ? `Revisão: ${tema.nome}` : tema.nome), txt(req.body?.topico, 160), txt(req.body?.prompt, 1500), minutos]);
     const item = { ...(await meuItem(ins.rows[0].id, U(req))), titulo_auto: !tituloDado };
     const r = await gerar(item);
-    res.status(201).json({ item: await itemCompleto(item.id), aviso: r.aviso || undefined, codigo: r.codigo });
+    res.status(201).json({ item: await itemCompleto(item.id), aviso: r.aviso || undefined, audio_aviso: r.audio_aviso, codigo: r.codigo });
   }));
   app.put('/api/podcast/itens/:id', autenticar, validarId, rota(async (req, res) => {
     const it = await meuItem(req.params.id, U(req));
@@ -220,7 +231,7 @@ export function registrarPodcast(app, { q, autenticar, ia, cfg, fetchImpl = glob
     limiteGerar.registrar(U(req));
     const refazer = req.body?.refazer_roteiro === true;
     const r = await gerar({ ...it, titulo_auto: false }, { refazerRoteiro: refazer });
-    res.json({ item: await itemCompleto(it.id), aviso: r.aviso || undefined, codigo: r.codigo });
+    res.json({ item: await itemCompleto(it.id), aviso: r.aviso || undefined, audio_aviso: r.audio_aviso, codigo: r.codigo });
   }));
   app.delete('/api/podcast/itens/:id', autenticar, validarId, rota(async (req, res) => {
     const it = await meuItem(req.params.id, U(req));
@@ -296,6 +307,8 @@ export function registrarPodcast(app, { q, autenticar, ia, cfg, fetchImpl = glob
     if (!it || !it.audio_arquivo || !(await temAcesso(it, req.params.token))) return naoAchou(res);
     return enviarAudio(req, res, it, { baixar: req.query?.baixar === '1' });
   }));
+
+  registrarPublico(app, { q, autenticar, validarId, rota, base, U, enviarAudio, minhaPlaylist, meuItem, novoToken, arquivo, dir, fs, txt, COLS, Limitador, linksPlaylist: (req, t) => linksPlaylist(req, t) });
 
   /* ---------- radIA.m3d / rádio Revalida ---------- */
   app.get('/api/radia/canal', autenticar, rota(async (req, res) => {

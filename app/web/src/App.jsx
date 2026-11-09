@@ -13,6 +13,8 @@ import TelaComunidade from './Comunidade.jsx';
 import TelaDesempenho from './Desempenho.jsx';
 import TelaSolo from './Solo.jsx';
 import Logo from './Logo.jsx';
+import Mascote from './Mascote.jsx';
+import ZoomTela from './ZoomTela.jsx';
 import TelaPodcast from './Podcast.jsx';
 import EscolhaInicial from './Inicio.jsx';
 import { AdminDenuncias } from './Seguranca.jsx';
@@ -127,6 +129,7 @@ function TelaEntrar({ aoEntrar, aviso = '' }) {
     <div className="tela estreita">
       <span className="marca"><Logo />Revalida Prático</span>
       <h1 className="hero">Treine a 2ª fase <em>em dupla</em>, com cronômetro e vídeo.</h1>
+      <div className="login-mesa"><Mascote corpo pose="acenando" tamanho={190} className="mascote-login" titulo="Secreto-Bot, o mascote, acenando" /><div className="plaquinha" aria-hidden="true">Specimen: Revalida Prático<small>Estação de treino · 2ª fase</small></div></div>
 
       <div className="seg" role="tablist" aria-label="Como você quer acessar">
         {[['entrar', 'Entrar'], ['token', 'Tenho um token'], ['pedir', 'Pedir acesso']].map(([m, rot]) => (
@@ -856,7 +859,7 @@ export default function App() {
 
   return (
     <div className={`app${menuOculto ? ' menu-oculto' : ''}${menuModo === 'icones' ? ' menu-icones' : ''}`}>
-      <div className="blobs" aria-hidden="true"><i className="blob b1" /><i className="blob b2" /><i className="blob b3" /><i className="blob b4" /></div>
+      <div className="blobs" aria-hidden="true"><i className="blob b1" /><i className="blob b2" /><i className="blob b3" /><i className="blob b4" /><i className="fundo-bot" /></div>
       {instalado && sessaoAuth && !tokenSenha && !escolheu && !sessaoAuth.senhaProvisoria && (
         <EscolhaInicial api={api} token={sessaoAuth.token} nome={sessaoAuth.usuario?.nome} aoPlataforma={marcarEscolha} aoAbrirSala={(id) => { marcarEscolha(); abrirSalaCiclos(id); }} />
       )}
@@ -877,6 +880,7 @@ export default function App() {
       {instalado && sessaoAuth && !tokenSenha && (
         <nav className="nav" id="menu-principal" aria-label="Navegação" hidden={menuOculto}>
           <span className="marca nav-marca"><Logo tamanho={26} />{menuModo !== 'icones' && <span>Revalida Prático</span>}</span>
+          <ZoomTela />
           <button type="button" aria-current={tela === 'painel' ? 'page' : undefined} onClick={() => setTela('painel')}><span className="ni" aria-hidden="true"><Icone nome="inicio" /></span>Início</button>
           <button type="button" aria-current={tela === 'sala' ? 'page' : undefined} disabled={!sala}
             onClick={() => sala && setTela('sala')} style={!sala ? { opacity: .4 } : undefined}><span className="ni" aria-hidden="true"><Icone nome="sala" /></span>Sala</button>
@@ -890,7 +894,7 @@ export default function App() {
           {ehAdminApp && <button type="button" aria-current={tela === 'admin' ? 'page' : undefined} onClick={() => setTela('admin')}><span className="ni" aria-hidden="true"><Icone nome="admin" /></span>Admin</button>}
           <button type="button" aria-current={tela === 'conta' ? 'page' : undefined} onClick={() => setTela('conta')}><span className="ni" aria-hidden="true"><Icone nome="conta" /></span>Conta</button>
           <button type="button" onClick={() => sair()}><span className="ni" aria-hidden="true"><Icone nome="sair" /></span>Sair</button>
-        </nav>
+                </nav>
       )}
     </div>
   );

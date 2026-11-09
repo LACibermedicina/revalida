@@ -45,7 +45,7 @@ const nova = async (quem, { w = 1280, h = 800 } = {}) => {
   await c.addInitScript((s) => localStorage.setItem('rp-auth', JSON.stringify(s)), quem);
   const p = await c.newPage(); p.on('pageerror', (e) => falhas.push(`erro de página: ${e.message}`));
   await p.goto(srv.url); await p.waitForSelector('nav'); await p.waitForTimeout(500);
-  await p.locator('nav button:has-text("Ciclos")').click(); await p.waitForSelector('h2:has-text("Ciclos de estações")');
+  await p.locator('nav button:has-text("Ciclos")').click(); await p.waitForSelector('h2:has-text("Salas")');
   return p;
 };
 const recarregar = async (p) => { await p.reload(); await p.waitForSelector('nav'); await p.locator('nav button:has-text("Ciclos")').click(); await p.waitForSelector('[data-testid="meu-papel"]'); };
@@ -135,7 +135,7 @@ await passo('barra de ferramentas da sala: fixa no topo, ícones reordenáveis p
   const y = (await barra.boundingBox()).y - rolou.topo; assert.ok(!rolou.rolavel || (rolou.st > 0 && y >= 0 && y < 20), `a barra fica no topo ao rolar (y=${y}, rolou=${rolou.st})`);
   await barra.locator(`[data-testid="${antes[0]}"]`).dragTo(barra.locator(`[data-testid="${antes[2]}"]`));
   const depois = await ordem(); assert.notDeepEqual(depois, antes, 'a ordem mudou');
-  await recarregar(pa); await pa.locator('[data-testid="ferramentas-sala"]').waitFor();
+  await recarregar(pa); await pa.locator('[data-testid="ferramentas-sala"]').waitFor(); await pa.waitForSelector('[data-testid="ferramenta-checklist"]');
   assert.deepEqual(await pa.locator('[data-testid="ferramentas-sala"] [data-testid^="ferramenta-"]').evaluateAll((ns) => ns.map((n) => n.dataset.testid)), depois, 'ordem guardada');
   for (const w of [1280, 700, 390]) {
     await pa.setViewportSize({ width: w, height: 800 }); await pa.waitForTimeout(250);
@@ -157,7 +157,8 @@ await passo('finalizar calcula a nota no servidor e mostra o fim da estação a 
   assert.match(t, /Próxima estação/); assert.match(t, /Inverter papéis/);
   await recarregar(pm); await pm.waitForSelector('[data-testid="fim-estacao"]');
   assert.match(await pm.textContent('[data-testid="fim-estacao"]'), /Aguardando o chefe/);
-  assert.equal(await pm.locator('[data-testid="fim-estacao"] button:has-text("Inverter")').count(), 0, 'candidato não decide');
+  assert.equal(await pm.locator('[data-testid="fim-estacao"] button:has-text("Próxima")').count(), 0, 'candidato não decide o resto');
+  assert.equal(await pm.locator('[data-testid="fim-estacao"] button:has-text("Inverter")').count(), 1, 'mas o candidato atual também pode inverter');
   await pa.screenshot({ path: join(saida, 'salas-fim-estacao.png') });
 });
 

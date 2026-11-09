@@ -45,10 +45,10 @@ button{font:inherit;color:inherit}
 
 h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance}
 .marca{display:inline-flex;align-items:center;gap:8px;font-family:var(--display);font-weight:700;font-size:.95rem}
-.logo{width:30px;height:30px;flex:none;overflow:visible;filter:drop-shadow(0 2px 4px rgba(31,95,82,.25))}
-.logo-pulso{stroke-dasharray:260;stroke-dashoffset:0;animation:rv-ecg 3.2s ease-in-out infinite}
+.logo{width:30px;height:30px;flex:none;overflow:visible;filter:drop-shadow(0 1px 2px rgba(40,30,20,.25))}
+.logo-facetas polygon{animation:rv-brilho 4.8s ease-in-out infinite}.logo-facetas polygon:nth-child(2n){animation-delay:-1.2s}.logo-facetas polygon:nth-child(3n){animation-delay:-2.4s}@keyframes rv-brilho{0%,100%{filter:brightness(1)}50%{filter:brightness(1.12)}}
 @keyframes rv-ecg{0%{stroke-dashoffset:260}45%,100%{stroke-dashoffset:0}}
-@media (prefers-reduced-motion:reduce){.logo-pulso{animation:none}}
+@media (prefers-reduced-motion:reduce){.logo-facetas polygon{animation:none}}
 .hero{font-size:2rem;line-height:1.08;font-weight:800;letter-spacing:-.02em}
 .hero em{font-style:normal;color:var(--coral)}
 .sub{color:var(--suave);margin:0;line-height:1.45}
@@ -263,7 +263,7 @@ html[data-moldura=nao] .nav{padding-bottom:max(8px,env(safe-area-inset-bottom))}
 .menu-oculto .menu-alterna{bottom:calc(16px + env(safe-area-inset-bottom,0px))}
 .menu-oculto .menu-alterna .ic-m2{transform:scaleX(.55);transform-origin:center}
 .ic *{transform-box:fill-box;transform-origin:center}
-.ni{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:10px;transition:transform .25s,background .25s}
+.ni{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:10px;transition:transform .25s,background .25s}
 .nav button:hover:not(:disabled) .ni{transform:translateY(-2px) scale(1.1)}
 .nav button[aria-current="page"] .ni{background:linear-gradient(135deg,#2b7cf022,#19c2a022);box-shadow:inset 0 0 0 1px #2b7cf033}
 /* animações por ícone: ao passar o mouse e, mais suave, na tela ativa */
@@ -332,3 +332,29 @@ html[data-layout=largo] .app.menu-icones .nav{padding-top:112px}
 .nav .ni svg{transition:transform .25s}.nav button:hover .ni svg{transform:scale(1.15) rotate(-4deg)}
 @media (prefers-reduced-motion:reduce){.tela,.main>section,.main>div>section,.btn.menta,.btn.primario,.nav button[aria-current=page]{animation:none!important}.btn:hover:not(:disabled),.nav button:hover{transform:none}}
 .nav-marca{padding:4px 8px 8px}.nav-marca .logo{width:26px;height:26px}
+
+/* ícones lowpoly: facetas que cintilam e flutuam de leve; mais vivos no ícone da tela ativa */
+.ic-f{animation:ic-cintila 4.8s ease-in-out infinite}.ic-f1{animation-delay:-1.2s}.ic-f2{animation-delay:-2.4s}.ic-f3{animation-delay:-3.6s}
+@keyframes ic-cintila{0%,100%{filter:brightness(1)}50%{filter:brightness(1.14)}}
+.nav button:hover .ic-gema{animation:ic-balanca .8s ease-in-out}
+.nav button[aria-current=page] .ic-gema{animation:ic-balanca 2.6s ease-in-out infinite;transform-origin:16px 16px}
+@keyframes ic-balanca{0%,100%{transform:rotate(0)}25%{transform:rotate(-4deg) scale(1.04)}75%{transform:rotate(4deg) scale(1.04)}}
+@media (prefers-reduced-motion:reduce){.ic-f,.nav button[aria-current=page] .ic-gema,.nav button:hover .ic-gema{animation:none!important}}
+.zoom-tela{display:flex;align-items:center;gap:4px;flex-wrap:wrap;padding:4px 8px;font-size:.8rem}.zoom-tela output{min-width:3.2ch;text-align:center;font-weight:700}
+.app.menu-icones .zoom-tela output,.app.menu-icones .zoom-tela .btn:last-child{display:none}
+html[style*="--zoom"] body{height:calc(100vh / var(--zoom));height:calc(100dvh / var(--zoom))}
+.zoom-tela{padding:2px 8px 6px}.zoom-tela .btn.mini{min-height:30px;padding:0 10px}
+
+/* mascote Secreto-Bot */
+.mascote3d{position:relative;flex:none}.mascote3d iframe{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;transition:opacity .4s}.mascote3d-foto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:22px;box-shadow:0 6px 18px rgba(60,40,20,.28)}.mascote-avatar{border-radius:50%;object-fit:cover;box-shadow:0 2px 6px rgba(60,40,20,.3)}
+.mascote{flex:none;overflow:visible}.mascote-login{display:block;margin:.4rem 0 -.2rem auto}@keyframes rv-flutua{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@media (prefers-reduced-motion:reduce){.mascote-login{animation:none}}
+@media (max-width:420px){.mascote-login{width:150px!important;height:158px!important}}
+
+/* fundo do sistema: foto do Secreto-Bot (desfocada fora do cartão; nítida e suave dentro dele) */
+body::before{content:"";position:fixed;inset:-30px;z-index:-1;pointer-events:none;background:var(--bot-img) center 28%/cover;filter:blur(26px) saturate(.9);opacity:.5}
+.fundo-bot{position:absolute;inset:0;pointer-events:none;opacity:.17;background:linear-gradient(90deg,var(--card) 18%,transparent 78%),var(--bot-img) 80% 32%/cover no-repeat}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .fundo-bot{opacity:.13}:root:not([data-theme="light"]) body::before{opacity:.28}}
+:root[data-theme="dark"] .fundo-bot{opacity:.13}:root[data-theme="dark"] body::before{opacity:.28}
+@media (max-width:600px){.fundo-bot{opacity:.12;background:var(--bot-img) 70% 20%/cover}}
+.pn-saudacao{display:flex;align-items:center;gap:.5rem;min-width:0}.pn-bot{margin:-8px 0 -10px -10px}
