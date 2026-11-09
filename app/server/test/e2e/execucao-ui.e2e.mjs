@@ -124,7 +124,7 @@ await passo('conferência do PEP pela fala: sugestões com trecho, o avaliador d
   const it2 = pa.locator('.sl-pep', { hasText: 'Investiga tabagismo e uso de inalador' });
   await it2.locator('button:has-text("usar")').click();
   assert.equal(await it2.locator('.sl-m.on').textContent(), 'Sim');
-  await pa.locator('.sl-pep:has-text("início da falta") button:has-text("Sim")').click();      
+  await pa.locator('.sl-pep:has-text("início da falta") button:has-text("Sim")').click();
   await pa.locator('.sl-pep:has-text("salbutamol") button:has-text("Não")').click();
   await pa.locator('.sl-pep:has-text("alarme") button:has-text("Parcial")').click();            // avaliador generoso: a fala nunca falou de sinais de alarme
 });
