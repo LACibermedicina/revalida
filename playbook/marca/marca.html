@@ -1,0 +1,48 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Marca — Revalida Prático</title>
+<style>
+:root{--bg:#F1FBF7;--fg:#16233B;--suave:#5C6B84;--borda:#D3EBE1;--j:#3E8F7A;--coral:#FF6F59}
+*{box-sizing:border-box}body{margin:0;font:16px/1.6 'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+main{max-width:1100px;margin:0 auto;padding:24px 16px 60px}h1,h2{font-family:Outfit,Poppins,system-ui,sans-serif;font-weight:800;margin:.2em 0}h1{font-size:2.2rem}h2{font-size:1.4rem;margin-top:1.6em;color:var(--j)}
+.card{background:#fff;border:1px solid var(--borda);border-radius:24px;padding:20px;box-shadow:0 12px 30px -16px rgba(30,100,80,.35)}
+.grade{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}.centro{display:grid;place-items:center;min-height:220px}
+.escuro{background:linear-gradient(135deg,#1F5F52,#154A40);color:#fff}.claro{background:#fff}
+.palet{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.chip{border:1px solid var(--borda);border-radius:16px;overflow:hidden;background:#fff;padding-bottom:8px}.chip i{display:block;height:54px;margin-bottom:6px}.chip b,.chip code{display:block;padding:0 10px;font-size:.85rem}
+svg{max-width:100%;height:auto}.s1 svg{width:180px}.s2 svg{width:100%;max-width:420px}.s3 svg{width:130px}
+.min{display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap}.min svg{height:auto}
+ul{padding-left:1.2rem}li{margin:.3rem 0}.nao li::marker{color:var(--coral)}.sim li::marker{color:var(--j)}
+.zona{position:relative;display:inline-block;padding:36px;border:2px dashed var(--coral);border-radius:12px}.zona span{position:absolute;top:6px;left:10px;font-size:.75rem;color:var(--coral);font-weight:700}
+</style></head><body><main>
+<h1>Marca Revalida Prático</h1>
+<p>Mascote e logomarca: o <b>Secreto-Bot</b>, boneco de juta com cabeça cúbica, olho de vidro e olho de botão, antena, jaleco, monitor de ECG no peito e um balão. A foto é a referência oficial; o modelo 3D animado (<code>secreto-bot/modelo-3d-original.html</code>, em three.js) acompanha o app em <code>web/public/secreto-bot-3d.html</code>.</p>
+<h2>O mascote</h2>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;align-items:start">
+<div class="card centro"><img src="secreto-bot/foto-mascote.jpg" alt="Foto do Secreto-Bot" style="max-height:420px;max-width:100%;border-radius:14px"><p>Foto de referência</p></div>
+<div class="card centro"><img src="secreto-bot/folha-de-poses.png" alt="Folha de poses" style="max-height:420px;max-width:100%;border-radius:14px"><p>Folha de poses (andando, em pé, sentado, prancheta, agachado)</p></div>
+<div class="card centro"><img src="secreto-bot/icone-quadrado.png" alt="Ícone" style="width:200px;border-radius:44px"><p>Ícone do app (cabeça com antena)</p><img src="avatar.png" alt="Avatar" style="width:110px;margin-top:8px"><p>Avatar redondo</p></div>
+</div>
+<h2>Modelo 3D</h2>
+<div class="card"><ul>
+<li><b>No app:</b> a tela de login mostra o Secreto-Bot 3D acenando (arraste para girar; o rosto segue o ponteiro). Enquanto o 3D não carrega, aparece a foto.</li>
+<li><b>Fundo do sistema:</b> a foto do bot, bem suave atrás do conteúdo (e desfocada fora do cartão do app). Escurece nos temas escuros e fica mais discreta no celular.</li>
+<li><b>Poses:</b> sentado, em pé e acenando — parâmetro <code>?pose=sit|stand|wave</code>; <code>?embed=1</code> remove o fundo, a mesa e os botões.</li>
+<li><b>Funciona sem internet:</b> rode <code>bash scripts/baixar-three.sh</code> uma vez (baixa o three.js r128 para <code>web/public/vendor/</code>). Sem isso, o modelo carrega o three.js de um CDN.</li>
+<li><b>Onde usar o avatar:</b> cabeçalho, menu lateral, “Praticar com IA” e ícones do desktop, mobile, relógio e favicon.</li>
+<li><b>Revi (alternativa vetorial):</b> os SVG do personagem prancheta-ataduras continuam nesta pasta (<code>mascote*.svg</code>, <code>simbolo.svg</code>…), mas não são mais o mascote oficial; <code>gerar-marca.py</code> não sobrescreve o app (use <code>REVI_VETORIAL=1</code> para isso).</li>
+</ul></div>
+
+<h2>Paleta</h2><div class="palet"><div class="chip"><i style="background:#A9E2CB"></i><b>Cristal</b><code>#A9E2CB</code></div><div class="chip"><i style="background:#8CD3B6"></i><b>Menta</b><code>#8CD3B6</code></div><div class="chip"><i style="background:#6BBFA2"></i><b>Água</b><code>#6BBFA2</code></div><div class="chip"><i style="background:#4FA68B"></i><b>Jade</b><code>#4FA68B</code></div><div class="chip"><i style="background:#3E8F7A"></i><b>Floresta</b><code>#3E8F7A</code></div><div class="chip"><i style="background:#2D7A68"></i><b>Pinho</b><code>#2D7A68</code></div><div class="chip"><i style="background:#1F5F52"></i><b>Profundo</b><code>#1F5F52</code></div><div class="chip"><i style="background:#154A40"></i><b>Noite</b><code>#154A40</code></div><div class="chip"><i style="background:#FF6F59"></i><b>Cruz (coral)</b><code>#FF6F59</code></div><div class="chip"><i style="background:#16233B"></i><b>Tinta</b><code>#16233B</code></div></div>
+<p style="color:var(--suave);font-size:.9rem">Os verdes-água vêm do anexo; o coral e a tinta já existem no app. Os acentos do app (azul, amarelo, roxo) continuam para estados e gráficos.</p>
+
+<h2>Uso</h2>
+<div class="grade">
+<div class="card"><h3>Área de respiro</h3><p>Mantenha livre ao redor do símbolo a largura do cubo da cabeça do Secreto-Bot (1/5 da altura).</p><div class="zona"><span>respiro = 1/5 da altura</span><div class="s3"><img src="avatar.png" alt="" style="width:100%;height:100%;border-radius:50%"></div></div></div>
+<div class="card"><h3>Tamanho mínimo</h3><div class="min"><div style="width:48px"><img src="avatar.png" alt="" style="width:100%;height:100%;border-radius:50%"></div><div style="width:32px"><img src="avatar.png" alt="" style="width:100%;height:100%;border-radius:50%"></div><div style="width:20px"><img src="avatar.png" alt="" style="width:100%;height:100%;border-radius:50%"></div></div><p>Avatar: 24 px (tela) ou 8 mm (impresso). Abaixo disso, use só o ícone do app.</p></div>
+<div class="card sim"><h3>Pode</h3><ul><li>Fundos claros, brancos ou verde-água muito claro</li><li>Avatar redondo em telas pequenas</li><li>Padrão de cubos como textura grande e discreta</li></ul></div>
+<div class="card nao"><h3>Não pode</h3><ul><li>Esticar, deformar ou recolorir a foto</li><li>Usar sobre fotos sem contraste</li><li>Trocar o rosto (olho de vidro + olho de botão) ou remover a antena</li><li>Usar o padrão atrás de texto longo</li></ul></div>
+</div>
+
+<h2>Onde aplicar</h2>
+<div class="card"><ul><li>Cabeçalho do app e do playbook, ícone do app (web, desktop, Expo) e relógio.</li><li>Capa dos manuais e do pacote; galeria de telas.</li><li>E-mails de recuperação e aprovação (versão horizontal).</li></ul>
+<p>Fonte do wordmark: Outfit (800/600). Sem a fonte instalada, os SVG usam Poppins/Montserrat/sistema; para impressão, converta o texto em curvas.</p></div>
+<p style="color:var(--suave);font-size:.85rem">Mascote fornecido pelo projeto (foto e modelo 3D).</p>
+</main></body></html>

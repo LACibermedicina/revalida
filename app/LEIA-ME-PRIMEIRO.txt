@@ -1,0 +1,23 @@
+REVALIDA PRÁTICO — PACOTE DE INSTALAÇÃO
+=======================================
+
+1) Leia docs/05-guia-de-instalacao.md (requisitos, passo a passo, smoke test).
+2) Caminho mais curto (Linux/macOS/WSL, com Docker):
+       bash scripts/instalar.sh --url https://seu-dominio
+   Depois abra o endereço, informe o código de instalação (log da API) e conclua o instalador.
+3) Sem Docker: guia, seção 4.
+4) Confira a integridade do pacote:  sha256sum -c SHA256SUMS   (dentro da pasta do pacote, se existir)
+
+Manuais (pasta docs/):
+  01-manual-do-usuario.md            quem treina (candidato, avaliador, observador)
+  02-manual-do-desenvolvedor.md      quem altera o código
+  03-plano-de-negocios-investidor.md visão de negócio (premissas marcadas como hipótese)
+  04-manual-tecnico.md               arquitetura, segurança, operação
+  05-guia-de-instalacao.md           instalação e operação
+  modelo-de-dados.md, referencia-api.md
+  marca/marca.html                   logomarca: símbolo, horizontal, ícone, padrão (SVG/PNG) e guia de uso
+
+O playbook, a marca e a galeria de telas estão na pasta irmã ../playbook/.
+
+Aviso: câmera e microfone exigem HTTPS. Troque a senha do root no primeiro acesso.
+O que NÃO foi testado de verdade: Docker Compose, vídeo ao vivo (Agora), e-mail (SMTP), IA real, Electron, Expo e relógio físico.

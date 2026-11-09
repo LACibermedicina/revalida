@@ -1,0 +1,537 @@
+// Estudo: trilha de aprendizagem (do menor ao maior desempenho, ou o contrário), cartões com repetição espaçada,
+// mapa 3D de temas, caderno de erros com revisão por estação e diretrizes de referência.
+// A IA gera resumos, cartões e novas ligações do mapa; o que não tem diretriz cadastrada aparece marcado "sem diretriz de referência".
+import Baralho from './Baralho.jsx';
+import QuadroTema from './QuadroTema.jsx';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { layout3D, projetar, escolherNo, faixaDesempenho } from './grafo3d.js';
+import { criarEntrada, estadoInicial, zoomEm, resetar } from './nav3d.js';
+import Mapa2D, { VISTAS } from './Mapa2D.jsx';
+import './estudo.css';
+import { CartaRPG, TodosCartoes, AssistenteCartoes } from './Cartoes.jsx';
+
+const AREAS = { clinica_medica: 'Clínica Médica', cirurgia: 'Cirurgia', ginecologia_obstetricia: 'Ginecologia e Obstetrícia', pediatria: 'Pediatria', mfc: 'Medicina de Família e Comunidade' };
+const CATEGORIAS = [['conhecimento', 'Conhecimento'], ['sequencia', 'Sequência'], ['comunicacao', 'Comunicação'], ['tempo', 'Tempo']];
+const TIPO_REL = { relacionado: 'relacionado', pre_requisito: 'pré-requisito', diagnostico_diferencial: 'diagnóstico diferencial', complicacao: 'complicação', conduta: 'conduta' };
+const pct = (d) => (d === null || d === undefined ? '—' : `${Math.round(d * 100)}%`);
+const ABAS = [['trilha', 'Trilha'], ['cartoes', 'Cartões'], ['biblioteca', 'Biblioteca de revisão'], ['mapa', 'Mapa 3D'], ['erros', 'Caderno de erros'], ['guia', 'Guia de treino'], ['diretrizes', 'Diretrizes']];
+
+function Aviso({ semDiretriz }) {
+  return semDiretriz ? <p className="es-sem" role="note">Sem diretriz de referência cadastrada: este conteúdo segue o consenso clínico geral e precisa ser conferido. A administração pode cadastrar a diretriz na aba Diretrizes.</p> : null;
+}
+function Barra({ valor }) {
+  return <span className={`es-barra f-${faixaDesempenho(valor)}`} role="img" aria-label={`desempenho ${pct(valor)}`}><i style={{ width: `${Math.round((valor ?? 0) * 100)}%` }} /></span>;
+}
+
+export default function TelaEstudo({ token, usuario, api, comando, aoPraticar, aoAnalise }) {
+  const [aba, setAba] = useState('trilha');
+  const [temaCartoes, setTemaCartoes] = useState(null);
+  const [temaMapa, setTemaMapa] = useState(null);
+  const [quadro, setQuadro] = useState(null);   // tema aberto no quadro móvel
+  useEffect(() => {
+    if (!comando?.aba || !ABAS.some(([k]) => k === comando.aba)) return;
+    if (comando.tema) { if (comando.aba === 'mapa') setTemaMapa(comando.tema); else if (comando.aba === 'cartoes') setTemaCartoes(comando.tema); }
+    setAba(comando.aba);
+  }, [comando?.n]); // eslint-disable-line react-hooks/exhaustive-deps
+  const abrirCartoes = (id) => { setTemaCartoes(id ?? null); setAba('cartoes'); };
+  const abrirMapa = (id) => { setTemaMapa(id ?? null); setAba('mapa'); };
+  const comum = { token, usuario, api };
+  return (
+    <div className="tela es-tela">
+      <h2>Estudo</h2>
+      <div className="es-abas" role="tablist" aria-label="Seções do estudo">
+        {ABAS.map(([k, n]) => <button key={k} role="tab" aria-selected={aba === k} className={aba === k ? 'on' : ''} onClick={() => { setAba(k); if (k === 'cartoes') setTemaCartoes(null); }}>{n}</button>)}
+      </div>
+      {aba === 'trilha' && <Trilha {...comum} aoCartoes={abrirCartoes} aoMapa={abrirMapa} aoPraticar={aoPraticar} aoTema={setQuadro} />}
+      {aba === 'cartoes' && <Cartoes {...comum} tema={temaCartoes} />}
+      {aba === 'biblioteca' && <Biblioteca {...comum} aoEstudar={() => abrirCartoes(null)} />}
+      {aba === 'mapa' && <Mapa {...comum} inicial={temaMapa} aoCartoes={abrirCartoes} aoPraticar={aoPraticar} />}
+      {aba === 'erros' && <Erros {...comum} aoAnalise={aoAnalise} />}
+      {aba === 'guia' && <Guia />}
+      {aba === 'diretrizes' && <Diretrizes {...comum} />}
+      {quadro && <QuadroTema key={quadro.temaId ?? quadro.nome} {...quadro} token={token} api={api} aoFechar={() => setQuadro(null)} aoCartoes={(id) => { setQuadro(null); abrirCartoes(id); }} aoPraticar={aoPraticar} />}
+    </div>
+  );
+}
+
+/* ======================= trilha ======================= */
+function Trilha({ token, api, aoCartoes, aoMapa, aoPraticar, aoTema }) {
+  const [ordem, setOrdem] = useState('fracos');
+  const [criando, setCriando] = useState('');
+  const [avisoCard, setAvisoCard] = useState({});
+  const [d, setD] = useState(null);
+  const [erro, setErro] = useState('');
+  useEffect(() => { setD(null); api(`/api/estudo/trilha?ordem=${ordem}`, { token }).then(setD).catch((e) => setErro(e.message)); }, [ordem, api, token]);
+  // cartões do argumento (tema da trilha): aprofundam o tema e os pontos que a pessoa errou, em camadas
+  const criarCards = async (t) => {
+    setCriando(t.id); setAvisoCard((a) => ({ ...a, [t.id]: '' }));
+    try {
+      const r = await api(`/api/estudo/temas/${t.id}/cartoes/gerar`, { metodo: 'POST', token, corpo: { quantidade: 8, foco: t.nome, pontos: t.alvos, aprofundar: true } });
+      setAvisoCard((a) => ({ ...a, [t.id]: `Série ${r.serie}: ${r.total} cartões criados, aprofundando o argumento${t.alvos.length ? ' e os pontos que você errou' : ''}.` }));
+      setD((x) => (x ? { ...x, temas: x.temas.map((y) => (y.id === t.id ? { ...y, cartoes_total: y.cartoes_total + r.total, cartoes_vencidos: y.cartoes_vencidos + r.total } : y)) } : x));
+    } catch (e) { setAvisoCard((a) => ({ ...a, [t.id]: e.message })); } finally { setCriando(''); }
+  };
+  const itensTrilha = useMemo(() => (d?.temas ?? []).map((t) => ({ id: t.id, titulo: t.nome, area: t.area, classe: `es-tema f-${faixaDesempenho(t.desempenho)}` })), [d]);
+  const porId = useMemo(() => new Map((d?.temas ?? []).map((t) => [t.id, t])), [d]);
+  if (erro) return <p className="aviso" role="alert">{erro}</p>;
+  if (!d) return <p className="sub" role="status">Montando sua trilha…</p>;
+  return (
+    <>
+      <div className="es-linha">
+        <p className="sub">Temas das estações que você fez e dos que ainda faltam medir.</p>
+        <div className="es-ordem" role="group" aria-label="Ordem da trilha">
+          <button aria-pressed={ordem === 'fracos'} className={ordem === 'fracos' ? 'on' : ''} onClick={() => setOrdem('fracos')}>Do mais fraco</button>
+          <button aria-pressed={ordem === 'fortes'} className={ordem === 'fortes' ? 'on' : ''} onClick={() => setOrdem('fortes')}>Do mais forte</button>
+        </div>
+      </div>
+      {d.temas.length === 0 && <p className="sub">Ainda não há temas. Faça uma estação em 🔁 Ciclos ou crie uma em ✏️ Criar.</p>}
+      <Baralho como="ol" chave={`trilha:${ordem}`} itens={itensTrilha} larg={300} alt={380} testid="trilha" rotuloPilha={(g) => g[0]?.area ? AREAS[g[0].area] : 'temas'}
+        renderizar={(it) => {
+          const t = porId.get(it.id); if (!t) return null;
+          return (
+            <>
+            <div className="es-linha"><button type="button" className="ln es-tema-nome" data-testid="tema-detalhe" onClick={() => aoTema({ temaId: t.id, nome: t.nome, area: t.area })} title="Abrir o quadro explicativo do tema"><strong>{t.nome}</strong></button><span className="es-pct">{pct(t.desempenho)}</span></div>
+            <Barra valor={t.desempenho} />
+            <p className="sub">{t.area ? `${AREAS[t.area]} · ` : ''}{t.execucoes} estação(ões) · {t.cartoes_total} cartões{t.cartoes_vencidos > 0 ? ` (${t.cartoes_vencidos} para hoje)` : ''}</p>
+            <p className="es-passo">{t.texto}</p>
+            {t.alvos.length > 0 && <ul className="es-alvos">{t.alvos.map((a, i) => <li key={i}>{a}</li>)}</ul>}
+            <div className="es-acoes">
+              <button className="btn mini menta" onClick={() => aoCartoes(t.id)}>Cartões</button>
+              <button className="btn mini" data-testid="criar-card-argumento" disabled={criando === t.id} title="A IA cria cartões que aprofundam este argumento e os pontos em que você errou"
+                onClick={() => criarCards(t)}>{criando === t.id ? 'Criando…' : 'Criar card do argumento'}</button>
+              <button className="btn mini" onClick={() => aoMapa(t.id)}>Ver no mapa</button>
+              {t.estacoes.length > 0 && aoPraticar && <button className="btn mini" onClick={() => aoPraticar(t.estacoes[0].id)}>Praticar: {t.estacoes[0].titulo}</button>}
+            </div>
+            {avisoCard[t.id] && <p className="aviso" role="status">{avisoCard[t.id]}</p>}
+                      </>
+          );
+        }} />
+      {d.retestes.length > 0 && (
+        <section className="es-bloco" aria-label="Retestes">
+          <h3>Refazer</h3>
+          <p className="sub">Uma estação feita bem uma vez não consolida: volte nestas.</p>
+          {d.retestes.map((r) => <div key={r.estacao_id} className="es-linha"><span>{r.titulo} · {r.percentual}%</span><em className={r.vencido ? 'es-venc' : ''}>{r.vencido ? 'refazer agora' : `a partir de ${new Date(r.vence_em).toLocaleDateString('pt-BR')}`}</em></div>)}
+        </section>
+      )}
+    </>
+  );
+}
+
+/* ======================= cartões ======================= */
+function Cartoes({ token, api, tema }) {
+  const [modo, setModo] = useState('estudar');
+  useEffect(() => { if (tema) setModo('estudar'); }, [tema]);
+  const modos = [['estudar', 'Estudar hoje'], ['todos', 'Todos os cartões'], ['criar', 'Criar cartões']];
+  return (
+    <>
+      <div className="es-subabas" role="tablist" aria-label="Cartões">{modos.map(([k, n]) => <button key={k} role="tab" aria-selected={modo === k} className={modo === k ? 'on' : ''} onClick={() => setModo(k)}>{n}</button>)}</div>
+      {modo === 'estudar' && <EstudarCartoes token={token} api={api} tema={tema} />}
+      {modo === 'todos' && <TodosCartoes token={token} api={api} aoNovo={() => setModo('criar')} />}
+      {modo === 'criar' && <AssistenteCartoes token={token} api={api} temaInicial={tema} aoSalvo={() => {}} />}
+    </>
+  );
+}
+
+function EstudarCartoes({ token, api, tema }) {
+  const [fila, setFila] = useState(null);
+  const [i, setI] = useState(0);
+  const [virado, setVirado] = useState(false);
+  const [feitos, setFeitos] = useState(0);
+  const [erro, setErro] = useState('');
+  useEffect(() => { setFila(null); setI(0); setVirado(false); setFeitos(0); api(`/api/estudo/cartoes/hoje${tema ? `?tema=${tema}` : ''}`, { token }).then(setFila).catch((e) => setErro(e.message)); }, [tema, api, token]);
+  const responder = async (qualidade) => {
+    const c = fila[i];
+    try { await api(`/api/estudo/cartoes/${c.id}/revisar`, { metodo: 'POST', token, corpo: { qualidade } }); setFeitos((n) => n + 1); setVirado(false); setI((n) => n + 1); } catch (e) { setErro(e.message); }
+  };
+  if (erro) return <p className="aviso" role="alert">{erro}</p>;
+  if (!fila) return <p className="sub" role="status">Buscando cartões…</p>;
+  if (i >= fila.length) return (
+    <div className="es-bloco" data-testid="cartoes-fim">
+      <h3>{fila.length === 0 ? 'Nenhum cartão para hoje' : 'Sessão concluída'}</h3>
+      <p className="sub">{fila.length === 0 ? 'Gere uma série de cartões para um tema na Trilha ou no Mapa 3D.' : `${feitos} cartões revisados. Os que você errou voltam amanhã; os outros ficam mais espaçados.`}</p>
+    </div>
+  );
+  const c = fila[i];
+  return (
+    <div className="es-bloco" data-testid="cartao">
+      <p className="sub">{i + 1} de {fila.length} · {c.tema} · série {c.serie}{c.estacao_titulo ? <> · <b data-testid="cartao-estacao">da estação “{c.estacao_titulo}”</b></> : null}</p>
+      <div aria-live="polite"><CartaRPG c={c} virada={virado} aoVirar={() => setVirado(true)} /></div>
+      {virado && (
+        <div className="es-notas" role="group" aria-label="Como foi?">
+          <button className="btn mini coral" onClick={() => responder(0)}>Errei</button>
+          <button className="btn mini" onClick={() => responder(3)}>Difícil</button>
+          <button className="btn mini" onClick={() => responder(4)}>Bom</button>
+          <button className="btn mini menta" onClick={() => responder(5)}>Fácil</button>
+        </div>
+      )}
+      <Aviso semDiretriz={c.sem_diretriz} />
+    </div>
+  );
+}
+
+/* ======================= painel do tema (resumos, cartões, expandir) ======================= */
+function TemaPainel({ id, token, api, aoCartoes, aoPraticar, aoMudou }) {
+  const [t, setT] = useState(null);
+  const [ocupado, setOcupado] = useState('');
+  const [msg, setMsg] = useState('');
+  const [foco, setFoco] = useState('');
+  const [aberto, setAberto] = useState(null);
+  const carregar = useCallback(() => api(`/api/estudo/temas/${id}`, { token }).then(setT).catch((e) => setMsg(e.message)), [id, api, token]);
+  useEffect(() => { setT(null); setMsg(''); setAberto(null); carregar(); }, [carregar]);
+  const gerar = async (rotulo, caminho, corpo, ok) => {
+    setOcupado(rotulo); setMsg('');
+    try { const r = await api(caminho, { metodo: 'POST', token, corpo }); setMsg(ok(r)); await carregar(); aoMudou?.(); } catch (e) { setMsg(e.message); } finally { setOcupado(''); }
+  };
+  if (!t) return <p className="sub" role="status">{msg || 'Carregando o tema…'}</p>;
+  return (
+    <section className="es-bloco es-painel" aria-label={`Tema ${t.tema.nome}`}>
+      <h3>{t.tema.nome}</h3>
+      <p className="sub">{t.tema.area ? AREAS[t.tema.area] : 'Sem área definida'} · {t.diretrizes.length ? `diretriz: ${t.diretrizes.map((d) => d.titulo).join('; ')}` : 'sem diretriz de referência'}</p>
+      {t.relacoes.length > 0 && <ul className="es-rels">{t.relacoes.map((r, k) => <li key={k}><em>{TIPO_REL[r.tipo]}</em> {r.nome}{r.motivo ? ` — ${r.motivo}` : ''}</li>)}</ul>}
+      <div className="es-acoes">
+        <button className="btn mini menta" disabled={!!ocupado} onClick={() => gerar('cartoes', `/api/estudo/temas/${id}/cartoes/gerar`, {}, (r) => `Nova série ${r.serie} com ${r.total} cartões.`)}>{ocupado === 'cartoes' ? 'Gerando…' : 'Nova série de cartões (IA)'}</button>
+        <button className="btn mini" disabled={!t.series.length} onClick={() => aoCartoes(id)}>Estudar cartões{t.series.length ? ` (${t.series.reduce((s, x) => s + x.vencidos, 0)} hoje)` : ''}</button>
+        <button className="btn mini" disabled={!!ocupado} onClick={() => gerar('expandir', `/api/estudo/temas/${id}/expandir`, {}, (r) => `${r.criados.length} temas ligados ao mapa.`)}>{ocupado === 'expandir' ? 'Expandindo…' : 'Expandir o mapa (IA)'}</button>
+      </div>
+      <form className="es-foco" onSubmit={(e) => { e.preventDefault(); gerar('resumo', `/api/estudo/temas/${id}/resumo`, { foco }, () => 'Resumo gerado.'); }}>
+        <label className="campo"><span>Resumo mais específico (opcional)</span><input value={foco} maxLength={120} onChange={(e) => setFoco(e.target.value)} placeholder="Ex.: conduta na crise prolongada" /></label>
+        <button className="btn mini" disabled={!!ocupado}>{ocupado === 'resumo' ? 'Gerando…' : 'Gerar resumo (IA)'}</button>
+      </form>
+      {ocupado && <p className="sub" role="status">A IA está trabalhando… pode levar até um minuto.</p>}
+      {msg && <p className="aviso" role="status">{msg}</p>}
+      {t.resumos.map((r) => (
+        <article key={r.id} className="es-resumo">
+          <button className="ln" aria-expanded={aberto === r.id} onClick={() => setAberto(aberto === r.id ? null : r.id)}>{r.titulo}{r.foco ? ` · ${r.foco}` : ''}</button>
+          {aberto === r.id && <><pre className="es-corpo">{r.corpo}</pre><Aviso semDiretriz={!r.diretriz_id} /></>}
+        </article>
+      ))}
+      {t.estacoes.length > 0 && aoPraticar && <div className="es-acoes">{t.estacoes.map((e) => <button key={e.id} className="btn mini" onClick={() => aoPraticar(e.id)}>Praticar: {e.titulo}</button>)}</div>}
+    </section>
+  );
+}
+
+/* ======================= mapa 3D ======================= */
+const COR = { sem: '--suave', baixo: '--coral', medio: '--sol', alto: '--menta' };
+const NIVEIS_COMPLEXIDADE = [[1, 'Básico'], [2, 'Intermediário'], [3, 'Avançado']];
+const FAIXAS = [['baixo', 'Abaixo de 60%'], ['medio', '60–80%'], ['alto', 'Acima de 80%'], ['sem', 'Sem dados']];
+function alternarEm(set, v) { const n = new Set(set); if (n.has(v)) n.delete(v); else n.add(v); return n; }
+
+function Mapa({ token, api, inicial, aoCartoes, aoPraticar }) {
+  const [g, setG] = useState(null);
+  const [erro, setErro] = useState('');
+  const [sel, setSel] = useState(inicial ?? null);
+  const [lista, setLista] = useState(false);
+  const [vista, setVista] = useState('3d');   // 3d | grafo | plano | fluxo | mental
+  const [filtro, setFiltro] = useState('');
+  const [niveis, setNiveis] = useState(new Set());
+  const [tipos, setTipos] = useState(new Set());
+  const [faixas, setFaixas] = useState(new Set());
+  const [area, setArea] = useState('');
+  const [assoc, setAssoc] = useState({ estacoes: false, cartoes: false, lacunas: false, vizinhos: false });
+  const carregar = useCallback(() => api('/api/estudo/grafo', { token }).then(setG).catch((e) => setErro(e.message)), [api, token]);
+  useEffect(() => { carregar(); }, [carregar]);
+  const vis = useMemo(() => {
+    if (!g) return null;
+    const arestasTipo = g.arestas.filter((a) => !tipos.size || tipos.has(a.tipo));
+    let viz = null;
+    if (assoc.vizinhos && sel) { viz = new Set([sel]); for (const a of arestasTipo) { if (a.de === sel) viz.add(a.para); if (a.para === sel) viz.add(a.de); } }
+    const nos = g.nos.filter((n) => (!niveis.size || niveis.has(n.complexidade)) && (!faixas.size || faixas.has(faixaDesempenho(n.desempenho))) && (!area || n.area === area)
+      && (!assoc.estacoes || n.estacoes > 0) && (!assoc.cartoes || n.cartoes_total > 0) && (!assoc.lacunas || n.lacunas > 0) && (!viz || viz.has(n.id))
+      && (!filtro.trim() || n.nome.toLowerCase().includes(filtro.trim().toLowerCase())));
+    const ids = new Set(nos.map((n) => n.id));
+    return { nos, arestas: arestasTipo.filter((a) => ids.has(a.de) && ids.has(a.para)) };
+  }, [g, niveis, tipos, faixas, area, assoc, sel, filtro]);
+  if (erro) return <p className="aviso" role="alert">{erro}</p>;
+  if (!g) return <p className="sub" role="status">Montando o mapa…</p>;
+  const ativos = niveis.size + tipos.size + faixas.size + (area ? 1 : 0) + Object.values(assoc).filter(Boolean).length + (filtro.trim() ? 1 : 0);
+  const limpar = () => { setNiveis(new Set()); setTipos(new Set()); setFaixas(new Set()); setArea(''); setFiltro(''); setAssoc({ estacoes: false, cartoes: false, lacunas: false, vizinhos: false }); };
+  return (
+    <>
+      <div className="es-linha">
+        <p className="sub">Cada ponto é um tema; a cor mostra o seu desempenho e as linhas, as relações clínicas. Arraste para mover, use a roda para aproximar{vista === '3d' ? '; botão direito gira' : ''}.</p>
+        <button className="btn mini" onClick={() => setLista((v) => !v)} aria-pressed={lista}>{lista ? 'Ver o mapa' : 'Ver como lista'}</button>
+      </div>
+      {g.nos.length > 0 && !lista && (
+        <div className="es-vistas" role="tablist" aria-label="Como ver o mapa" data-testid="vistas-mapa">
+          {VISTAS.map(([k, n]) => <button key={k} type="button" role="tab" aria-selected={vista === k} className={`btn mini${vista === k ? ' menta' : ''}`} onClick={() => setVista(k)} data-testid={`vista-${k}`}>{n}</button>)}
+        </div>
+      )}
+      {g.nos.length > 0 && (
+        <details className="es-filtros" data-testid="filtros-mapa" open={ativos > 0}>
+          <summary>Filtros {ativos > 0 && <em>{ativos} ativo(s) · {vis.nos.length} de {g.nos.length} temas</em>}</summary>
+          <fieldset><legend>Complexidade</legend>{NIVEIS_COMPLEXIDADE.map(([n, r]) => <button key={n} type="button" className={`es-chip${niveis.has(n) ? ' on' : ''}`} aria-pressed={niveis.has(n)} onClick={() => setNiveis((x) => alternarEm(x, n))}>{r}</button>)}</fieldset>
+          <fieldset><legend>Desempenho</legend>{FAIXAS.map(([k, r]) => <button key={k} type="button" className={`es-chip${faixas.has(k) ? ' on' : ''}`} aria-pressed={faixas.has(k)} onClick={() => setFaixas((x) => alternarEm(x, k))}>{r}</button>)}</fieldset>
+          {g.tipos?.length > 0 && <fieldset><legend>Tipo de relação</legend>{g.tipos.map((t) => <button key={t} type="button" className={`es-chip${tipos.has(t) ? ' on' : ''}`} aria-pressed={tipos.has(t)} onClick={() => setTipos((x) => alternarEm(x, t))}>{TIPO_REL[t] ?? t}</button>)}</fieldset>}
+          <fieldset><legend>Informações associadas</legend>
+            {[['estacoes', 'Com estações'], ['cartoes', 'Com cartões'], ['lacunas', 'Com lacunas'], ['vizinhos', 'Só vizinhos do tema escolhido']].map(([k, r]) => <button key={k} type="button" className={`es-chip${assoc[k] ? ' on' : ''}`} aria-pressed={assoc[k]} disabled={k === 'vizinhos' && !sel} onClick={() => setAssoc((x) => ({ ...x, [k]: !x[k] }))}>{r}</button>)}</fieldset>
+          <div className="es-grade"><label className="campo"><span>Área</span><select value={area} onChange={(e) => setArea(e.target.value)}><option value="">Todas</option>{Object.entries(AREAS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+            <label className="campo"><span>Buscar tema</span><input value={filtro} onChange={(e) => setFiltro(e.target.value)} /></label></div>
+          {ativos > 0 && <button type="button" className="ln" onClick={limpar}>Limpar filtros</button>}
+        </details>
+      )}
+      {g.nos.length === 0 ? <p className="sub">O mapa começa quando há estações com conceitos. Crie ou publique uma estação.</p> : vis.nos.length === 0 ? <p className="sub" role="status">Nenhum tema com esses filtros.</p> : lista
+        ? <ul className="es-lista" data-testid="lista-temas">{vis.nos.map((n) => <li key={n.id}><button className={`es-item f-${faixaDesempenho(n.desempenho)}${sel === n.id ? ' on' : ''}`} onClick={() => setSel(n.id)}>{n.nome} <em>{pct(n.desempenho)} · nível {n.complexidade} · {n.estacoes} estação(ões) · {n.cartoes_total} cartão(ões)</em></button></li>)}</ul>
+        : vista === '3d' ? <Canvas3D nos={vis.nos} arestas={vis.arestas} sel={sel} aoSel={setSel} /> : <Mapa2D vista={vista} nos={vis.nos} arestas={vis.arestas} sel={sel} aoSel={setSel} />}
+      <Legenda />
+      {sel && <TemaPainel id={sel} token={token} api={api} aoCartoes={aoCartoes} aoPraticar={aoPraticar} aoMudou={carregar} />}
+    </>
+  );
+}
+
+/* ======================= biblioteca de revisão ======================= */
+function Biblioteca({ token, api, aoEstudar }) {
+  const [estado, setEstado] = useState('');
+  const [d, setD] = useState(null);
+  const [erro, setErro] = useState('');
+  const [aberto, setAberto] = useState(null);
+  useEffect(() => { setD(null); api(`/api/estudo/biblioteca${estado ? `?estado=${estado}` : ''}`, { token }).then(setD).catch((e) => setErro(e.message)); }, [estado, api, token]);
+  if (erro) return <p className="aviso" role="alert">{erro}</p>;
+  if (!d) return <p className="sub" role="status">Abrindo a biblioteca…</p>;
+  return (
+    <div data-testid="biblioteca">
+      <div className="es-linha">
+        <p className="sub">Cartões criados a partir das suas estações. <b>{d.pendentes}</b> pendente(s) · <b>{d.executadas}</b> já executado(s).</p>
+        <div className="es-ordem" role="group" aria-label="Situação">
+          {[['', 'Todos'], ['pendente', 'Pendentes'], ['executada', 'Executados']].map(([k, r]) => <button key={k} type="button" aria-pressed={estado === k} onClick={() => setEstado(k)}>{r}</button>)}
+        </div>
+      </div>
+      {d.pendentes > 0 && <button type="button" className="btn mini menta" onClick={aoEstudar}>Estudar os pendentes agora</button>}
+      {d.estacoes.length === 0 && <p className="sub">Nada aqui ainda. Ao terminar uma estação, gere cartões dos pontos escolhidos ou da estação inteira na tela de análise.</p>}
+      {d.estacoes.map((g) => (
+        <section key={g.estacao_id} className="es-bloco" aria-label={g.titulo}>
+          <h3>{g.titulo} <small>{g.pendentes} pendente(s) · {g.executadas} executado(s)</small></h3>
+          <ul className="es-lista">{g.cartoes.map((c) => (
+            <li key={c.id}><button className={`es-item s-${c.situacao}`} aria-expanded={aberto === c.id} onClick={() => setAberto(aberto === c.id ? null : c.id)}>
+              <span className={`es-sit ${c.situacao}`}>{c.situacao === 'pendente' ? 'Pendente' : 'Executado'}</span> {c.frente}</button>
+              {aberto === c.id && <p className="es-verso">{c.verso}<br /><em className="sub">{c.tema}{c.ultima_em ? ` · última revisão ${new Date(c.ultima_em).toLocaleDateString('pt-BR')}` : ''}{c.proximo_em && c.situacao === 'executada' ? ` · volta em ${new Date(c.proximo_em).toLocaleDateString('pt-BR')}` : ''}</em></p>}</li>
+          ))}</ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+function Legenda() {
+  return <p className="es-legenda" aria-label="Legenda">{[['baixo', 'abaixo de 60%'], ['medio', '60–80%'], ['alto', 'acima de 80%'], ['sem', 'sem dados']].map(([k, r]) => <span key={k}><i className={`es-ponto f-${k}`} /> {r}</span>)}</p>;
+}
+
+function Canvas3D({ nos, arestas, sel, aoSel }) {
+  const ref = useRef(null);
+  const est = useRef(estadoInicial({ arrasto: null, auto: true, proj: {}, hover: null }));
+  const pos = useMemo(() => layout3D(nos, arestas), [nos, arestas]);
+  const reduz = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const porId = useMemo(() => new Map(nos.map((n) => [n.id, n])), [nos]);
+
+  useEffect(() => {
+    const cv = ref.current; if (!cv) return undefined;
+    const ctx = cv.getContext('2d'); const s = est.current; let raf = 0; let vivo = true;
+    s.auto = !reduz;
+    const css = getComputedStyle(document.documentElement);
+    const cor = (v) => css.getPropertyValue(v).trim() || '#888';
+    const ajustar = () => {
+      const r = cv.getBoundingClientRect(); const dpr = window.devicePixelRatio || 1;
+      s.w = Math.max(200, r.width); s.h = Math.max(220, r.height);
+      cv.width = Math.round(s.w * dpr); cv.height = Math.round(s.h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    };
+    const desenhar = () => {
+      if (!vivo) return;
+      if (s.auto && !s.arrasto) s.rotY += 0.003;
+      cv.dataset.zoom = s.zoom.toFixed(3); cv.dataset.pan = `${Math.round(s.panX)},${Math.round(s.panY)}`; cv.dataset.rot = `${s.rotY.toFixed(2)},${s.rotX.toFixed(2)}`;   // estado da câmera (leitura por testes e leitores de tela)
+      const proj = projetar(pos, { rotY: s.rotY, rotX: s.rotX, zoom: s.zoom, largura: s.w, altura: s.h, panX: s.panX, panY: s.panY }); s.proj = proj;
+      ctx.clearRect(0, 0, s.w, s.h);
+      const vizinhos = new Set(); if (sel) for (const a of arestas) { if (a.de === sel) vizinhos.add(a.para); if (a.para === sel) vizinhos.add(a.de); }
+      for (const a of arestas) {
+        const p = proj[a.de], q = proj[a.para]; if (!p || !q) continue;
+        const dest = sel && (a.de === sel || a.para === sel);
+        ctx.globalAlpha = dest ? 0.9 : Math.max(0.12, 0.35 * ((p.s + q.s) / 2 - 0.5)); ctx.strokeStyle = dest ? cor('--mar') : cor('--suave'); ctx.lineWidth = dest ? 2 : 1;
+        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); ctx.stroke();
+      }
+      const ordem = [...nos].sort((a, b) => (proj[a.id]?.z ?? 0) - (proj[b.id]?.z ?? 0));
+      ctx.font = '12px system-ui, sans-serif'; ctx.textAlign = 'center';
+      for (const n of ordem) {
+        const p = proj[n.id]; if (!p) continue;
+        const r = (5 + (n.relevancia ?? 3) * 1.4) * p.s; const dest = n.id === sel || n.id === s.hover || vizinhos.has(n.id);
+        ctx.globalAlpha = sel && !dest ? 0.45 : Math.min(1, 0.55 + p.s * 0.35);
+        ctx.fillStyle = cor(COR[faixaDesempenho(n.desempenho)]); ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill();
+        if (n.id === sel) { ctx.strokeStyle = cor('--fg'); ctx.lineWidth = 2.5; ctx.stroke(); }
+        if (dest || p.s > 1.15) { ctx.globalAlpha = 1; ctx.fillStyle = cor('--fg'); ctx.fillText(n.nome, p.x, p.y - r - 5); }
+      }
+      ctx.globalAlpha = 1;
+      raf = requestAnimationFrame(desenhar);
+    };
+    ajustar(); const ro = new ResizeObserver(ajustar); ro.observe(cv); raf = requestAnimationFrame(desenhar);
+    return () => { vivo = false; cancelAnimationFrame(raf); ro.disconnect(); };
+  }, [pos, nos, arestas, sel, reduz]);
+
+  const entrada = useMemo(() => criarEntrada({ canvas: () => ref.current, est: est.current,
+    aoToque: (x, y, e) => aoSel(escolherNo(est.current.proj, nos, x, y, { raioBase: e.pointerType === 'touch' ? 22 : 14 })),
+    aoPassar: (x, y) => { const s = est.current; s.hover = escolherNo(s.proj, nos, x, y); if (ref.current) ref.current.style.cursor = s.hover ? 'pointer' : 'grab'; } }), [nos, aoSel]);
+  useEffect(() => { const cv = ref.current; if (!cv) return undefined; cv.addEventListener('wheel', entrada.roda, { passive: false }); return () => cv.removeEventListener('wheel', entrada.roda); }, [entrada]);
+  const zoom = (f) => zoomEm(est.current, est.current.w / 2, est.current.h / 2, f);
+  const girar = (d) => { est.current.rotY += d; };
+  const [auto, setAuto] = useState(!reduz);
+  return (
+    <div className="es-mapa">
+      <canvas ref={ref} data-testid="mapa3d" role="img" aria-label={`Mapa 3D com ${nos.length} temas. Use "Ver como lista" para navegar pelo teclado.`}
+        tabIndex={0} onPointerDown={entrada.baixar} onPointerMove={entrada.mover} onPointerUp={entrada.soltar} onPointerCancel={entrada.cancelar}
+        onPointerLeave={() => { est.current.hover = null; }} onDoubleClick={entrada.duplo} onKeyDown={entrada.tecla} onContextMenu={entrada.menu} />
+      <p className="es-dica" aria-hidden="true">Arraste para mover · roda ou pinça para aproximar · botão direito, Shift ou dois dedos para girar</p>
+      <div className="es-zoom">
+        <button className="btn mini" onClick={() => zoom(1.25)} aria-label="Aproximar">+</button>
+        <button className="btn mini" onClick={() => zoom(0.8)} aria-label="Afastar">−</button>
+        <button className="btn mini" onClick={() => girar(-0.3)} aria-label="Girar para a esquerda">⟲</button>
+        <button className="btn mini" onClick={() => girar(0.3)} aria-label="Girar para a direita">⟳</button>
+        <button className="btn mini" onClick={() => resetar(est.current)} aria-label="Centralizar o mapa" data-testid="mapa-centralizar">◎</button>
+        <button className="btn mini" aria-pressed={auto} onClick={() => { est.current.auto = !auto; setAuto(!auto); }}>{auto ? 'Parar' : 'Girar'}</button>
+      </div>
+    </div>
+  );
+}
+
+/* ======================= caderno de erros ======================= */
+function Erros({ token, api, aoAnalise }) {
+  const [e, setE] = useState(null); const [des, setDes] = useState([]); const [exe, setExe] = useState([]); const [rev, setRev] = useState(null); const [erro, setErro] = useState('');
+  const carregar = useCallback(() => {
+    api('/api/estudo/erros', { token }).then(setE).catch((x) => setErro(x.message));
+    api('/api/estudo/desempenho', { token }).then(setDes).catch(() => {});
+    api('/api/estudo/execucoes', { token }).then(setExe).catch(() => {});
+  }, [api, token]);
+  useEffect(() => { carregar(); }, [carregar]);
+  if (erro) return <p className="aviso" role="alert">{erro}</p>;
+  if (rev) return <Revisao id={rev} token={token} api={api} aoVoltar={() => { setRev(null); carregar(); }} />;
+  if (!e) return <p className="sub" role="status">Carregando…</p>;
+  return (
+    <>
+      <section className="es-bloco" aria-label="Estações para revisar">
+        <h3>Revisar uma estação</h3>
+        <p className="sub">Depois de executar, registre o que faltou: o comportamento, não só o tema.</p>
+        {exe.length === 0 && <p className="sub">Você ainda não tem estações finalizadas como candidato.</p>}
+        {exe.slice(0, 8).map((x) => (
+          <div key={x.id} className="es-linha"><span>{x.titulo} · {x.maximo > 0 && x.nota !== null ? `${Math.round((x.nota / x.maximo) * 100)}%` : '—'}{x.lacunas > 0 ? ` · ${x.lacunas} lacuna(s)` : ''}</span>
+            <span className="acoes"><button className="btn mini" onClick={() => setRev(x.id)}>Revisar</button>{aoAnalise && <button className="btn mini menta" onClick={() => aoAnalise(x.id)}>Ver análise</button>}</span></div>
+        ))}
+      </section>
+      {des.length > 0 && <section className="es-bloco" aria-label="Desempenho por área"><h3>Por área</h3>{des.map((d) => <div key={d.area} className="es-linha"><span>{AREAS[d.area]}</span><span><Barra valor={d.percentual === null ? null : d.percentual / 100} /> {d.percentual ?? '—'}%</span></div>)}</section>}
+      <section className="es-bloco" aria-label="Padrões de erro" data-testid="padroes">
+        <h3>O que mais custa pontos</h3>
+        {e.total === 0 ? <p className="sub">Sem lacunas registradas ainda. Com 10 a 15 estações, os padrões aparecem.</p> : <>
+          <p className="sub">{CATEGORIAS.map(([k, n]) => `${n}: ${e.por_categoria[k]}`).join(' · ')}</p>
+          <h4>Transversais (3+ estações)</h4>
+          {e.transversais.length === 0 ? <p className="sub">Nenhum ainda.</p> : e.transversais.map((x) => <div key={x.chave} className="es-linha es-transv"><span>{x.rotulo}</span><em>{x.total}× em {x.estacoes} estações</em></div>)}
+          <h4>De tema</h4>
+          {e.de_tema.map((x) => <div key={x.chave} className="es-linha"><span>{x.rotulo}</span><em>{x.total}× em {x.estacoes} estação(ões)</em></div>)}
+        </>}
+      </section>
+    </>
+  );
+}
+
+function Revisao({ id, token, api, aoVoltar }) {
+  const [r, setR] = useState(null); const [m, setM] = useState({}); const [msg, setMsg] = useState(''); const [ocupado, setOcupado] = useState(false);
+  useEffect(() => {
+    api(`/api/estudo/execucoes/${id}/revisao`, { token }).then((x) => {
+      setR(x); setM(Object.fromEntries(x.itens.filter((i) => i.lacuna).map((i) => [i.id, { categoria: i.lacuna.categoria, erro_tipo: i.lacuna.erro_tipo ?? '', descricao: i.lacuna.descricao ?? '' }])));
+    }).catch((e) => setMsg(e.message));
+  }, [id, api, token]);
+  if (!r) return <p className="sub" role="status">{msg || 'Carregando…'}</p>;
+  const faltas = r.itens.filter((i) => i.resultado !== 'sim');
+  const set = (iid, k, v) => setM((x) => ({ ...x, [iid]: { categoria: 'conhecimento', erro_tipo: '', descricao: '', ...x[iid], [k]: v } }));
+  const marcar = (iid, on) => setM((x) => { const n = { ...x }; if (on) n[iid] = { categoria: 'conhecimento', erro_tipo: '', descricao: '' }; else delete n[iid]; return n; });
+  const salvar = async () => {
+    setOcupado(true); setMsg('');
+    try {
+      const lacunas = Object.entries(m).map(([pep_item_id, v]) => ({ pep_item_id, categoria: v.categoria, erro_tipo: v.erro_tipo || null, descricao: v.descricao }));
+      const x = await api(`/api/estudo/execucoes/${id}/lacunas`, { metodo: 'PUT', token, corpo: { lacunas } }); setMsg(`${x.salvas} lacuna(s) salva(s). ${r.regra}`);
+    } catch (e) { setMsg(e.message); } finally { setOcupado(false); }
+  };
+  return (
+    <section className="es-bloco" aria-label="Revisão da estação" data-testid="revisao">
+      <div className="es-linha"><h3>{r.titulo}</h3><button className="ln" onClick={aoVoltar}>Voltar</button></div>
+      <p className="sub">{r.percentual !== null ? `${r.percentual}% dos pontos.` : ''} Marque o que faltou e diga por quê. Itens lembrados só depois do cronômetro contam como lacuna.</p>
+      {faltas.length === 0 && <p className="sub">Você fez todos os itens. Refaça a estação dias depois para consolidar.</p>}
+      {faltas.map((i) => (
+        <div key={i.id} className={`es-falta r-${i.resultado}`}>
+          <label className="es-check"><input type="checkbox" checked={!!m[i.id]} onChange={(e) => marcar(i.id, e.target.checked)} /> <span>{i.descricao}{i.critico ? ' (crítico)' : ''} <em>{i.resultado === 'parcial' ? 'parcial' : 'não feito'}</em></span></label>
+          {m[i.id] && (
+            <div className="es-grade">
+              <label className="campo"><span>Categoria</span><select value={m[i.id].categoria} onChange={(e) => set(i.id, 'categoria', e.target.value)}>{CATEGORIAS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+              <label className="campo"><span>Tipo de erro</span><select value={m[i.id].erro_tipo} onChange={(e) => set(i.id, 'erro_tipo', e.target.value)}><option value="">Outro</option>{Object.entries(r.tipos_erro).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+              <label className="campo es-larga"><span>O que faltou (comportamento)</span><input value={m[i.id].descricao} maxLength={300} onChange={(e) => set(i.id, 'descricao', e.target.value)} placeholder="Ex.: não verbalizei a dose do salbutamol" /></label>
+            </div>
+          )}
+        </div>
+      ))}
+      <button className="btn menta" disabled={ocupado} onClick={salvar}>Salvar lacunas</button>
+      {msg && <p className="aviso" role="status">{msg}</p>}
+    </section>
+  );
+}
+
+/* ======================= diretrizes ======================= */
+const CATEG = { ministerio: 'Ministério da Saúde', oms: 'OMS', sociedade: 'Sociedade de especialidade', outra: '' };
+function Diretrizes({ token, usuario, api }) {
+  const [lista, setLista] = useState(null); const [f, setF] = useState({ titulo: '', fonte: '', url: '', area: '', texto: '', categoria: 'ministerio', obrigatoria: false }); const [msg, setMsg] = useState('');
+  const pode = ['moderador', 'admin', 'root'].includes(usuario?.papel_app);
+  const carregar = useCallback(() => api('/api/diretrizes', { token }).then(setLista).catch((e) => setMsg(e.message)), [api, token]);
+  useEffect(() => { carregar(); }, [carregar]);
+  const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
+  const salvar = async (ev) => {
+    ev.preventDefault(); setMsg('');
+    try { await api('/api/diretrizes', { metodo: 'POST', token, corpo: { ...f, area: f.area || undefined, url: f.url || undefined } }); setF({ titulo: '', fonte: '', url: '', area: '', texto: '', categoria: 'ministerio', obrigatoria: false }); setMsg('Diretriz cadastrada.'); carregar(); } catch (e) { setMsg(e.message); }
+  };
+  return (
+    <>
+      <p className="sub">A IA só trata como norma o texto cadastrado aqui (protocolos e cadernos do Ministério da Saúde, por exemplo). O que não tiver diretriz sai marcado "sem diretriz de referência".</p>
+      {lista && lista.length === 0 && <p className="sub">Nenhuma diretriz cadastrada.</p>}
+      {lista?.map((d) => <div key={d.id} className="es-linha es-bloco"><span><strong>{d.titulo}</strong><br /><em>{d.obrigatoria ? '★ exigida pela administração · ' : ''}{CATEG[d.categoria] ?? ''}{d.categoria && d.categoria !== 'outra' ? ' · ' : ''}{d.fonte || 'sem fonte informada'}{d.area ? ` · ${AREAS[d.area]}` : ''} · {Math.round(d.tamanho / 1000)} mil caracteres</em></span></div>)}
+      {pode ? (
+        <form className="es-bloco" onSubmit={salvar}>
+          <h3>Cadastrar diretriz</h3>
+          <label className="campo"><span>Título</span><input value={f.titulo} maxLength={160} onChange={set('titulo')} required /></label>
+          <div className="es-grade">
+            <label className="campo"><span>Fonte</span><input value={f.fonte} maxLength={200} onChange={set('fonte')} placeholder="Ministério da Saúde, 2022" /></label>
+            <label className="campo"><span>Área</span><select value={f.area} onChange={set('area')}><option value="">Todas</option>{Object.entries(AREAS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+          </div>
+          <div className="es-grade">
+            <label className="campo"><span>Tipo da fonte</span><select value={f.categoria} onChange={set('categoria')}>{Object.entries(CATEG).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+            <label className="ca-chk"><input type="checkbox" checked={f.obrigatoria} onChange={(e) => setF((x) => ({ ...x, obrigatoria: e.target.checked }))} />Bibliografia exigida (a análise das estações usa primeiro)</label>
+          </div>
+          <label className="campo"><span>Link (opcional)</span><input value={f.url} maxLength={400} onChange={set('url')} placeholder="https://…" /></label>
+          <label className="campo"><span>Texto da diretriz</span><textarea style={{ minHeight: 180 }} value={f.texto} maxLength={60000} onChange={set('texto')} required placeholder="Cole aqui o trecho do protocolo que deve valer como norma." /></label>
+          <button className="btn menta">Cadastrar</button>
+        </form>
+      ) : <p className="sub">Só moderação e administração cadastram diretrizes.</p>}
+      {msg && <p className="aviso" role="status">{msg}</p>}
+    </>
+  );
+}
+
+/* ======================= guia de treino (conteúdo fixo) ======================= */
+const NIVEIS = [['Nível 1 · Estação guiada', 'Você aprende o fluxo e pode pausar para corrigir. Use quando o tema ainda é fraco.'], ['Nível 2 · Estação cronometrada', 'Sem ajuda até o fim. É o formato principal para transformar teoria em performance.'], ['Nível 3 · Bloco misto', 'Várias estações seguidas, áreas alternadas e sem saber o tema antes (aba Ciclos, bloco misto).']];
+const ROTEIRO = [
+  ['Antes de falar com o paciente', 'Leia a tarefa inteira e conte os comandos (realize, explique, demonstre, prescreva, oriente). Decida se há risco imediato.'],
+  ['Abertura e segurança', 'Apresentação, higienização quando aplicável, consentimento, privacidade, avaliação rápida de gravidade, acionar ajuda se preciso.'],
+  ['Anamnese dirigida', 'Pergunte o que muda hipótese, gravidade ou conduta, não uma história enciclopédica.'],
+  ['Exame físico', 'Se puder executar, execute; se for verbalizar, diga o que examina e o que procura.'],
+  ['Exames e interpretação', 'Peça só o que muda decisão e interprete o que receber em voz alta.'],
+  ['Hipótese e diferenciais', 'Um diagnóstico mais provável e dois diferenciais importantes, em vez de dez possibilidades.'],
+  ['Conduta', 'O que fazer agora; medicamento com droga, dose, via e frequência; destino e monitorização; encaminhamento; reavaliação e seguimento.'],
+  ['Comunicação e fechamento', 'Explique em linguagem simples, oriente sinais de alarme e retorno, confirme o entendimento e responda todos os comandos.'],
+];
+const ERROS = [['Não ler todos os comandos', 'Sublinhe mentalmente cada verbo do enunciado.'], ['Ignorar instabilidade', 'Pergunte primeiro: há risco imediato?'], ['Anamnese sem direção', 'Pergunte o que muda hipótese ou conduta.'], ['Não verbalizar', 'Diga achados, hipóteses e decisões essenciais.'], ['Esquecer consentimento/privacidade', 'Automatize a abertura da estação.'], ['Exame genérico', 'Nomeie manobras e achados relevantes.'], ['Pedir exames sem interpretar', 'Treine "peço X porque procuro Y".'], ['Diagnóstico sem conduta', 'Depois da hipótese: o que faço agora?'], ['Medicação incompleta', 'Droga, dose, via e frequência, em voz alta.'], ['Excesso de fala', 'Frases curtas e orientadas à tarefa.'], ['Sem orientação final', 'Retorno, alarme e confirmação de entendimento.'], ['Não treinar sob tempo', 'Use cronômetro nas tentativas finais.']];
+const SESSAO = [['10–15 min', 'Estação sem consulta'], ['10 min', 'Correção com o checklist/PEP'], ['5–10 min', 'Reestudo pontual do que causou o erro'], ['10 min', 'Segunda execução, sem olhar o material']];
+const SEMANA = [['1', 'Clínica + Pediatria'], ['2', 'Cirurgia + procedimento'], ['3', 'Ginecologia e Obstetrícia'], ['4', 'MFC / Saúde Coletiva'], ['5', 'Misto, sem preparação'], ['6', 'Simulado cronometrado'], ['7', 'Refazer as piores estações']];
+function Guia() {
+  return (
+    <div className="es-guia" data-testid="guia">
+      <p className="sub">Este roteiro organiza a sua performance; <b>não substitui o PEP</b> da estação, que define a pontuação real. Consulte o PEP depois de executar, não antes.</p>
+      <details open><summary>Três níveis de treino</summary>{NIVEIS.map(([t, d]) => <p key={t}><b>{t}.</b> {d}</p>)}<p className="sub">Regra de ouro: a correção termina com uma nova tentativa.</p></details>
+      <details><summary>Roteiro universal da estação</summary><ol>{ROTEIRO.map(([t, d]) => <li key={t}><b>{t}.</b> {d}</li>)}</ol></details>
+      <details><summary>Erros mais comuns e como corrigir</summary><ul>{ERROS.map(([e, c]) => <li key={e}><b>{e}.</b> {c}</li>)}</ul></details>
+      <details><summary>Separe os erros em quatro categorias</summary>
+        <p><b>Conhecimento:</b> não sabia diagnóstico, dose, exame ou conduta. <b>Sequência:</b> sabia, mas fez fora de ordem ou esqueceu um passo. <b>Comunicação:</b> não verbalizou, não explicou ou não confirmou entendimento. <b>Tempo:</b> gastou demais no início e deixou itens para o fim.</p>
+        <p className="sub">Registre o comportamento que faltou (ex.: "esqueci sulfato"), não "revisar pré-eclâmpsia". O mesmo erro em vários temas pesa mais que um erro isolado: veja o Caderno de erros.</p></details>
+      <details><summary>Uma sessão eficiente</summary><ul>{SESSAO.map(([t, d]) => <li key={d}><b>{t}</b> · {d}</li>)}</ul></details>
+      <details><summary>Como montar a semana</summary><ul>{SEMANA.map(([d, f]) => <li key={d}><b>Dia {d}</b> · {f}</li>)}</ul></details>
+    </div>
+  );
+}

@@ -1,0 +1,24 @@
+/* Baralho: mesa de cartas móveis, pilhas em leque, tudo dentro da largura (sem rolagem horizontal) */
+.bj-tudo{display:flex;flex-direction:column;gap:10px;min-width:0}
+.bj-barra{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.bj-dica{flex:1;min-width:200px;font-size:.8rem}
+.bj{position:relative;list-style:none;margin:0;padding:0;width:100%;overflow:hidden;border-radius:22px;touch-action:pan-y;
+  background:radial-gradient(circle at 12% 18%,#e4f7ee 0,transparent 42%),radial-gradient(circle at 88% 80%,#e6f0ff 0,transparent 45%),linear-gradient(135deg,#f6fbff,#f3fff9);background-size:140% 140%;animation:bj-mesa 14s ease-in-out infinite alternate;border:1px solid var(--borda)}
+.bj-carta{position:absolute;left:0;top:0;box-sizing:border-box;border-radius:20px;cursor:grab;user-select:none;-webkit-user-select:none;touch-action:none;
+  transition:transform .3s cubic-bezier(.2,.9,.3,1.2),box-shadow .2s;will-change:transform;overflow:hidden;background:#fff;box-shadow:0 6px 16px #1f5f5226,0 1px 3px #0002}
+.bj-carta.voando{transition:none;cursor:grabbing;box-shadow:0 22px 40px #1f5f5255}
+.bj-carta.sem-anim{transition:none}
+.bj-carta:hover:not(.voando):not(.fundo){box-shadow:0 12px 26px #1f5f5240}
+.bj-carta.alvo{outline:3px dashed var(--menta);outline-offset:3px;animation:bj-alvo .7s ease-in-out infinite alternate}
+.bj-conteudo{height:100%;overflow-x:hidden;overflow-y:auto;min-width:0;overflow-wrap:anywhere;scrollbar-width:thin}
+.bj-carta.fundo{background:repeating-linear-gradient(45deg,#cfeee2 0 8px,#bfe4f5 8px 16px);border:2px solid #fff;pointer-events:none}
+.bj-carta.fundo .bj-conteudo{visibility:hidden}
+.bj-selo{position:absolute;right:8px;bottom:8px;max-width:calc(100% - 16px);padding:3px 10px;border-radius:999px;font:700 .72rem var(--display);color:#fff;background:linear-gradient(120deg,var(--mar),var(--uva));box-shadow:0 2px 8px #0003;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
+.bj-carta.pilha:not(.fundo){cursor:pointer}
+.bj .rc{margin:0;max-width:none}.bj .rc-moldura{height:100%;box-sizing:border-box}
+.bj .es-tema{height:100%;box-sizing:border-box;margin:0}
+@keyframes bj-mesa{from{background-position:0 0}to{background-position:100% 100%}}
+@keyframes bj-alvo{from{outline-color:var(--menta)}to{outline-color:var(--mar)}}
+@media (prefers-reduced-motion:reduce){.bj{animation:none}.bj-carta.alvo{animation:none}}
+.bj-conteudo .btn{white-space:normal;max-width:100%;height:auto;text-align:center;line-height:1.25}
+.bj-conteudo .es-acoes,.bj-conteudo .rc-acoes{flex-wrap:wrap}
+.bj-conteudo .es-tema-nome{white-space:normal;text-align:left}

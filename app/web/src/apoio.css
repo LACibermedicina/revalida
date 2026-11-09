@@ -1,0 +1,48 @@
+/* Apoio cognitivo: quadro flutuante com o grafo da conduta (2D/3D) */
+.ap{--vermelho:#e5484d;display:flex;flex-direction:column;gap:8px;flex:1 0 auto}
+.ap-aviso{margin:0;font-size:.78rem;color:var(--suave);background:var(--sol-t);border-radius:10px;padding:6px 10px}
+.ap-barra{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.ap-modos{display:inline-flex;border:2px solid var(--borda);border-radius:12px;overflow:hidden}
+.ap-modos button{border:0;background:transparent;padding:6px 12px;font-weight:700;cursor:pointer;min-height:36px}
+.ap-modos button.on{background:var(--mar);color:#fff}
+.ap-resumo{font-size:.8rem;color:var(--suave);flex:1;min-width:140px}
+.ap-fixa{margin:0;font-size:.82rem}
+.ap-vazio{border:2px dashed var(--borda);border-radius:12px;padding:8px 10px;font-size:.82rem}
+
+.ap-2d,.ap-3d{position:relative;flex:1 1 320px;min-height:320px;display:flex;flex-direction:column}
+.ap-zoom{display:flex;gap:4px;justify-content:flex-end;margin-bottom:4px;flex-wrap:wrap}
+.ap-rolagem{flex:1;min-height:200px;touch-action:pan-x pan-y;overflow:auto;border:2px solid var(--borda);border-radius:12px;background:var(--bg);cursor:grab}
+.ap-3d canvas{flex:1;min-height:220px;width:100%;border:2px solid var(--borda);border-radius:12px;background:var(--bg);touch-action:none;cursor:grab}
+.ap-3d .ap-zoom{margin:4px 0 0}
+.ap svg text{font:11px system-ui,sans-serif;fill:var(--fg)}
+.ap-n{cursor:pointer}.ap-n rect{fill:var(--card);stroke:var(--borda);stroke-width:2.5}
+.ap-n .st{font-size:10px;font-style:italic;fill:var(--suave)}
+.ap-n.fd rect{stroke:var(--mar)}.ap-n.hy rect{stroke:var(--suave)}.ap-n.hy.top rect{stroke:var(--coral);stroke-width:4}
+.ap-n.done rect{stroke:var(--menta);fill:color-mix(in srgb,var(--menta) 15%,var(--card))}
+.ap-n.next rect{stroke:var(--mar);stroke-width:4;animation:apPulso 1.6s infinite}
+.ap-n.omit rect{stroke:var(--vermelho);stroke-dasharray:6 3}.ap-n.pend rect{stroke-dasharray:5 4;opacity:.8}
+.ap-n.ind rect{stroke:var(--coral);stroke-width:4;fill:color-mix(in srgb,var(--coral) 14%,var(--card))}
+.ap-n.dis rect{stroke:var(--suave);stroke-dasharray:3 4;opacity:.8}.ap-n.dis text{text-decoration:line-through;fill:var(--suave)}.ap-n.dis .st{text-decoration:none;fill:var(--coral)}
+.ap-n.cond rect{stroke:var(--sol);stroke-dasharray:6 3}
+.ap-n.sel rect{filter:drop-shadow(0 0 5px var(--fg))}.ap-n:focus-visible rect{stroke:var(--fg);stroke-width:4}
+.ap .bd{fill:var(--menta)}.ap .bd.oo{fill:var(--sol)}.ap .bt{fill:#fff;font-weight:700;font-size:11px}.ap-cab{font-size:12px;font-weight:700;fill:var(--suave)!important}
+.ap-e{fill:none;stroke-width:2}
+.ap-e.ex{stroke:var(--suave);stroke-dasharray:4 4;stroke-width:1.2;opacity:.5}.ap-e.pf{stroke:var(--menta);stroke-width:3.5}
+.ap-e.oo{stroke:var(--sol);stroke-width:3;stroke-dasharray:7 4}.ap-e.br{stroke:var(--coral);stroke-width:3}
+.ap-e.brd{stroke:var(--suave);stroke-dasharray:3 4;stroke-width:1.6}.ap-e.brc{stroke:var(--sol);stroke-dasharray:5 4}
+.ap-e.fh{stroke:var(--suave);opacity:.35}.ap-e.fht{stroke:var(--coral);opacity:.9;stroke-width:2.5}.ap-e.hp{stroke:var(--coral);stroke-dasharray:2 5;opacity:.45}
+@keyframes apPulso{50%{stroke-opacity:.35}}
+@media (prefers-reduced-motion:reduce){.ap-n.next rect{animation:none}}
+.ap-det{border:2px solid var(--borda);border-radius:12px;padding:8px 10px;font-size:.85rem}.ap-det p{margin:.3rem 0}
+.ap-notas summary{cursor:pointer;font-weight:700;min-height:36px;display:flex;align-items:center}
+.ap-notas textarea{width:100%;font:inherit;background:var(--bg);color:var(--fg);border:2px solid var(--borda);border-radius:10px;padding:8px;resize:vertical}
+.ap-leg{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:2px 12px;font-size:.74rem;color:var(--suave)}
+.ap-leg li::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;border:2px solid var(--suave)}
+.ap-leg .l-done::before{border-color:var(--menta);background:var(--menta)}.ap-leg .l-next::before{border-color:var(--mar)}
+.ap-leg .l-omit::before{border-color:var(--vermelho);border-style:dashed}.ap-leg .l-oo::before{border-color:var(--sol)}
+.ap-leg .l-ind::before{border-color:var(--coral);background:var(--coral)}.ap-leg .l-dis::before{border-style:dotted}
+/* botão de abrir, dentro da estação */
+.ap-abrir{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:2px dashed var(--uva);border-radius:14px;padding:8px 12px;background:var(--uva-t)}
+.ap-abrir .sub{flex:1;min-width:160px;margin:0}
+/* quadro redimensionável: a área do grafo cresce com ele */
+.qf.redim .qf-corpo{flex:1;min-height:0}
