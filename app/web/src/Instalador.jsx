@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { SMTP_VAZIO, montarSmtpUrl, lerBlocoSmtp, formatarRemetente } from './smtp.js';
 
 // Instalador do primeiro acesso. O código de instalação fica só em memória (nunca em localStorage/URL).
 const ETAPAS = ['Código', 'Verificação', 'Parâmetros', 'Administradores', 'Concluir'];
@@ -18,6 +19,8 @@ export default function Instalador({ aoConcluir }) {
   const [root, setRoot] = useState({ email: 'root@m3d.pro', senha: '' });
   const [novo, setNovo] = useState({ nome: '', email: '', senha: '', papel: 'admin' });
   const [emailTeste, setEmailTeste] = useState('');
+  const [smtp, setSmtp] = useState(SMTP_VAZIO);   // servidor de e-mail em campos; vira SMTP_URL ao salvar
+  const [colar, setColar] = useState('');
   const [concluido, setConcluido] = useState(null);
 
   const chamar = async (rota, corpo = {}) => {
@@ -71,8 +74,15 @@ export default function Instalador({ aoConcluir }) {
   });
 
   const salvarConfig = () => rodar(async () => {
-    const d = await chamar('config', f);
-    setConf(d.config); setF((x) => ({ ...x, SMTP_URL: '', AGORA_APP_CERTIFICATE: '' })); // segredos saem da tela depois de salvos
+    const corpo = { ...f };
+    if (smtp.host.trim()) {
+      if (smtp.usuario.trim() && !smtp.senha) throw new Error('Digite a senha do e-mail (ela não fica salva na tela).');
+      corpo.SMTP_URL = montarSmtpUrl(smtp);   // valida e codifica usuário/senha (ex.: @ na senha)
+    }
+    if (smtp.remetente.trim()) corpo.EMAIL_DE = formatarRemetente(smtp.remetente, f.NOME_INSTITUICAO);
+    const d = await chamar('config', corpo);
+    setConf(d.config); setF((x) => ({ ...x, SMTP_URL: '', AGORA_APP_CERTIFICATE: '', EMAIL_DE: corpo.EMAIL_DE ?? x.EMAIL_DE })); // segredos saem da tela depois de salvos
+    setSmtp((x) => ({ ...x, senha: '' }));
     setMsg('Parâmetros salvos.');
     const v = await chamar('verificar'); setItens(v.itens);
   });
@@ -164,8 +174,34 @@ export default function Instalador({ aoConcluir }) {
           <p className="sub">Tudo opcional, exceto o que a sua instalação exigir. Valores definidos no ambiente do servidor têm prioridade e aparecem bloqueados.</p>
           {campo('APP_URL', 'Endereço público do site', { dica: 'https://revalida.seudominio.com' })}
           {campo('NOME_INSTITUICAO', 'Nome da instituição')}
-          {campo('EMAIL_DE', 'Remetente dos e-mails', { dica: 'Revalida Prático <nao-responda@seudominio.com>' })}
-          {campo('SMTP_URL', 'Servidor de e-mail (SMTP)', { dica: 'smtps://usuario:senha@smtp.exemplo.com', segredo: true, tipo: 'password' })}
+          <fieldset className="smtp-grupo" disabled={conf.SMTP_URL?.origem === 'ambiente'}>
+            <legend>Servidor de e-mail (envio, SMTP)</legend>
+            {conf.SMTP_URL?.origem === 'ambiente' && <p className="sub">Definido no ambiente do servidor.</p>}
+            {conf.SMTP_URL?.definido && conf.SMTP_URL?.origem !== 'ambiente' && <p className="sub">Já configurado (oculto). Preencha abaixo só para trocar.</p>}
+            <label className="campo">Colar configuração (opcional)
+              <textarea rows={3} value={colar} placeholder={'SMTP_HOST=smtp.seuprovedor.com\nSMTP_PORT=465\nSMTP_SECURE=true\nSMTP_USER=…\nSMTP_PASS=…\nMAIL_FROM=…'}
+                onChange={(e) => { setColar(e.target.value); const r = lerBlocoSmtp(e.target.value); if (Object.keys(r).length) setSmtp((x) => ({ ...x, ...r })); }}
+                onBlur={() => setColar('')} autoComplete="off" spellCheck={false} />
+              <small className="sub">Cole linhas como SMTP_HOST=…; os campos abaixo se preenchem sozinhos (linhas de IMAP são ignoradas). O texto colado some ao sair do campo.</small>
+            </label>
+            <div className="smtp-linha">
+              <label className="campo">Servidor<input value={smtp.host} onChange={(e) => setSmtp({ ...smtp, host: e.target.value.trim() })} placeholder="smtp.hostinger.com" autoComplete="off" /></label>
+              <label className="campo">Porta<input value={smtp.porta} inputMode="numeric" onChange={(e) => setSmtp({ ...smtp, porta: e.target.value.replace(/\D/g, '') })} placeholder="465" /></label>
+              <label className="campo">Segurança
+                <select value={smtp.seguranca} onChange={(e) => setSmtp({ ...smtp, seguranca: e.target.value, porta: e.target.value === 'ssl' ? '465' : e.target.value === 'starttls' ? '587' : '25' })}>
+                  <option value="ssl">SSL/TLS (465)</option><option value="starttls">STARTTLS (587)</option><option value="nenhuma">Nenhuma (25)</option>
+                </select>
+              </label>
+            </div>
+            <div className="smtp-linha">
+              <label className="campo">Usuário (e-mail)<input value={smtp.usuario} onChange={(e) => setSmtp({ ...smtp, usuario: e.target.value.trim() })} placeholder="info@seudominio.com" autoComplete="off" /></label>
+              <label className="campo">Senha<input type="password" value={smtp.senha} onChange={(e) => setSmtp({ ...smtp, senha: e.target.value })} autoComplete="new-password" /></label>
+            </div>
+            <label className="campo">Remetente
+              <input value={smtp.remetente || f.EMAIL_DE} onChange={(e) => setSmtp({ ...smtp, remetente: e.target.value })} placeholder="info@seudominio.com ou Revalida Prático <info@seudominio.com>" autoComplete="off" />
+              <small className="sub">Use o mesmo e-mail do usuário (muitos provedores, como a Hostinger, recusam outro remetente).</small>
+            </label>
+          </fieldset>
           {campo('AGORA_APP_ID', 'Agora — App ID (32 caracteres)')}
           {campo('AGORA_APP_CERTIFICATE', 'Agora — Certificado', { segredo: true, tipo: 'password' })}
           {campo('PHP_TOKEN_URL', 'Endereço reserva de token (opcional)')}
