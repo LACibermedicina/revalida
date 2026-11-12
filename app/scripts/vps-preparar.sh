@@ -200,9 +200,21 @@ if [ "$MODO" = nginx ]; then
       # nginx antigo (< 1.25) não conhece "http2 on;"
       sed -i 's/listen 443 ssl; listen \[::\]:443 ssl; http2 on;/listen 443 ssl http2; listen [::]:443 ssl http2;/' "$CONF"
     fi
-    nginx -t 2>&1 | tail -2; systemctl reload nginx
+    nginx -t 2>&1 | grep -vi "syntax is ok\|test is successful" | sed "s/^/   nginx: /" || true; nginx -t >/dev/null 2>&1 && systemctl reload nginx
   }
   mkdir -p /var/www/html
+  # outras configurações do mesmo domínio (de instalações antigas) roubam o tráfego: o nginx usa a primeira que achar
+  ESTE="$(readlink -f "$CONF" 2>/dev/null || echo "$CONF")"
+  for arq in $(grep -RlE "server_name[^;]*[[:space:]]$DOMINIO([[:space:];]|\$)" /etc/nginx/sites-enabled /etc/nginx/conf.d /etc/nginx/nginx.conf 2>/dev/null | sort -u); do
+    real="$(readlink -f "$arq")"; [ "$real" = "$ESTE" ] && continue
+    outros="$(grep -hoE 'server_name[^;]*' "$real" | sed 's/server_name//' | tr ' ' '\n' | grep -v "^$DOMINIO\$" | grep -v '^$' || true)"
+    if [ -z "$outros" ] && [ "$real" != /etc/nginx/nginx.conf ]; then
+      if [ -L "$arq" ]; then rm -f "$arq"; else mv "$arq" "$arq.desativado-revalida"; fi
+      av "Desativada configuração antiga do $DOMINIO: $arq (o arquivo original continua em $real${real:+ }ou com sufixo .desativado-revalida)"
+    else
+      erro "O arquivo $real também declara $DOMINIO junto com outros sites ($(echo $outros | tr '\n' ' ')). Remova $DOMINIO dele à mão."
+    fi
+  done
   escrever_conf
   ok "nginx: $CONF"
   if [ ! -f "$CERT/fullchain.pem" ]; then
@@ -228,6 +240,12 @@ if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: a
 # ---------- 5) conferência ----------
 titulo "Conferência"
 falhou=0
+echo "Contêineres em execução:"; docker ps --format '   {{.Names}}  {{.Ports}}' | sed 's/0.0.0.0/*/g'
+A="$(curl -fsS --max-time 10 "http://127.0.0.1:$WEB_PORTA/" 2>/dev/null | sha256sum | cut -c1-12)"
+B="$(curl -fsSk --max-time 10 --resolve "$DOMINIO:443:127.0.0.1" "https://$DOMINIO/" 2>/dev/null | sha256sum | cut -c1-12)"
+[ "$B" = "$(printf '' | sha256sum | cut -c1-12)" ] && B="$(curl -fsS --max-time 10 -H "Host: $DOMINIO" "http://127.0.0.1/" 2>/dev/null | sha256sum | cut -c1-12)"
+if [ "$A" = "$B" ]; then ok "O domínio $DOMINIO entrega ESTE app (porta $WEB_PORTA)"
+else erro "O domínio $DOMINIO entrega OUTRA página que não este app (app $A ≠ domínio $B). Veja: grep -rn $DOMINIO /etc/nginx"; falhou=1; fi
 curl -fsS --max-time 10 "http://127.0.0.1:$WEB_PORTA/" >/dev/null && ok "site responde em 127.0.0.1:$WEB_PORTA" || { erro "site não responde em 127.0.0.1:$WEB_PORTA"; falhou=1; }
 curl -fsS --max-time 10 "http://127.0.0.1:$WEB_PORTA/api/saude" >/dev/null && ok "API responde pelo site" || { erro "API não responde (docker compose logs api)"; falhou=1; }
 if curl -fsS --max-time 15 "$URL/api/saude" >/dev/null 2>&1; then ok "$URL no ar"

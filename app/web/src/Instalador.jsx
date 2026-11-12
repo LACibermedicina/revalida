@@ -32,7 +32,11 @@ export default function Instalador({ aoConcluir }) {
   };
   const rodar = async (fn) => {
     setOcupado(true); setErro(''); setMsg('');
-    try { return await fn(); } catch (e) { setErro(e.message); } finally { setOcupado(false); }
+    try { return await fn(); } catch (e) {
+      // o código deixou de valer no meio do caminho (ex.: o servidor foi atualizado com outro): volta para a 1ª etapa
+      if (e.status === 401 && etapa > 0) { setEtapa(0); setCodigo(''); setErro('O código de instalação não vale mais (o servidor pode ter sido atualizado). Digite o código atual para continuar; o que você já salvou continua lá.'); }
+      else setErro(e.message);
+    } finally { setOcupado(false); }
   };
 
   async function verificarLocal() {
