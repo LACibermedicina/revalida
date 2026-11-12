@@ -1,0 +1,72 @@
+# Publica o app na VPS a cada push na main que mexa em app/ (ou à mão, em Actions > "Publicar na VPS" > Run workflow).
+# Faz: copia app/ para a VPS (rsync, sem apagar nada de lá e sem tocar no .env nem nos backups)
+#      e roda scripts/atualizar.sh (backup do banco -> migrações -> rebuild dos containers) e scripts/verificar.sh.
+# Segredos necessários (GitHub > Settings > Secrets and variables > Actions):
+#   VPS_HOST      endereço da VPS (IP ou domínio)
+#   VPS_USER      usuário SSH (que pode rodar docker)
+#   VPS_SSH_KEY   chave privada SSH desse usuário (a pública vai em ~/.ssh/authorized_keys da VPS)
+#   VPS_DIR       pasta do app na VPS (a que tem docker-compose.yml), ex.: /opt/revalida/app
+#   VPS_PORT      opcional, porta SSH (padrão 22)
+name: Publicar na VPS
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/**', '.github/workflows/publicar-vps.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: publicar-vps
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Conferir segredos
+        env:
+          H: ${{ secrets.VPS_HOST }}
+          U: ${{ secrets.VPS_USER }}
+          K: ${{ secrets.VPS_SSH_KEY }}
+          D: ${{ secrets.VPS_DIR }}
+        run: |
+          falta=""
+          [ -n "$H" ] || falta="$falta VPS_HOST"; [ -n "$U" ] || falta="$falta VPS_USER"
+          [ -n "$K" ] || falta="$falta VPS_SSH_KEY"; [ -n "$D" ] || falta="$falta VPS_DIR"
+          if [ -n "$falta" ]; then echo "::error::Faltam segredos:$falta (Settings > Secrets and variables > Actions)"; exit 1; fi
+
+      - name: Preparar SSH
+        env:
+          KEY: ${{ secrets.VPS_SSH_KEY }}
+          HOST: ${{ secrets.VPS_HOST }}
+          PORT: ${{ secrets.VPS_PORT }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/vps && chmod 600 ~/.ssh/vps
+          ssh-keyscan -p "${PORT:-22}" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Copiar app/ para a VPS
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          PORT: ${{ secrets.VPS_PORT }}
+          DIR: ${{ secrets.VPS_DIR }}
+        run: |
+          ssh -i ~/.ssh/vps -p "${PORT:-22}" "$USER@$HOST" "mkdir -p '$DIR'"
+          rsync -az --itemize-changes \
+            --exclude '.env' --exclude 'server/.env' --exclude 'backups/' --exclude 'node_modules/' --exclude '.DS_Store' \
+            -e "ssh -i $HOME/.ssh/vps -p ${PORT:-22}" app/ "$USER@$HOST:$DIR/"
+
+      - name: Atualizar (backup, migrações, rebuild) e verificar
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          PORT: ${{ secrets.VPS_PORT }}
+          DIR: ${{ secrets.VPS_DIR }}
+        run: |
+          ssh -i ~/.ssh/vps -p "${PORT:-22}" "$USER@$HOST" "cd '$DIR' && \
+            if [ ! -f server/.env ]; then echo 'Primeira vez: rode na VPS  bash scripts/instalar.sh --url https://seu-dominio'; exit 1; fi && \
+            bash scripts/atualizar.sh && bash scripts/verificar.sh"
