@@ -155,7 +155,17 @@ nem nos backups) e roda `scripts/vps-preparar.sh --dominio revalida.m3d.pro`, qu
    a VPS usa; sem nenhum dos dois, instala o nginx) e pede o **certificado HTTPS** ao Let's Encrypt;
 5. confere se o app responde.
 
-**Configuração única:**
+**Configuração única (automática):** na VPS, como root, rode
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/LACibermedicina/revalida/main/app/scripts/vps-configurar-github.sh | bash
+```
+
+Ele cria a chave SSH só para o GitHub, autoriza na VPS, confere SSH, DNS e firewall, instala o rsync e mostra
+exatamente o segredo (e as variáveis, se precisar) para colar em **Settings → Secrets and variables → Actions**.
+Depois, **Actions → Publicar na VPS → Run workflow**. Os passos abaixo são o mesmo processo feito à mão.
+
+**Configuração única (à mão):**
 
 1. DNS: registro **A** `revalida` em `m3d.pro` apontando para `159.223.22.82` (na Cloudflare, deixe a nuvem cinza
    até o certificado sair).
