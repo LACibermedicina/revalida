@@ -104,12 +104,26 @@ fi
 # endereço público e proxies confiáveis (VPS: proxy reverso + nginx do container = 2)
 if grep -q '^APP_URL=' server/.env; then sed -i "s|^APP_URL=.*|APP_URL=$URL|" server/.env; else echo "APP_URL=$URL" >> server/.env; fi
 if grep -q '^TRUST_PROXY=' server/.env; then sed -i "s|^TRUST_PROXY=.*|TRUST_PROXY=2|" server/.env; else echo "TRUST_PROXY=2" >> server/.env; fi
+# código do instalador fixo (sem isso a API sorteia outro a cada reinício e o código anotado deixa de valer)
+if ! grep -qE '^INSTALL_CODE=.+' server/.env; then
+  H="$(od -An -N6 -tx1 /dev/urandom | tr -d ' \n' | tr 'a-f' 'A-F')"
+  sed -i '/^#\? *INSTALL_CODE=/d' server/.env; echo "INSTALL_CODE=${H:0:4}-${H:4:4}-${H:8:4}" >> server/.env
+fi
+CODIGO_INST="$(grep -E '^INSTALL_CODE=' server/.env | tail -1 | cut -d= -f2-)"
 if [ "$INSTALOU" -eq 1 ]; then
   docker compose up -d --build >/dev/null   # recém-instalado: só aplica APP_URL/TRUST_PROXY
 else
   bash scripts/atualizar.sh
 fi
 ok "Contêineres no ar"
+# instalador ainda pendente? deixa o código certo no arquivo de credenciais
+sleep 3
+if curl -fsS --max-time 10 "http://127.0.0.1:$WEB_PORTA/api/instalacao/estado" 2>/dev/null | grep -q '"instalado":false'; then
+  umask 077; touch "$CRED"
+  if grep -q "Código de instalação" "$CRED"; then sed -i "s|Código de instalação.*|Código de instalação: $CODIGO_INST|" "$CRED"; else echo "  Código de instalação: $CODIGO_INST" >> "$CRED"; fi
+  chmod 600 "$CRED"
+  av "Instalador ainda não concluído: abra $URL e use o código que está em  cat $CRED"
+fi
 
 # ---------- 4) proxy reverso + HTTPS ----------
 titulo "Proxy reverso $DOMINIO -> 127.0.0.1:$WEB_PORTA"
