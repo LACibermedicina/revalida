@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simulação · Revalida.M3D</title>
+<style>
+:root{--bg:#c9c0b0;--fg:#2a1d10;--card:#fff8ea;--bd:#b08a45}
+@media (prefers-color-scheme:dark){:root{--bg:#2b261f;--fg:#f4e8d6;--card:#3a3228}}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);font:15px Georgia,serif}
+header{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:center;padding:12px 16px;background:var(--card);border-bottom:2px solid var(--bd)}
+header b{letter-spacing:.06em}.g{display:flex;gap:6px;flex-wrap:wrap}
+button,a.b{font:inherit;font-size:14px;padding:7px 14px;border-radius:99px;border:1.5px solid var(--bd);background:transparent;color:inherit;cursor:pointer;text-decoration:none}
+button[aria-pressed=true]{background:#2F8F80;border-color:#2F8F80;color:#fff}
+main{flex:1;display:grid;place-items:center;padding:18px;overflow:auto}
+.aparelho{position:relative;border:12px solid #15110D;border-radius:34px;background:#000;box-shadow:0 30px 60px -20px rgba(0,0,0,.7);overflow:hidden;transition:width .25s,height .25s}
+.aparelho.cel{width:390px;height:780px}.aparelho.tab{width:820px;height:760px;border-radius:26px}.aparelho.pc{width:min(1240px,100%);height:760px;border-radius:14px;border-width:8px}
+iframe{width:100%;height:100%;border:0;background:#fff}
+small{opacity:.75}
+</style>
+</head>
+<body>
+<header>
+  <b>REVALIDA.M3D · SIMULAÇÃO</b>
+  <div class="g" role="group" aria-label="Aparelho"><button data-d="cel" aria-pressed="true">Celular</button><button data-d="tab" aria-pressed="false">Tablet</button><button data-d="pc" aria-pressed="false">Computador</button></div>
+  <div class="g" role="group" aria-label="Tema"><button data-t="auto" aria-pressed="true">Tema do sistema</button><button data-t="light" aria-pressed="false">Claro</button><button data-t="dark" aria-pressed="false">Escuro</button></div>
+  <button id="rec" type="button">Recarregar</button><a class="b" id="solo" href="/?simulacao=1" target="_blank" rel="noopener">Abrir sozinho</a>
+  <small>Tela de login com o Secreto-Bot interativo; nada é enviado ao servidor.</small>
+</header>
+<main><div class="aparelho cel" id="ap"><iframe id="f" title="Login em simulação" src="/?simulacao=1"></iframe></div></main>
+<script>
+var ap=document.getElementById('ap'),f=document.getElementById('f');
+function marca(sel,v,attr){document.querySelectorAll(sel).forEach(function(b){b.setAttribute('aria-pressed',b.getAttribute(attr)===v?'true':'false')})}
+document.querySelectorAll('[data-d]').forEach(function(b){b.onclick=function(){ap.className='aparelho '+b.dataset.d;marca('[data-d]',b.dataset.d,'data-d');setTimeout(function(){f.contentWindow.dispatchEvent(new Event('resize'))},300)}});
+document.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){marca('[data-t]',b.dataset.t,'data-t');try{var h=f.contentDocument.documentElement;if(b.dataset.t==='auto')h.removeAttribute('data-theme');else h.setAttribute('data-theme',b.dataset.t)}catch(e){}}});
+document.getElementById('rec').onclick=function(){f.src=f.src};
+</script>
+</body>
+</html>

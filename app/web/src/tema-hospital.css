@@ -1,0 +1,173 @@
+@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@500;600;700;800&display=swap');
+/* Tema "Hospital gamificado": manhã clara, trilha de fases até o hospital, botões de jogo, cantos macios.
+   Sempre claro (o <html> leva data-theme="light"). Fundo: web/public/marca/fundo-hospital.svg (var --fundo-img no index.html). */
+:root,:root[data-theme="light"],:root[data-theme="dark"]{
+  --bg:#EAF6FF; --card:#FFFFFF; --fg:#1C2B4A; --suave:#5B6B8C; --borda:#DCE8F6;
+  --mar:#1F6FE0; --mar-t:#E3F0FF; --menta:#0B9B6F; --menta-t:#DDF7EE;
+  --coral:#E5484D; --coral-t:#FFE6E6; --sol:#F5A300; --sol-t:#FFF3CC; --uva:#7C4DEB; --uva-t:#EFE8FF;
+  --ceu:#7CC8FF; --grama:#7BD77F; --rosa:#FF8FA3;
+  --sombra:0 2px 0 rgba(28,43,74,.04),0 18px 36px -18px rgba(43,92,138,.45);
+  --display:'Baloo 2','Nunito',system-ui,sans-serif; --corpo:'Nunito',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --fonte-placa:'Baloo 2','Nunito',system-ui,sans-serif;
+  color-scheme:light;
+}
+body{background:var(--bg);color:var(--fg);font-family:var(--corpo);font-weight:600;line-height:1.45}
+
+/* ===== fundo inspirador atrás do app (computador e tablet) ===== */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;filter:none;opacity:1;
+  background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,0) 40%),var(--fundo-img) 50% 100%/cover no-repeat,linear-gradient(#BFE5FF,#FFF0D9)}
+body::after{content:none}
+
+/* ===== o app: cartão branco macio, com tira de ECG alegre no topo ===== */
+.app{background:linear-gradient(180deg,#FFFFFF,#F7FBFF);border:1.5px solid rgba(255,255,255,.9);box-shadow:0 30px 70px -30px rgba(31,72,130,.55),0 0 0 6px rgba(255,255,255,.45)}
+.app::after{content:none}
+.app>.tela,.app>.nav{position:relative}
+.app::before{content:"";position:absolute;left:0;right:0;top:0;height:22px;z-index:4;pointer-events:none;opacity:.8;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='22' viewBox='0 0 180 22'%3E%3Cpath d='M0 11H50L55 11L60 3L66 19L72 11H96L101 8L106 11H180' fill='none' stroke='%2312B886' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 0 0/180px 22px repeat-x;
+  animation:rv-ecg 5s linear infinite}
+@keyframes rv-ecg{to{background-position-x:180px}}
+.blob{opacity:.55}
+.b1{background:#DDF1FF}.b2{background:#E2F8EA}.b3{background:#FFE9EE}.b4{background:#FFF3D6}
+/* dentro do cartão: cruzinhas e bolinhas bem suaves no lugar da foto */
+.fundo-bot{opacity:.6;-webkit-mask-image:none;mask-image:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='%23D6E8FB'%3E%3Cpath d='M22 14h6v6h6v6h-6v6h-6v-6h-6v-6h6z'/%3E%3Ccircle cx='86' cy='30' r='3'/%3E%3Ccircle cx='40' cy='92' r='2.5'/%3E%3C/g%3E%3Cpath d='M80 78h5v5h5v5h-5v5h-5v-5h-5v-5h5z' fill='%23E2F5EC'/%3E%3C/svg%3E") 0 0/120px 120px}
+
+/* ===== tipografia ===== */
+h1,h2,h3,.sec,.hello,.marca,.wordmark{font-family:var(--display)}
+.hero{font-family:var(--display);font-weight:800;letter-spacing:-.01em;line-height:1.05;color:var(--fg)}
+.hero em{background:linear-gradient(90deg,#FF6B6B,#FF9F43);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--suave);font-weight:600}
+label{color:var(--fg)}
+
+/* ===== botões de jogo: gordinhos, com "degrau" embaixo ===== */
+.btn{border-radius:18px;font-family:var(--display);font-weight:800;letter-spacing:.01em;outline:none;text-shadow:0 1px 0 rgba(0,0,0,.12);
+  background:linear-gradient(180deg,#4C95FF,#1F6FE0);box-shadow:0 5px 0 #1553AE,0 14px 22px -12px rgba(31,111,224,.8),inset 0 2px 0 rgba(255,255,255,.35)}
+.btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 7px 0 #1553AE,0 18px 26px -12px rgba(31,111,224,.8),inset 0 2px 0 rgba(255,255,255,.35);filter:saturate(1.08)}
+.btn:active:not(:disabled){transform:translateY(4px);box-shadow:0 1px 0 #1553AE,0 6px 12px -8px rgba(31,111,224,.8),inset 0 2px 0 rgba(255,255,255,.3)}
+.btn.menta,.btn.primario{animation:none;background:linear-gradient(180deg,#2FD39A,#0B9B6F);box-shadow:0 5px 0 #07744F,0 14px 22px -12px rgba(11,155,111,.8),inset 0 2px 0 rgba(255,255,255,.35)}
+.btn.menta:hover:not(:disabled),.btn.primario:hover:not(:disabled){box-shadow:0 7px 0 #07744F,0 18px 26px -12px rgba(11,155,111,.8),inset 0 2px 0 rgba(255,255,255,.35)}
+.btn.menta:active:not(:disabled),.btn.primario:active:not(:disabled){box-shadow:0 1px 0 #07744F,inset 0 2px 0 rgba(255,255,255,.3)}
+.btn.coral{background:linear-gradient(180deg,#FF8A7A,#E5484D);box-shadow:0 5px 0 #B3282D,0 14px 22px -12px rgba(229,72,77,.8),inset 0 2px 0 rgba(255,255,255,.35)}
+.btn.coral:hover:not(:disabled){box-shadow:0 7px 0 #B3282D,0 18px 26px -12px rgba(229,72,77,.8),inset 0 2px 0 rgba(255,255,255,.35)}
+.btn.coral:active:not(:disabled){box-shadow:0 1px 0 #B3282D,inset 0 2px 0 rgba(255,255,255,.3)}
+.btn.mini{border-radius:14px}
+.btn:disabled{filter:grayscale(.3)}
+.ln{color:var(--mar);font-weight:800;text-decoration-thickness:2px;text-underline-offset:3px}
+
+/* ===== campos ===== */
+input,select,textarea{background:#fff;border:2px solid var(--borda);border-radius:16px;font-weight:600;color:var(--fg)}
+.campo input,.campo select,.campo textarea{background:#fff;border-color:var(--borda);box-shadow:inset 0 2px 0 rgba(28,43,74,.03)}
+input:focus,select:focus,textarea:focus{border-color:var(--mar);box-shadow:0 0 0 4px rgba(31,111,224,.15)}
+.seg{background:#EEF4FC;border-radius:20px;box-shadow:inset 0 2px 4px rgba(43,92,138,.08)}
+.seg button{font-family:var(--display);font-size:.9rem;color:var(--suave)}
+.seg button[aria-selected="true"]{background:#fff;color:var(--mar);box-shadow:0 3px 0 #D2E2F6,0 8px 14px -8px rgba(43,92,138,.45)}
+
+/* ===== cartões e números (tom de painel de jogo) ===== */
+.cartao,.item,.sala{background:#fff;border:1.5px solid var(--borda);border-radius:22px;outline:none;box-shadow:0 3px 0 #E4EEF9,0 16px 30px -22px rgba(43,92,138,.55)}
+.sala:hover{border-color:#9CC5FF;transform:translateY(-3px)}
+.stat b,.placar b,.anel .num,.resultado b{font-family:var(--display)}
+.stat b{color:var(--mar)}
+.barra i{height:14px;border-radius:99px;background:#EAF1FA;box-shadow:inset 0 2px 3px rgba(43,92,138,.12)}
+.barra u{border-radius:99px;background-image:linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,0) 60%)}
+.tag{border-radius:99px;font-family:var(--display);letter-spacing:.02em}
+.avatar{background:linear-gradient(135deg,#FF8FA3,#FFB703);box-shadow:0 3px 0 rgba(0,0,0,.08)}
+.aviso{background:var(--sol-t);border:1.5px solid #FFE08A;color:#6B4A00}
+.faixa{background:linear-gradient(90deg,#FFF3CC,#FFE6EE);color:#6B4A00}
+
+/* selo dourado (antiga plaquinha) */
+.plaquinha{display:inline-block;margin:.2rem auto 0;padding:.4rem 1.1rem;border-radius:99px;font:800 .74rem/1.25 var(--display);letter-spacing:.12em;text-transform:uppercase;text-align:center;color:#6B4A00;
+  background:linear-gradient(180deg,#FFE27A,#FFC53D);border:0;box-shadow:0 3px 0 #E0A100,0 8px 14px -8px rgba(224,161,0,.8)}
+.plaquinha small{display:block;font-weight:700;letter-spacing:.08em;opacity:.85}
+.login-mesa{display:flex;flex-direction:column;align-items:center;gap:.2rem}
+
+/* ===== menu (lateral no computador, barra embaixo no celular) ===== */
+.nav{background:linear-gradient(180deg,#F5FAFF,#EAF4FF);border-color:var(--borda);backdrop-filter:none;box-shadow:none}
+.nav button{color:#3B4C70;text-shadow:none;font-family:var(--display);font-weight:700}
+.nav button:hover:not(:disabled):not([aria-current="page"]){background:#fff;box-shadow:0 2px 0 #DCE8F6}
+.nav button[aria-current="page"],.nav button[aria-pressed="true"]{background:linear-gradient(180deg,#4C95FF,#1F6FE0);color:#fff;box-shadow:0 4px 0 #1553AE,0 10px 18px -10px rgba(31,111,224,.9);animation:none}
+.nav button[aria-current="page"] .ni{background:rgba(255,255,255,.22);box-shadow:none}
+.ni{background:#fff;box-shadow:0 2px 0 #DCE8F6;border-radius:11px}
+.nav .marca,.nav .marca span{color:var(--fg)}
+.nav .zoom,.nav [class*=zoom]{color:var(--suave)}
+.menu-alterna,.menu-texto{background:#fff;border-color:var(--borda);box-shadow:0 3px 0 #DCE8F6,0 8px 16px -8px rgba(43,92,138,.4)}
+
+/* marca no menu lateral */
+.nav-marca{flex-direction:column;align-items:center;gap:4px;padding:6px 4px 14px;margin-bottom:8px;border-bottom:2px dashed #CFE0F4;text-align:center;font-family:var(--display)}
+.nav-marca .logo{width:88px;height:88px;filter:drop-shadow(0 6px 8px rgba(43,92,138,.3))}
+.app.menu-icones .nav-marca .logo{width:44px;height:44px}
+.nav-marca span{font-size:1rem;font-weight:800;line-height:1.1}
+.wordmark{font-family:var(--display)!important;font-weight:800;letter-spacing:.02em;color:var(--fg)}
+.wordmark i{color:#FF6B6B!important}
+html:not([data-layout=largo]) .nav-marca{display:none}
+html:not([data-layout=largo]) .nav{overflow-x:auto;justify-content:flex-start;gap:2px;scrollbar-width:none;background:rgba(255,255,255,.92);backdrop-filter:blur(10px)}
+html:not([data-layout=largo]) .nav::-webkit-scrollbar{display:none}
+html:not([data-layout=largo]) .nav>button{flex:0 0 68px}
+html:not([data-layout=largo]) .nav>.zoom-tela{flex:none}
+
+/* faixa de marca no celular */
+.faixa-marca{display:none}
+html:not([data-layout=largo]) .faixa-marca{display:flex;align-items:center;gap:8px;position:absolute;top:4px;left:12px;z-index:6;padding:2px 14px 2px 5px;border-radius:999px;background:#fff;border:1.5px solid var(--borda);box-shadow:0 3px 0 #E4EEF9;pointer-events:none}
+html:not([data-layout=largo]) .faixa-marca .wordmark{font-size:1.05rem}
+html:not([data-layout=largo]) .app:has(.faixa-marca) .tela{padding-top:52px}
+html:not([data-layout=largo]) .app:has(.faixa-marca)::before{height:36px}
+.marca-grande{font-size:1.35rem;gap:12px;font-family:var(--display)}.marca-grande .logo{width:64px;height:64px}
+.logo{filter:drop-shadow(0 3px 4px rgba(43,92,138,.25))}
+
+/* ===== cena do login: o Secreto-Bot na colina, com o hospital ao fundo ===== */
+.tela.login{display:flex;flex-direction:column;gap:14px;padding-top:22px}
+.cena{display:flex;flex-direction:column;gap:12px;min-width:0}
+.cena-marca{display:flex;align-items:center;gap:14px;justify-content:center}
+.cena-marca .logo{width:92px;height:92px;filter:drop-shadow(0 8px 10px rgba(43,92,138,.3))}
+.cena-marca b{display:block;font:800 clamp(1.6rem,5vw,2.3rem)/1 var(--display);color:var(--fg)}
+.cena-marca small{display:block;margin-top:4px;font:800 .72rem/1.2 var(--display);letter-spacing:.18em;text-transform:uppercase;color:var(--mar)}
+.cena-palco{position:relative;width:100%;max-width:540px;height:clamp(340px,60vh,560px);margin:0 auto;border-radius:30px;overflow:hidden;border:4px solid #fff;
+  background:var(--fundo-img) 72% 100%/auto 100% no-repeat,linear-gradient(#BFE5FF,#FFF0D9);
+  box-shadow:0 4px 0 #D6E6F8,0 26px 50px -26px rgba(31,72,130,.65)}
+.cena-palco::after{content:none}
+.cena-luz{position:absolute;left:34%;bottom:4%;width:70%;aspect-ratio:1;transform:translateX(-50%);border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.75),rgba(255,255,255,0) 62%);pointer-events:none}
+.cena-palco .mascote3d{position:absolute;left:-6%;bottom:2%;width:76%!important;height:90%!important;z-index:1}
+.cena-palco .s2d{padding-bottom:0}
+.cena-placa{position:absolute;right:14px;bottom:14px;margin:0;display:flex;flex-direction:column;align-items:center;gap:0;padding:6px 16px;background:#fff;border:0;border-radius:16px;color:var(--fg);
+  box-shadow:0 4px 0 #D6E6F8,0 12px 20px -12px rgba(31,72,130,.6);font-family:var(--display);pointer-events:none;z-index:2}
+.cena-placa b{font-size:clamp(.95rem,3vw,1.15rem);font-weight:800;letter-spacing:.04em}
+.cena-placa span{font-size:.6rem;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--mar)}
+.cena-nota{position:absolute;top:16px;right:16px;max-width:min(58%,260px);padding:12px 14px;border-radius:20px 20px 20px 6px;font:700 .86rem/1.35 var(--corpo);color:var(--fg);z-index:3;
+  background:#fff;border:0;box-shadow:0 4px 0 #D6E6F8,0 16px 26px -14px rgba(31,72,130,.6);opacity:0;transform:translateY(-8px) scale(.96);transform-origin:0 100%;pointer-events:none;transition:opacity .35s,transform .35s cubic-bezier(.3,1.4,.5,1)}
+.cena-nota::after{content:"";position:absolute;left:-8px;bottom:6px;width:18px;height:18px;background:#fff;clip-path:polygon(100% 0,100% 100%,0 100%);border-radius:0 0 0 4px}
+.cena-nota.on{opacity:1;transform:none}
+.cena-nota span{display:block;margin-bottom:4px;font:800 .64rem/1 var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--menta)}
+.cena-dica{display:none}
+.login-form{display:flex;flex-direction:column;gap:14px;min-width:0}
+@media (max-width:420px){.cena-marca .logo{width:70px;height:70px}.cena-palco{height:320px}}
+@media (prefers-reduced-motion:reduce){.cena-nota{transition:none}}
+html[data-layout=largo] .tela.login{max-width:1080px;width:100%;margin-inline:auto;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);column-gap:44px;align-items:center;justify-content:normal}
+html[data-layout=largo] .tela.login .hero{font-size:2.4rem}
+
+/* Início: o personagem solto, sem cartão atrás */
+.pn-bot{background:transparent!important}
+.sim-fita{position:absolute;z-index:30;bottom:12px;left:50%;transform:translateX(-50%);padding:4px 14px;border-radius:99px;background:#FF6B6B;color:#fff;font:800 .64rem var(--display);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;box-shadow:0 3px 0 #C9393E;pointer-events:none}
+
+/* ===== escolha inicial depois do login: cartão de "missão" sobre o fundo inspirador ===== */
+.ini-tela{background:var(--fundo-img) 50% 100%/cover no-repeat,linear-gradient(#BFE5FF,#FFF0D9)}
+.ini-cx{max-width:620px;padding:26px 26px 24px;border-radius:30px;background:rgba(255,255,255,.9);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:2px solid #fff;box-shadow:0 6px 0 rgba(214,230,248,.95),0 30px 60px -26px rgba(31,72,130,.65);animation:rv-entra .45s cubic-bezier(.3,1.3,.5,1) both}
+.ini-cx h2{font:800 1.6rem/1.15 var(--display);color:var(--fg)}
+.ini-opcao{position:relative;border:0;border-radius:22px;padding:18px;background:linear-gradient(180deg,#FFFFFF,#F2F8FF);font-weight:600;color:var(--suave);line-height:1.4;
+  box-shadow:0 5px 0 #CFE0F4,0 16px 26px -16px rgba(31,72,130,.55),inset 0 0 0 2px #E3EEFA;transition:transform .18s cubic-bezier(.3,1.4,.5,1),box-shadow .18s}
+.ini-opcao b{font:800 1.25rem/1.15 var(--display);color:var(--fg);margin-bottom:6px}
+.ini-opcao:hover,.ini-opcao:focus-visible{transform:translateY(-4px);box-shadow:0 9px 0 #CFE0F4,0 22px 30px -16px rgba(31,72,130,.6),inset 0 0 0 2px #9CC5FF}
+.ini-opcao:active{transform:translateY(3px);box-shadow:0 2px 0 #CFE0F4,inset 0 0 0 2px #9CC5FF}
+.ini-opcao[data-testid=escolha-trilha]{background:linear-gradient(180deg,#F1FFF8,#DDF7EE);box-shadow:0 5px 0 #A9E5CC,0 16px 26px -16px rgba(11,155,111,.55),inset 0 0 0 2px #C3F0DC}
+.ini-opcao[data-testid=escolha-trilha]::after{content:"MISSÃO";position:absolute;top:-10px;right:14px;padding:3px 10px;border-radius:99px;background:linear-gradient(180deg,#FFD866,#FFB703);color:#6B4A00;font:800 .62rem var(--display);letter-spacing:.14em;box-shadow:0 2px 0 #E09A00}
+.ini-dias button,.ini-min button{border-radius:14px;background:#fff;box-shadow:0 3px 0 #DCE8F6}
+
+/* controles de zoom: pequenos e discretos (sem o degrau dos botões de jogo) */
+.zoom-tela .btn,.zoom-tela .btn.mini{min-height:30px;padding:0 10px;border-radius:10px;background:#fff;color:var(--mar);text-shadow:none;animation:none;box-shadow:0 2px 0 #DCE8F6,inset 0 0 0 1.5px #DCE8F6}
+.zoom-tela .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 3px 0 #DCE8F6,inset 0 0 0 1.5px #9CC5FF}
+.zoom-tela .btn:active:not(:disabled){transform:translateY(1px);box-shadow:inset 0 0 0 1.5px #9CC5FF}
+.zoom-tela output{color:var(--suave);font-family:var(--display)}
+
+/* no computador (menu clássico) o cenário transparece pelo cartão */
+html[data-layout=largo] .app{background:linear-gradient(180deg,rgba(255,255,255,.9),rgba(247,251,255,.86));backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2)}
+html[data-layout=largo] .nav{background:linear-gradient(180deg,rgba(245,250,255,.85),rgba(234,244,255,.8))}
+html[data-layout=largo] .blobs .blob{opacity:.35}

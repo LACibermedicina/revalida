@@ -1,0 +1,13 @@
+# sistema
+.DS_Store
+Thumbs.db
+# dependências e caches
+node_modules/
+.npm/
+dist/
+build/
+# segredos e dados locais
+.env
+.env.*
+!.env.example
+*.log

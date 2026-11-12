@@ -1,0 +1,10 @@
+.tx{display:flex;flex-direction:column;gap:.55em;max-width:68ch;font-size:clamp(.92rem,1.2vw + .5rem,1.04rem);line-height:1.62;color:var(--fg);overflow-wrap:anywhere;hyphens:auto}
+.tx.compacto{font-size:.9rem;line-height:1.5;gap:.4em}
+.tx-p{margin:0}
+.tx-tit{margin:.5em 0 0;font-family:var(--display);font-size:.78em;letter-spacing:.06em;text-transform:uppercase;color:var(--mar);border-bottom:1px solid var(--borda);padding-bottom:.2em}
+.tx-tit:first-child{margin-top:0}
+.tx-lista{margin:0;padding-left:1.35em;display:flex;flex-direction:column;gap:.3em}.tx-lista li::marker{color:var(--mar);font-weight:700}
+.tx-pares{margin:0;display:grid;grid-template-columns:minmax(7.5em,max-content) 1fr;gap:.25em .9em;padding:.6em .8em;border-radius:12px;background:color-mix(in srgb,var(--mar) 7%,transparent);border:1px solid var(--borda)}
+.tx-pares dt{font-weight:700;color:var(--suave)}.tx-pares dd{margin:0}
+.tx-val{background:color-mix(in srgb,var(--sol) 32%,transparent);color:inherit;border-radius:5px;padding:0 .25em;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+@media (max-width:460px){.tx-pares{grid-template-columns:1fr}.tx-pares dt{margin-top:.3em}}

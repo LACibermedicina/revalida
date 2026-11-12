@@ -1,0 +1,18 @@
+.fs-barra{position:sticky;top:0;z-index:40;display:flex;align-items:center;gap:6px;padding:6px clamp(6px,1.4vw,12px);margin:0 0 4px;border-radius:18px;background:color-mix(in srgb,var(--card) 88%,transparent);backdrop-filter:blur(10px);border:1px solid var(--borda);box-shadow:0 6px 18px #0001}
+.fs-barra ul{list-style:none;margin:0;padding:0;display:flex;gap:clamp(4px,1vw,10px);flex:1;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.fs-barra li{flex:0 0 auto}
+.fs-bt{--t:clamp(42px,6.2vw,60px);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:calc(var(--t) * 1.25);height:var(--t);padding:2px;border-radius:14px;border:1px solid transparent;background:transparent;color:var(--fg);font:inherit;cursor:grab;transition:transform .15s,background .15s}
+.fs-bt:hover:not(:disabled){background:var(--borda);transform:translateY(-1px)}.fs-bt:active{cursor:grabbing}.fs-bt:disabled{opacity:.4;cursor:not-allowed}
+.fs-bt.on{background:var(--mar);color:#fff}.fs-bt:focus-visible{outline:3px solid var(--sol);outline-offset:1px}
+.fs-ic{width:calc(var(--t) * .42);height:calc(var(--t) * .42);display:block}
+.fs-tx{font-size:clamp(.58rem,1.1vw,.72rem);line-height:1;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fs-aviso{position:absolute;top:1px;right:3px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--coral);color:#fff;font-size:.65rem;font-style:normal;font-weight:800;display:grid;place-items:center}
+.fs-reset{flex:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--borda);background:transparent;color:var(--fg);cursor:pointer}
+.fs-dica{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:520px){.fs-tx{display:none}.fs-bt{width:var(--t)}}
+[id^="sl-"]{scroll-margin-top:84px}
+.sl-realce{animation:sl-realce 1.4s ease}@keyframes sl-realce{0%,60%{box-shadow:0 0 0 4px var(--sol)}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.sl-realce{animation:none;outline:3px solid var(--sol)}}
+/* o contêiner .tela tem respiro no topo; a barra gruda na borda de cima da área visível, não abaixo do respiro */
+.tela .fs-barra{top:-26px}
+html[data-layout=largo] .tela .fs-barra{top:-32px}

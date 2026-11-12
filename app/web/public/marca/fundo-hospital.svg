@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+<!-- Fundo da mesa (desktop) e do login: manhã ensolarada, trilha de fases até o hospital, balões. Ilustração vetorial original, cores claras. -->
+<defs>
+  <linearGradient id="ceu" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#7CC8FF"/><stop offset=".45" stop-color="#BFE5FF"/><stop offset=".72" stop-color="#FFF0D9"/><stop offset="1" stop-color="#FFE3C4"/>
+  </linearGradient>
+  <radialGradient id="sol" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFF7C2"/><stop offset=".55" stop-color="#FFD866"/><stop offset="1" stop-color="#FFC24A"/></radialGradient>
+  <radialGradient id="halo" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#FFF4C8" stop-opacity=".9"/><stop offset="1" stop-color="#FFF4C8" stop-opacity="0"/></radialGradient>
+  <linearGradient id="nuvem" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#E4F1FF"/></linearGradient>
+  <linearGradient id="m1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C9EFB0"/><stop offset="1" stop-color="#A9E08E"/></linearGradient>
+  <linearGradient id="m2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A6E28A"/><stop offset="1" stop-color="#84D06C"/></linearGradient>
+  <linearGradient id="m3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8FD777"/><stop offset="1" stop-color="#66BF5A"/></linearGradient>
+  <linearGradient id="parede" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFFFFF"/><stop offset=".7" stop-color="#F3F8FF"/><stop offset="1" stop-color="#DCE9FA"/></linearGradient>
+  <linearGradient id="vidro" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B9F0F0"/><stop offset="1" stop-color="#7FD8E0"/></linearGradient>
+  <linearGradient id="teto" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4FC3D9"/><stop offset="1" stop-color="#2AA6C2"/></linearGradient>
+  <linearGradient id="trilha" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#FFF4DE"/><stop offset="1" stop-color="#FFE7BD"/></linearGradient>
+  <radialGradient id="brilho" cx=".35" cy=".3" r=".7"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".4" stop-color="#fff" stop-opacity="0"/></radialGradient>
+  <filter id="sombra" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#2B5C8A" flood-opacity=".18"/></filter>
+  <g id="arv"><rect x="-6" y="0" width="12" height="44" rx="6" fill="#B98455"/><circle cx="0" cy="-8" r="34" fill="#5CC46A"/><circle cx="-14" cy="-20" r="16" fill="#7BD77F"/><circle cx="10" cy="-26" r="9" fill="#A2E89D" opacity=".8"/></g>
+  <g id="bandeira"><rect x="-2.5" y="-62" width="5" height="64" rx="2.5" fill="#6A7FA8"/><path d="M2 -60 q26 -6 40 4 q-14 10 -40 12z"/><ellipse cx="0" cy="3" rx="14" ry="4" fill="#2B5C8A" opacity=".18"/></g>
+  <path id="estrela" d="M0 -14 L4.1 -4.6 L14 -4.3 L6.4 2.1 L8.8 12 L0 6.4 L-8.8 12 L-6.4 2.1 L-14 -4.3 L-4.1 -4.6Z"/>
+</defs>
+
+<rect width="1600" height="1000" fill="url(#ceu)"/>
+
+<!-- sol nascente com raios suaves -->
+<g transform="translate(1390 190)">
+  <circle r="330" fill="url(#halo)"/>
+  <g fill="#FFF6D2" opacity=".32">
+    <path d="M0 0 L-40 -520 L40 -520Z"/><path d="M0 0 L-40 -520 L40 -520Z" transform="rotate(30)"/><path d="M0 0 L-40 -520 L40 -520Z" transform="rotate(60)"/>
+    <path d="M0 0 L-40 -520 L40 -520Z" transform="rotate(-30)"/><path d="M0 0 L-40 -520 L40 -520Z" transform="rotate(-60)"/><path d="M0 0 L-40 -520 L40 -520Z" transform="rotate(-90)"/><path d="M0 0 L-40 -520 L40 -520Z" transform="rotate(90)"/>
+  </g>
+  <circle r="100" fill="url(#sol)"/>
+  <circle r="100" fill="url(#brilho)"/>
+</g>
+
+<!-- nuvens fofas -->
+<g fill="url(#nuvem)" filter="url(#sombra)">
+  <g transform="translate(250 170)"><ellipse cx="0" cy="20" rx="120" ry="34"/><circle cx="-50" cy="0" r="44"/><circle cx="10" cy="-22" r="58"/><circle cx="70" cy="4" r="40"/></g>
+  <g transform="translate(760 120) scale(.75)"><ellipse cx="0" cy="20" rx="120" ry="34"/><circle cx="-50" cy="0" r="44"/><circle cx="10" cy="-22" r="58"/><circle cx="70" cy="4" r="40"/></g>
+  <g transform="translate(1110 170) scale(.8)"><ellipse cx="0" cy="20" rx="120" ry="34"/><circle cx="-50" cy="0" r="44"/><circle cx="10" cy="-22" r="58"/><circle cx="70" cy="4" r="40"/></g>
+  <g transform="translate(560 330) scale(.55)" opacity=".9"><ellipse cx="0" cy="20" rx="120" ry="34"/><circle cx="-50" cy="0" r="44"/><circle cx="10" cy="-22" r="58"/><circle cx="70" cy="4" r="40"/></g>
+</g>
+
+<!-- passarinhos -->
+<g fill="none" stroke="#5B7BA6" stroke-width="3.5" stroke-linecap="round" opacity=".55">
+  <path d="M1010 260 q10 -10 20 0 q10 -10 20 0"/><path d="M1060 230 q8 -8 16 0 q8 -8 16 0"/><path d="M420 270 q9 -9 18 0 q9 -9 18 0"/>
+</g>
+
+<!-- cidade distante -->
+<g fill="#CFE3F7" opacity=".9">
+  <rect x="80" y="520" width="70" height="140" rx="12"/><rect x="160" y="480" width="56" height="180" rx="12"/><rect x="226" y="540" width="80" height="120" rx="12"/>
+  <rect x="1330" y="500" width="64" height="160" rx="12"/><rect x="1404" y="460" width="52" height="200" rx="12"/><rect x="1466" y="530" width="90" height="130" rx="12"/>
+</g>
+
+<!-- colinas -->
+<path d="M0 640 C220 560 420 600 620 610 C860 622 1060 540 1300 560 C1440 572 1530 600 1600 590 V1000 H0Z" fill="url(#m1)"/>
+<path d="M0 720 C260 650 520 700 760 690 C1000 680 1200 640 1600 690 V1000 H0Z" fill="url(#m2)"/>
+<path d="M0 820 C300 760 600 800 880 790 C1160 780 1380 750 1600 790 V1000 H0Z" fill="url(#m3)"/>
+
+<!-- hospital -->
+<g transform="translate(1010 395)" filter="url(#sombra)">
+  <ellipse cx="190" cy="262" rx="260" ry="22" fill="#4E9E4A" opacity=".35"/>
+  <!-- ala esquerda -->
+  <rect x="-40" y="110" width="150" height="150" rx="22" fill="url(#parede)"/>
+  <rect x="-48" y="96" width="166" height="26" rx="13" fill="url(#teto)"/>
+  <g fill="url(#vidro)"><rect x="-18" y="140" width="40" height="34" rx="9"/><rect x="40" y="140" width="40" height="34" rx="9"/><rect x="-18" y="192" width="40" height="34" rx="9"/><rect x="40" y="192" width="40" height="34" rx="9"/></g>
+  <!-- ala direita -->
+  <rect x="270" y="110" width="150" height="150" rx="22" fill="url(#parede)"/>
+  <rect x="262" y="96" width="166" height="26" rx="13" fill="url(#teto)"/>
+  <g fill="url(#vidro)"><rect x="300" y="140" width="40" height="34" rx="9"/><rect x="358" y="140" width="40" height="34" rx="9"/><rect x="300" y="192" width="40" height="34" rx="9"/><rect x="358" y="192" width="40" height="34" rx="9"/></g>
+  <!-- bloco central -->
+  <rect x="90" y="0" width="200" height="260" rx="28" fill="url(#parede)"/>
+  <rect x="80" y="-14" width="220" height="30" rx="15" fill="url(#teto)"/>
+  <!-- placa redonda com cruz -->
+  <circle cx="190" cy="66" r="44" fill="#FFFFFF" stroke="#FFD5D5" stroke-width="6"/>
+  <path d="M178 38 h24 v16 h16 v24 h-16 v16 h-24 v-16 h-16 v-24 h16z" fill="#FF6B6B"/>
+  <path d="M178 38 h24 v8 h-24z" fill="#fff" opacity=".35"/>
+  <!-- faixa de ECG -->
+  <rect x="110" y="122" width="160" height="30" rx="15" fill="#E7FBF4"/>
+  <path d="M118 137 h40 l8 -12 l10 24 l8 -18 l6 6 h70" fill="none" stroke="#12B886" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- porta -->
+  <rect x="150" y="178" width="80" height="82" rx="16" fill="url(#vidro)"/>
+  <rect x="188" y="182" width="4" height="78" fill="#fff" opacity=".7"/>
+  <rect x="130" y="166" width="120" height="14" rx="7" fill="#FFB703"/>
+  <!-- bandeirinha no topo -->
+  <rect x="187" y="-58" width="6" height="46" rx="3" fill="#6A7FA8"/>
+  <path d="M193 -56 q30 -6 44 4 q-14 10 -44 12z" fill="#FF6B6B"/>
+</g>
+
+<!-- trilha das fases até o hospital -->
+<path d="M140 1010 C260 930 520 960 560 880 C600 800 420 790 470 735 C520 680 760 720 860 700 C960 680 1000 670 1200 660" fill="none" stroke="#FFFFFF" stroke-width="66" stroke-linecap="round" opacity=".55"/>
+<path d="M140 1010 C260 930 520 960 560 880 C600 800 420 790 470 735 C520 680 760 720 860 700 C960 680 1000 670 1200 660" fill="none" stroke="url(#trilha)" stroke-width="50" stroke-linecap="round"/>
+<path d="M140 1010 C260 930 520 960 560 880 C600 800 420 790 470 735 C520 680 760 720 860 700 C960 680 1000 670 1200 660" fill="none" stroke="#F6C77A" stroke-width="4" stroke-dasharray="2 22" stroke-linecap="round"/>
+
+<!-- marcos das fases: concluídas (verde, com estrela), atual (amarela), próximas -->
+<g font-family="Arial Rounded MT Bold, Helvetica, Arial, sans-serif" font-weight="800" font-size="22" text-anchor="middle">
+  <g transform="translate(330 948)"><circle r="26" fill="#12B886" stroke="#fff" stroke-width="6"/><path d="M-10 0 l7 7 l13 -14" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <g transform="translate(548 862)"><circle r="26" fill="#12B886" stroke="#fff" stroke-width="6"/><path d="M-10 0 l7 7 l13 -14" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <g transform="translate(476 748)"><circle r="30" fill="#FFB703" stroke="#fff" stroke-width="6"/><use href="#estrela" fill="#fff"/></g>
+  <g transform="translate(720 712)"><circle r="24" fill="#FFFFFF" stroke="#BFD9F2" stroke-width="5"/><text y="8" fill="#5A7BA8">4</text></g>
+  <g transform="translate(930 688)"><circle r="24" fill="#FFFFFF" stroke="#BFD9F2" stroke-width="5"/><text y="8" fill="#5A7BA8">5</text></g>
+</g>
+<use href="#bandeira" transform="translate(476 712)" fill="#8B5CF6"/>
+
+<!-- árvores -->
+<use href="#arv" transform="translate(90 735)"/>
+<use href="#arv" transform="translate(660 640) scale(.7)"/>
+<use href="#arv" transform="translate(1520 700) scale(.9)"/>
+<use href="#arv" transform="translate(940 610) scale(.55)"/>
+<use href="#arv" transform="translate(1480 820) scale(1.1)"/>
+
+<!-- balões coloridos subindo -->
+<g filter="url(#sombra)">
+  <g transform="translate(860 330) rotate(6)"><path d="M0 46 q-6 40 6 80" fill="none" stroke="#8AA0C2" stroke-width="2"/><ellipse rx="34" ry="42" fill="#FF8FA3"/><ellipse rx="34" ry="42" fill="url(#brilho)"/><path d="M-6 42 h12 l-6 8z" fill="#FF8FA3"/></g>
+  <g transform="translate(920 270) rotate(-8)"><path d="M0 40 q6 40 -4 80" fill="none" stroke="#8AA0C2" stroke-width="2"/><ellipse rx="28" ry="36" fill="#7CC8FF"/><ellipse rx="28" ry="36" fill="url(#brilho)"/><path d="M-5 36 h10 l-5 7z" fill="#7CC8FF"/></g>
+  <g transform="translate(810 280) rotate(-4)"><path d="M0 40 q-4 40 2 70" fill="none" stroke="#8AA0C2" stroke-width="2"/><ellipse rx="26" ry="33" fill="#FFD166"/><ellipse rx="26" ry="33" fill="url(#brilho)"/><path d="M-5 33 h10 l-5 7z" fill="#FFD166"/></g>
+  <g transform="translate(150 420) rotate(-6) scale(.8)"><path d="M0 40 q-4 40 2 70" fill="none" stroke="#8AA0C2" stroke-width="2"/><ellipse rx="28" ry="36" fill="#8CE0B5"/><ellipse rx="28" ry="36" fill="url(#brilho)"/><path d="M-5 36 h10 l-5 7z" fill="#8CE0B5"/></g>
+</g>
+
+<!-- brilhos -->
+<g fill="#FFFFFF" opacity=".85">
+  <use href="#estrela" transform="translate(620 230) scale(.6)"/><use href="#estrela" transform="translate(1060 180) scale(.45)"/><use href="#estrela" transform="translate(340 330) scale(.4)"/><use href="#estrela" transform="translate(1540 420) scale(.5)"/>
+</g>
+</svg>

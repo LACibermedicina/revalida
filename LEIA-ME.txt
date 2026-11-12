@@ -1,0 +1,6 @@
+REVALIDA PRÁTICO — PACOTE COMPLETO
+==================================
+  app/        o aplicativo. Comece por app/LEIA-ME-PRIMEIRO.txt e app/docs/05-guia-de-instalacao.md
+              (caminho curto: cd app && bash scripts/instalar.sh --url https://seu-dominio)
+  playbook/   playbook interativo em 4 idiomas, manuais, marca e galeria de telas. Comece por playbook/LEIA-ME.txt
+Integridade: sha256sum -c SHA256SUMS (dentro desta pasta).
