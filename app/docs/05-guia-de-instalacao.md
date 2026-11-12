@@ -138,3 +138,34 @@ Variável de ambiente **sempre vence** o que foi salvo pelo instalador e aparece
 ## 11. Desinstalar
 
 `docker compose down` mantém os dados; `docker compose down -v` **apaga o volume do banco**. Faça backup antes.
+
+## Publicação automática na VPS (GitHub → VPS)
+
+O repositório `LACibermedicina/revalida` publica sozinho na VPS **159.223.22.82**, em **https://revalida.m3d.pro**,
+a cada envio para a branch `main` que mexa em `app/` (arquivo `.github/workflows/publicar-vps.yml`).
+
+**Como funciona:** o GitHub copia `app/` para `/opt/revalida/app` na VPS (sem apagar nada lá e sem tocar nos `.env`
+nem nos backups) e roda `scripts/vps-preparar.sh --dominio revalida.m3d.pro`, que:
+
+1. instala o Docker, se faltar;
+2. na primeira vez, escolhe **portas livres acima de 1000** (site a partir de 8180, API a partir de 13001,
+   banco a partir de 15432), grava em `app/.env` e prende tudo em `127.0.0.1` (nada fica exposto direto);
+3. instala (primeira vez) ou atualiza (backup → migrações → rebuild);
+4. configura o **proxy reverso** `revalida.m3d.pro → 127.0.0.1:<porta do site>` no nginx (ou no Caddy, se for o que
+   a VPS usa; sem nenhum dos dois, instala o nginx) e pede o **certificado HTTPS** ao Let's Encrypt;
+5. confere se o app responde.
+
+**Configuração única:**
+
+1. DNS: registro **A** `revalida` em `m3d.pro` apontando para `159.223.22.82` (na Cloudflare, deixe a nuvem cinza
+   até o certificado sair).
+2. Chave SSH só para a publicação, no seu computador: `ssh-keygen -t ed25519 -f revalida-deploy -N ""`.
+   Copie o conteúdo de `revalida-deploy.pub` para o fim de `/root/.ssh/authorized_keys` na VPS.
+3. No GitHub: **Settings → Secrets and variables → Actions → New repository secret**, nome `VPS_SSH_KEY`,
+   valor = conteúdo do arquivo `revalida-deploy` (a chave privada).
+4. **Actions → Publicar na VPS → Run workflow.**
+
+A senha do usuário root do app e o código do instalador **não aparecem no log do GitHub**: na VPS, rode
+`cat /root/revalida-credenciais.txt`. Para trocar host, usuário, pasta, domínio ou e-mail do certificado, crie as
+variáveis `VPS_HOST`, `VPS_USER`, `VPS_PORT`, `VPS_DIR`, `DOMINIO` e `EMAIL_CERT` (aba **Variables**).
+Na mão, dentro da VPS: `cd /opt/revalida/app && bash scripts/vps-preparar.sh --dominio revalida.m3d.pro`.

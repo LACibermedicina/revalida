@@ -3,6 +3,9 @@
 # Uso: bash scripts/instalar.sh [--url https://treino.exemplo.com] [--sem-semente] [--so-config]
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# portas definidas em .env (ex.: na VPS); padrões de desenvolvimento
+porta(){ local v; v="$( { grep -E "^$1=" .env 2>/dev/null || true; } | tail -1 | cut -d= -f2)"; echo "${v:-$2}"; }
+WEB_PORTA="$(porta WEB_PORTA 5173)"; API_PORTA="$(porta API_PORTA 3001)"; DB_PORTA="$(porta DB_PORTA 5432)"
 
 URL=""; SEMENTE=1; SO_CONFIG=0
 while [ $# -gt 0 ]; do
@@ -62,15 +65,15 @@ ok "Contêineres iniciados (db, api, web)"
 # 4) esperar a API
 echo -n "Aguardando a API"
 for _ in $(seq 1 60); do
-  if curl -fsS "http://localhost:3001/api/saude" >/dev/null 2>&1; then echo; ok "API respondendo"; break; fi
+  if curl -fsS "http://localhost:${API_PORTA}/api/saude" >/dev/null 2>&1; then echo; ok "API respondendo"; break; fi
   echo -n "."; sleep 2
 done
-curl -fsS "http://localhost:3001/api/saude" >/dev/null 2>&1 || { echo; erro "A API não respondeu. Veja: docker compose logs api"; exit 1; }
+curl -fsS "http://localhost:${API_PORTA}/api/saude" >/dev/null 2>&1 || { echo; erro "A API não respondeu. Veja: docker compose logs api"; exit 1; }
 
 # 5) semente opcional (estações de exemplo)
 if [ "$SEMENTE" -eq 1 ] && command -v python3 >/dev/null 2>&1; then
   if python3 -c "import psycopg" >/dev/null 2>&1; then
-    DATABASE_URL="postgres://revalida:revalida@localhost:5432/revalida" python3 python/seed.py && ok "Estações de exemplo semeadas"
+    DATABASE_URL="postgres://revalida:revalida@localhost:${DB_PORTA}/revalida" python3 python/seed.py && ok "Estações de exemplo semeadas"
   else
     av "Para semear exemplos: pip install 'psycopg[binary]' && python3 python/seed.py"
   fi
@@ -79,6 +82,6 @@ fi
 # 6) instruções finais
 CODIGO="$(docker compose logs api 2>/dev/null | grep -o 'Código de instalação: [A-Z0-9-]*' | tail -1 || true)"
 echo
-ok "Pronto. Abra ${URL:-http://localhost:5173} e conclua o instalador."
+ok "Pronto. Abra ${URL:-http://localhost:${WEB_PORTA}} e conclua o instalador."
 [ -n "$CODIGO" ] && echo "   $CODIGO"
-echo "   Verificação: bash scripts/verificar.sh ${URL:-http://localhost:5173}"
+echo "   Verificação: bash scripts/verificar.sh ${URL:-http://localhost:${WEB_PORTA}}"

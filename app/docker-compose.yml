@@ -1,3 +1,5 @@
+# Portas e endereços vêm de app/.env (opcional): WEB_PORTA, API_PORTA, DB_PORTA, WEB_BIND, API_BIND, DB_BIND, COMPOSE_PROJECT_NAME.
+# Sem .env valem os padrões de desenvolvimento (5173, 3001, 5432; banco e API só em 127.0.0.1).
 services:
   db:
     image: postgres:16-alpine
@@ -8,7 +10,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-    ports: ["5432:5432"]
+    ports: ["${DB_BIND:-127.0.0.1}:${DB_PORTA:-5432}:5432"]   # banco só na própria máquina
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U revalida"]
       interval: 5s
@@ -20,7 +22,7 @@ services:
     environment:
       DATABASE_URL: postgres://revalida:revalida@db:5432/revalida
       PORT: "3001"
-    ports: ["3001:3001"]
+    ports: ["${API_BIND:-127.0.0.1}:${API_PORTA:-3001}:3001"]
     depends_on:
       db: { condition: service_healthy }
 
@@ -28,7 +30,7 @@ services:
     build:
       context: .
       dockerfile: web/Dockerfile
-    ports: ["5173:80"]
+    ports: ["${WEB_BIND:-0.0.0.0}:${WEB_PORTA:-5173}:80"]   # na VPS: 127.0.0.1 + porta livre, atrás do proxy reverso
     depends_on: [api]
 
 volumes:

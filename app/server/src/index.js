@@ -44,7 +44,7 @@ const PORTA = Number(process.env.PORT || 3001);
 const MSG_TOKEN = 'Token inválido, vencido ou emitido para outro e-mail.';
 
 const app = express();
-app.set('trust proxy', 1); // atrás do nginx: req.ip vem de X-Forwarded-For
+app.set('trust proxy', Number(process.env.TRUST_PROXY) || 1); // atrás do nginx: req.ip vem de X-Forwarded-For (TRUST_PROXY=2 com proxy reverso na frente, como na VPS)
 app.use(cors());
 // Importação de PDF/imagem (até 8 MB em base64) e de pacotes .rvpack precisa de corpo maior que o padrão. Exige login ANTES de ler o corpo
 // (ninguém sem sessão consegue fazer o servidor processar 12 MB) e só vale para essas duas rotas.

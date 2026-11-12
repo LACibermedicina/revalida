@@ -1,12 +1,13 @@
-# Publica o app na VPS a cada push na main que mexa em app/ (ou à mão, em Actions > "Publicar na VPS" > Run workflow).
-# Faz: copia app/ para a VPS (rsync, sem apagar nada de lá e sem tocar no .env nem nos backups)
-#      e roda scripts/atualizar.sh (backup do banco -> migrações -> rebuild dos containers) e scripts/verificar.sh.
-# Segredos necessários (GitHub > Settings > Secrets and variables > Actions):
-#   VPS_HOST      endereço da VPS (IP ou domínio)
-#   VPS_USER      usuário SSH (que pode rodar docker)
-#   VPS_SSH_KEY   chave privada SSH desse usuário (a pública vai em ~/.ssh/authorized_keys da VPS)
-#   VPS_DIR       pasta do app na VPS (a que tem docker-compose.yml), ex.: /opt/revalida/app
-#   VPS_PORT      opcional, porta SSH (padrão 22)
+# Publica o app na VPS a cada push na main que mexa em app/ (ou à mão: Actions > "Publicar na VPS" > Run workflow).
+# Copia app/ para a VPS (rsync: não apaga nada lá e não toca nos .env nem nos backups) e roda
+# app/scripts/vps-preparar.sh, que na 1ª vez instala tudo (Docker, portas livres > 1000, proxy reverso nginx + HTTPS)
+# e nas seguintes faz backup -> migrações -> rebuild -> conferência.
+#
+# Segredo OBRIGATÓRIO (Settings > Secrets and variables > Actions > Secrets):
+#   VPS_SSH_KEY   chave privada SSH com acesso de root (ou de um usuário com sudo sem senha) à VPS
+# Variáveis OPCIONAIS (mesma tela, aba Variables) — sem elas valem os padrões abaixo:
+#   VPS_HOST (159.223.22.82)  VPS_USER (root)  VPS_PORT (22)  VPS_DIR (/opt/revalida)
+#   DOMINIO (revalida.m3d.pro)  EMAIL_CERT (e-mail para o Let's Encrypt avisar de vencimento)
 name: Publicar na VPS
 
 on:
@@ -19,54 +20,45 @@ concurrency:
   group: publicar-vps
   cancel-in-progress: false
 
+env:
+  HOST: ${{ vars.VPS_HOST || '159.223.22.82' }}
+  USUARIO: ${{ vars.VPS_USER || 'root' }}
+  PORTA_SSH: ${{ vars.VPS_PORT || '22' }}
+  PASTA: ${{ vars.VPS_DIR || '/opt/revalida' }}
+  DOMINIO: ${{ vars.DOMINIO || 'revalida.m3d.pro' }}
+  EMAIL_CERT: ${{ vars.EMAIL_CERT || '' }}
+
 jobs:
   publicar:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
-
-      - name: Conferir segredos
-        env:
-          H: ${{ secrets.VPS_HOST }}
-          U: ${{ secrets.VPS_USER }}
-          K: ${{ secrets.VPS_SSH_KEY }}
-          D: ${{ secrets.VPS_DIR }}
-        run: |
-          falta=""
-          [ -n "$H" ] || falta="$falta VPS_HOST"; [ -n "$U" ] || falta="$falta VPS_USER"
-          [ -n "$K" ] || falta="$falta VPS_SSH_KEY"; [ -n "$D" ] || falta="$falta VPS_DIR"
-          if [ -n "$falta" ]; then echo "::error::Faltam segredos:$falta (Settings > Secrets and variables > Actions)"; exit 1; fi
 
       - name: Preparar SSH
         env:
           KEY: ${{ secrets.VPS_SSH_KEY }}
-          HOST: ${{ secrets.VPS_HOST }}
-          PORT: ${{ secrets.VPS_PORT }}
         run: |
+          if [ -z "$KEY" ]; then
+            echo "::error::Falta o segredo VPS_SSH_KEY (Settings > Secrets and variables > Actions). Veja as instruções no topo deste arquivo."; exit 1
+          fi
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          printf '%s\n' "$KEY" > ~/.ssh/vps && chmod 600 ~/.ssh/vps
-          ssh-keyscan -p "${PORT:-22}" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          printf '%s\n' "$KEY" | tr -d '\r' > ~/.ssh/vps && chmod 600 ~/.ssh/vps
+          ssh-keyscan -p "$PORTA_SSH" -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          echo "SSH=ssh -i $HOME/.ssh/vps -p $PORTA_SSH -o ServerAliveInterval=30 $USUARIO@$HOST" >> "$GITHUB_ENV"
+          echo "SUDO=$([ "$USUARIO" = root ] && echo '' || echo 'sudo -n')" >> "$GITHUB_ENV"
+
+      - name: Testar acesso
+        run: $SSH "echo conectado em \$(hostname) como \$(whoami)"
 
       - name: Copiar app/ para a VPS
-        env:
-          HOST: ${{ secrets.VPS_HOST }}
-          USER: ${{ secrets.VPS_USER }}
-          PORT: ${{ secrets.VPS_PORT }}
-          DIR: ${{ secrets.VPS_DIR }}
         run: |
-          ssh -i ~/.ssh/vps -p "${PORT:-22}" "$USER@$HOST" "mkdir -p '$DIR'"
-          rsync -az --itemize-changes \
-            --exclude '.env' --exclude 'server/.env' --exclude 'backups/' --exclude 'node_modules/' --exclude '.DS_Store' \
-            -e "ssh -i $HOME/.ssh/vps -p ${PORT:-22}" app/ "$USER@$HOST:$DIR/"
+          $SSH "$SUDO mkdir -p '$PASTA/app' && $SUDO chown -R \$(whoami) '$PASTA' && (command -v rsync >/dev/null || ($SUDO apt-get update -qq && $SUDO apt-get install -y -qq rsync))"
+          rsync -az --stats \
+            --exclude '.env' --exclude 'backups/' --exclude 'node_modules/' --exclude '.DS_Store' \
+            -e "ssh -i $HOME/.ssh/vps -p $PORTA_SSH" app/ "$USUARIO@$HOST:$PASTA/app/" | tail -12
 
-      - name: Atualizar (backup, migrações, rebuild) e verificar
-        env:
-          HOST: ${{ secrets.VPS_HOST }}
-          USER: ${{ secrets.VPS_USER }}
-          PORT: ${{ secrets.VPS_PORT }}
-          DIR: ${{ secrets.VPS_DIR }}
+      - name: Instalar ou atualizar, proxy reverso e HTTPS
         run: |
-          ssh -i ~/.ssh/vps -p "${PORT:-22}" "$USER@$HOST" "cd '$DIR' && \
-            if [ ! -f server/.env ]; then echo 'Primeira vez: rode na VPS  bash scripts/instalar.sh --url https://seu-dominio'; exit 1; fi && \
-            bash scripts/atualizar.sh && bash scripts/verificar.sh"
+          EXTRA=""; [ -n "$EMAIL_CERT" ] && EXTRA="--email $EMAIL_CERT"
+          $SSH "cd '$PASTA/app' && $SUDO bash scripts/vps-preparar.sh --dominio '$DOMINIO' $EXTRA"

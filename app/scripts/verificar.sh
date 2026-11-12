@@ -2,7 +2,11 @@
 # Verificação pós-instalação. Uso: bash scripts/verificar.sh [URL_DO_SITE] [URL_DA_API]
 # Confere: saúde da API, página inicial, proxy /api, https, cabeçalho de WebSocket e estado do instalador.
 set -uo pipefail
-SITE="${1:-http://localhost:5173}"; API="${2:-http://localhost:3001}"
+cd "$(dirname "$0")/.."
+# portas definidas em .env (ex.: na VPS); padrões de desenvolvimento
+porta(){ local v; v="$( { grep -E "^$1=" .env 2>/dev/null || true; } | tail -1 | cut -d= -f2)"; echo "${v:-$2}"; }
+WEB_PORTA="$(porta WEB_PORTA 5173)"; API_PORTA="$(porta API_PORTA 3001)"
+SITE="${1:-http://localhost:${WEB_PORTA}}"; API="${2:-http://localhost:${API_PORTA}}"
 falhas=0; avisos=0
 ok(){ printf '\033[32m✔\033[0m %s\n' "$*"; }
 av(){ printf '\033[33m!\033[0m %s\n' "$*"; avisos=$((avisos+1)); }
