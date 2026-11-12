@@ -36,8 +36,8 @@ apt_instalar(){ command -v apt-get >/dev/null 2>&1 || { erro "Sem apt-get: insta
 
 # ---------- 0) DNS ----------
 titulo "DNS de $DOMINIO"
-IP_VPS="$(curl -fsS4 --max-time 6 https://api.ipify.org 2>/dev/null || hostname -I | awk '{print $1}')"
-IP_DNS="$(getent ahostsv4 "$DOMINIO" 2>/dev/null | awk 'NR==1{print $1}')"
+IP_VPS="$(curl -fsS4 --max-time 6 https://api.ipify.org 2>/dev/null || { hostname -I 2>/dev/null || true; } | awk '{print $1}')"
+IP_DNS="$( { getent ahostsv4 "$DOMINIO" 2>/dev/null || true; } | awk 'NR==1{print $1}')"
 DNS_OK=0
 if [ -z "$IP_DNS" ]; then av "$DOMINIO ainda não resolve. Crie um registro A: $DOMINIO -> $IP_VPS (o HTTPS fica para a próxima execução)."
 elif [ "$IP_DNS" != "$IP_VPS" ]; then av "$DOMINIO aponta para $IP_DNS, mas esta VPS é $IP_VPS (Cloudflare com proxy laranja também causa isso). O HTTPS pode falhar."
