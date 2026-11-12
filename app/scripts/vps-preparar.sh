@@ -116,6 +116,14 @@ else
   bash scripts/atualizar.sh
 fi
 ok "Contêineres no ar"
+# o contêiner da API está usando o código fixo? (compara sem mostrar o código)
+EM_USO="$(docker compose exec -T api printenv INSTALL_CODE 2>/dev/null | tr -d '\r' || true)"
+if [ "$EM_USO" != "$CODIGO_INST" ]; then
+  av "A API ainda não usava o código fixo: recriando o contêiner da API…"
+  docker compose up -d --force-recreate api >/dev/null 2>&1; sleep 5
+  EM_USO="$(docker compose exec -T api printenv INSTALL_CODE 2>/dev/null | tr -d '\r' || true)"
+fi
+[ "$EM_USO" = "$CODIGO_INST" ] && ok "Código do instalador: a API usa o mesmo de server/.env" || erro "A API não está usando o código de server/.env"
 # instalador ainda pendente? deixa o código certo no arquivo de credenciais
 sleep 3
 if curl -fsS --max-time 10 "http://127.0.0.1:$WEB_PORTA/api/instalacao/estado" 2>/dev/null | grep -q '"instalado":false'; then
