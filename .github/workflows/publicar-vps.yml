@@ -5,6 +5,8 @@
 #
 # Segredo OBRIGATÓRIO (Settings > Secrets and variables > Actions > Secrets):
 #   VPS_SSH_KEY   chave privada SSH com acesso de root (ou de um usuário com sudo sem senha) à VPS
+# Segredo OPCIONAL:
+#   INSTALL_CODE  código do instalador web escolhido por você (6+ letras/números/hífen). Vale até concluir a instalação.
 # Variáveis OPCIONAIS (mesma tela, aba Variables) — sem elas valem os padrões abaixo:
 #   VPS_HOST (159.223.22.82)  VPS_USER (root)  VPS_PORT (22)  VPS_DIR (/opt/revalida)
 #   DOMINIO (revalida.m3d.pro)  EMAIL_CERT (e-mail para o Let's Encrypt avisar de vencimento)
@@ -59,6 +61,10 @@ jobs:
             -e "ssh -i $HOME/.ssh/vps -p $PORTA_SSH" app/ "$USUARIO@$HOST:$PASTA/app/" | tail -12
 
       - name: Instalar ou atualizar, proxy reverso e HTTPS
+        env:
+          CODIGO: ${{ secrets.INSTALL_CODE }}
         run: |
           EXTRA=""; [ -n "$EMAIL_CERT" ] && EXTRA="--email $EMAIL_CERT"
-          $SSH "cd '$PASTA/app' && $SUDO bash scripts/vps-preparar.sh --dominio '$DOMINIO' $EXTRA"
+          if [ -n "$CODIGO" ]; then EXTRA="$EXTRA --codigo-stdin"; fi
+          # o código vai pela entrada padrão (não aparece em log nem na linha de comando)
+          printf '%s\n' "$CODIGO" | $SSH "cd '$PASTA/app' && $SUDO bash scripts/vps-preparar.sh --dominio '$DOMINIO' $EXTRA"

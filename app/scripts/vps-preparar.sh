@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Instala ou atualiza o Revalida Prático numa VPS Linux (Ubuntu/Debian), atrás de um proxy reverso com HTTPS.
 # Uso (como root ou com sudo), dentro da pasta do app:
-#   bash scripts/vps-preparar.sh --dominio revalida.m3d.pro [--email voce@exemplo.com] [--porta 8180]
+#   bash scripts/vps-preparar.sh --dominio revalida.m3d.pro [--email voce@exemplo.com] [--porta 8180] [--codigo-stdin]
+#   (--codigo-stdin: lê da entrada o código do instalador; o GitHub passa o segredo INSTALL_CODE por aqui)
 # O que faz (pode rodar quantas vezes quiser; é o que o GitHub Actions roda a cada atualização):
 #   1. instala o Docker, se faltar;
 #   2. escolhe portas livres acima de 1000 (só na primeira vez; ficam gravadas em .env) e prende o app em 127.0.0.1;
@@ -15,12 +16,13 @@ if [ "$(id -u)" -ne 0 ]; then exec sudo -E bash "$0" "$@"; fi
 cd "$(dirname "$0")/.."
 APP_DIR="$(pwd)"
 
-DOMINIO=""; EMAIL=""; PORTA_PEDIDA=""
+DOMINIO=""; EMAIL=""; PORTA_PEDIDA=""; CODIGO_NOVO=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --dominio) DOMINIO="${2:-}"; shift 2 ;;
     --email) EMAIL="${2:-}"; shift 2 ;;
     --porta) PORTA_PEDIDA="${2:-}"; shift 2 ;;
+    --codigo-stdin) IFS= read -r CODIGO_NOVO || true; CODIGO_NOVO="$(printf '%s' "$CODIGO_NOVO" | tr -d '\r' | tr 'a-z' 'A-Z' | sed 's/^ *//; s/ *$//')"; shift ;;
     -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
     *) echo "Opção desconhecida: $1" >&2; exit 2 ;;
   esac
@@ -105,6 +107,15 @@ fi
 if grep -q '^APP_URL=' server/.env; then sed -i "s|^APP_URL=.*|APP_URL=$URL|" server/.env; else echo "APP_URL=$URL" >> server/.env; fi
 if grep -q '^TRUST_PROXY=' server/.env; then sed -i "s|^TRUST_PROXY=.*|TRUST_PROXY=2|" server/.env; else echo "TRUST_PROXY=2" >> server/.env; fi
 # código do instalador fixo (sem isso a API sorteia outro a cada reinício e o código anotado deixa de valer)
+# se veio um código escolhido (segredo INSTALL_CODE do GitHub), ele manda
+if [ -n "$CODIGO_NOVO" ]; then
+  if [ "${#CODIGO_NOVO}" -lt 6 ] || ! printf '%s' "$CODIGO_NOVO" | grep -qE '^[A-Z0-9_-]+$'; then
+    erro "INSTALL_CODE do GitHub inválido: use 6 ou mais letras, números ou hífen (ignorado)."
+  else
+    sed -i '/^#\? *INSTALL_CODE=/d' server/.env; echo "INSTALL_CODE=$CODIGO_NOVO" >> server/.env
+    ok "Código do instalador definido pelo segredo INSTALL_CODE do GitHub"
+  fi
+fi
 if ! grep -qE '^INSTALL_CODE=.+' server/.env; then
   H="$(od -An -N6 -tx1 /dev/urandom | tr -d ' \n' | tr 'a-f' 'A-F')"
   sed -i '/^#\? *INSTALL_CODE=/d' server/.env; echo "INSTALL_CODE=${H:0:4}-${H:4:4}-${H:8:4}" >> server/.env
