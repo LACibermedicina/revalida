@@ -179,3 +179,7 @@ A senha do usuário root do app e o código do instalador **não aparecem no log
 `cat /root/revalida-credenciais.txt`. Para trocar host, usuário, pasta, domínio ou e-mail do certificado, crie as
 variáveis `VPS_HOST`, `VPS_USER`, `VPS_PORT`, `VPS_DIR`, `DOMINIO` e `EMAIL_CERT` (aba **Variables**).
 Na mão, dentro da VPS: `cd /opt/revalida/app && bash scripts/vps-preparar.sh --dominio revalida.m3d.pro`.
+
+**Se "Run workflow" der erro 404:** o navegador não está logado no GitHub com uma conta que pode publicar no
+repositório (o GitHub responde 404 em vez de "sem permissão"). Entre com a conta dona do repositório e tente de novo —
+ou envie qualquer alteração em `app/` para a `main`, que a publicação roda sozinha.
