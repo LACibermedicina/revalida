@@ -13,7 +13,7 @@ const MOTIVOS = { sem_chave: 'sem chave', auth: 'chave recusada (inválida ou re
   rede: 'sem conexão', timeout: 'demorou demais', formato: 'resposta inesperada', servidor: 'erro no provedor' };
 try {
   await cfg.carregar().catch(() => {});
-  const ia = criarIA({ cfg, timeoutMs: 25_000 });
+  const ia = criarIA({ cfg, timeoutMs: 60_000 });   // o mesmo prazo de uma chamada real
   console.log('IA (ordem do failsafe):');
   let algum = false;
   for (const r of await ia.testar()) {
