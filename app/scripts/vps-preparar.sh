@@ -280,6 +280,9 @@ curl -fsS --max-time 10 "http://127.0.0.1:$WEB_PORTA/api/saude" >/dev/null && ok
 if curl -fsS --max-time 15 "$URL/api/saude" >/dev/null 2>&1; then ok "$URL no ar"
 elif curl -fsS --max-time 15 -H "Host: $DOMINIO" "http://127.0.0.1/api/saude" >/dev/null 2>&1; then av "O proxy funciona, mas $URL ainda não abre de fora (DNS/HTTPS)."
 else av "$URL ainda não responde."; fi
+# serviços externos de verdade: cada chave de IA (na ordem do failsafe) e o login no SMTP — sem mostrar valores
+titulo "Serviços externos"
+docker compose exec -T api node src/diagnostico-servicos.js 2>/dev/null || av "Não consegui rodar o diagnóstico dos serviços."
 # parâmetros gravados pelo instalador (só os NOMES, nunca os valores) e estado da instalação
 PARAMS="$(docker compose exec -T db psql -U revalida -d revalida -tAc "select string_agg(chave, ', ' order by chave) from config_servidor" 2>/dev/null | tr -d '\r' || true)"
 echo "Parâmetros gravados no banco: ${PARAMS:-nenhum}"
