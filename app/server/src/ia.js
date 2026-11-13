@@ -11,7 +11,8 @@ import { promptAnalise, validarAnalise, promptTranscreverAudio, validarTranscric
 import { AREAS, NOMES_AREA, TIPOS_MATERIAL, avisosDeCoerencia, sortearCampos, validarEstacao } from './estacao-esquema.js';
 
 export const ORDEM_PADRAO = ['gemini', 'openai', 'pollinations', 'claude'];
-export const MODELOS_PADRAO = { gemini: 'gemini-flash-latest', openai: 'gpt-4o-mini', pollinations: 'openai', claude: 'claude-sonnet-5-5' };
+// Gemini: 'gemini-flash-latest' travava (sem resposta em 60 s) com chaves novas; o 3 Flash responde em ~1 s.
+export const MODELOS_PADRAO = { gemini: 'gemini-3-flash-preview', openai: 'gpt-4o-mini', pollinations: 'openai', claude: 'claude-sonnet-5-5' };
 const ROTULOS = { gemini: 'Gemini', openai: 'OpenAI', pollinations: 'Pollinations', claude: 'Claude' };
 const PAUSA_MS = { auth: 10 * 60_000, credito: 10 * 60_000, limite: 60_000, servidor: 30_000, rede: 30_000, timeout: 30_000 };
 const TIPOS_SEM_PAUSA = new Set(['formato', 'nao_suporta']);

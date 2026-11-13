@@ -100,7 +100,7 @@ test('formato dos pedidos: Gemini (cabeçalho, JSON, imagem inline) e OpenAI (ba
   const f = fetchFalso([{ url: 'generativelanguage', ...okGemini({ a: 1 }) }]);
   await criarIA({ cfg: cfgDe({ GEMINI_API_KEY: KEYS.GEMINI_API_KEY }), fetchImpl: f }).gerarJSON({ ...pedido, anexos: [{ mime: 'image/jpeg', base64: 'abc=' }] });
   const c = f.chamadas[0];
-  assert.match(c.url, /models\/gemini-flash-latest:generateContent$/); assert.equal(c.corpo.generationConfig.responseMimeType, 'application/json');
+  assert.match(c.url, /models\/gemini-3-flash-preview:generateContent$/); assert.equal(c.corpo.generationConfig.responseMimeType, 'application/json');
   assert.deepEqual(c.corpo.contents[0].parts[1], { inlineData: { mimeType: 'image/jpeg', data: 'abc=' } });
   assert.ok(!c.url.includes('AIza'), 'a chave não vai na URL');
 
