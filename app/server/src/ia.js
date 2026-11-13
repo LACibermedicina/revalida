@@ -176,7 +176,8 @@ export function criarIA({ cfg, fetchImpl = (...a) => fetch(...a), relogio = Date
       return { headers: { 'x-goog-api-key': c.chave }, corpo: {
         systemInstruction: { parts: [{ text: sistema }] },
         contents: [{ role: 'user', parts: [{ text: usuario }, ...anexos.map((a) => ({ inlineData: { mimeType: a.mime, data: a.base64 } }))] }],
-        generationConfig: { ...(json ? { responseMimeType: 'application/json' } : {}), maxOutputTokens: maxTokens },
+        generationConfig: { ...(json ? { responseMimeType: 'application/json' } : {}), maxOutputTokens: maxTokens,
+          ...(/^gemini-3/.test(c.modelo) ? { thinkingConfig: { thinkingLevel: 'low' } } : {}) },   // Gemini 3: raciocínio curto = resposta rápida
       } };
     }
     if (c.prov === 'openai' || c.prov === 'pollinations') {
@@ -278,7 +279,7 @@ export function criarIA({ cfg, fetchImpl = (...a) => fetch(...a), relogio = Date
       for (const c of cands) {
         const t0 = relogio();
         try {
-          await chamar(c, { sistema: 'Responda apenas: ok', usuario: 'ok', maxTokens: 16, json: false }, timeoutMs);
+          await chamar(c, { sistema: 'Responda apenas: ok', usuario: 'ok', maxTokens: 512, json: false }, timeoutMs);   // modelos que raciocinam gastam tokens antes de responder
           pausas.delete(idDe(c));
           saida.push({ provedor: prov, rotulo: ROTULOS[prov], chave: c.nome, configurado: true, ok: true, ms: relogio() - t0 });
         } catch (e) {
