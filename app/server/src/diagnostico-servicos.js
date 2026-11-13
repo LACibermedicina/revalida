@@ -33,12 +33,15 @@ try {
       const d = await r.json().catch(() => ({}));
       const nomes = (d.models || []).map((m) => m.name.replace('models/', '')).filter((n) => /flash|pro/.test(n) && !/tts|image|embedding|live|audio/.test(n));
       console.log(`   Gemini · ${lento.chave}: lista de modelos ${r.ok ? `ok (${nomes.length}): ${nomes.slice(0, 8).join(', ')}` : `HTTP ${r.status}`}`);
-      for (const m of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash-lite'].filter((x) => !nomes.length || nomes.includes(x))) {
+      const pref = (n) => (/^gemini-3/.test(n) ? 0 : /latest/.test(n) ? 1 : 2) + (/lite/.test(n) ? 0.5 : 0);
+      const testar = nomes.filter((n) => /flash/.test(n) && n !== 'gemini-flash-latest').sort((a, b) => pref(a) - pref(b)).slice(0, 5);
+      for (const m of testar) {
         const t0 = Date.now();
         try {
           const g = await fetch(`${base}/models/${m}:generateContent`, { method: 'POST', headers: H, signal: comPrazo(30_000),
             body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Responda apenas: ok' }] }], generationConfig: { maxOutputTokens: 64 } }) });
-          console.log(`   Gemini · ${lento.chave} com o modelo ${m}: ${g.ok ? `✔ responde (${Date.now() - t0} ms)` : `✘ HTTP ${g.status}`}`);
+          const msg = g.ok ? '' : String((await g.json().catch(() => ({})))?.error?.message ?? '').replace(/AIza[\w-]+|AQ\.[\w-]+/g, '…').slice(0, 110);
+          console.log(`   Gemini · ${lento.chave} com o modelo ${m}: ${g.ok ? `✔ responde (${Date.now() - t0} ms)` : `✘ HTTP ${g.status} ${msg}`}`);
           if (g.ok) { console.log(`   => sugestão: use GEMINI_MODEL=${m} no SERVIDOR_ENV`); break; }
         } catch (e) { console.log(`   Gemini · ${lento.chave} com o modelo ${m}: ✘ ${e.name === 'TimeoutError' ? 'demorou demais' : 'sem conexão'}`); }
       }
