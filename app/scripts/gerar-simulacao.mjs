@@ -22,7 +22,7 @@ const r = await esbuild.build({
 let js = ''; let css = '';
 for (const o of r.outputFiles) { if (o.path.endsWith('.js')) js = o.text; else if (o.path.endsWith('.css')) css = o.text; }
 const uri = (arq, tipo) => `data:${tipo};base64,${readFileSync(join(web, 'public', arq)).toString('base64')}`;
-const IMG = { '/marca/bot-corpo.webp': uri('marca/bot-corpo.webp', 'image/webp'), '/marca/bot-balao.webp': uri('marca/bot-balao.webp', 'image/webp'), '/marca/secreto-bot.jpg': uri('marca/secreto-bot.jpg', 'image/jpeg'),
+const IMG = { '/marca/epi-sentado.webp': uri('marca/epi-sentado.webp', 'image/webp'), '/marca/epi-em-pe.webp': uri('marca/epi-em-pe.webp', 'image/webp'), '/marca/epi-acenando.webp': uri('marca/epi-acenando.webp', 'image/webp'), '/marca/secreto-bot.jpg': uri('marca/secreto-bot.jpg', 'image/jpeg'),
   '/marca/fundo-hospital.svg': uri('marca/fundo-hospital.svg', 'image/svg+xml'), '/marca/logo.svg': uri('marca/logo.svg', 'image/svg+xml'), '/marca/avatar.png': uri('marca/avatar.png', 'image/png') };
 for (const [k, v] of Object.entries(IMG)) js = js.split(k).join(v);
 let html = readFileSync(join(web, 'index.html'), 'utf8');

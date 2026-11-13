@@ -13,7 +13,7 @@ const DICAS = [
   'Depois de cada estação, anote o que errou. O caderno de erros agradece.',
 ];
 
-/** Cena do login: logomarca + Secreto-Bot de jaleco animado (não interativo) numa manhã ensolarada, com a trilha até o hospital.
+/** Cena do login: logomarca + Epi, o mascote da M3D, numa manhã ensolarada, com a trilha até o hospital.
  *  As dicas aparecem sozinhas, uma de cada vez, no balão de fala. */
 export default function CenaLogin() {
   const [i, setI] = useState(0);
@@ -28,16 +28,16 @@ export default function CenaLogin() {
   }, []);
 
   return (
-    <section className="cena" aria-label="Secreto-Bot, o mascote do Revalida Prático">
+    <section className="cena" aria-label="Epi, o mascote da M3D, no Revalida Prático">
       <div className="cena-marca">
         <Logo tamanho={96} />
         <div><b>Revalida Prático</b><small>Estudos preparatórios · 2ª fase</small></div>
       </div>
       <div className="cena-palco">
         <i className="cena-luz" aria-hidden="true" />
-        <Mascote3D fluido pose="sit" titulo="Secreto-Bot, o mascote de jaleco, sentado com um balão, sorrindo para você." />
+        <Mascote3D fluido pose="sit" titulo="Epi, o mascote da M3D: um robozinho de juta com jaleco, sentado com o balão da m3d.pro." />
         <figure className="cena-placa" aria-hidden="true"><b>REVALIDA.M3D</b><span>Estudos preparatórios</span></figure>
-        <div className={`cena-nota${on ? ' on' : ''}`} role="status" aria-live="polite"><span>Dica do Secreto-Bot</span>{DICAS[i]}</div>
+        <div className={`cena-nota${on ? ' on' : ''}`} role="status" aria-live="polite"><span>Dica do Epi</span>{DICAS[i]}</div>
       </div>
     </section>
   );

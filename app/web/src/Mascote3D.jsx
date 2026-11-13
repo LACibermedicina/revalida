@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Secreto2D from './Secreto2D.jsx';
 
-/** Secreto-Bot de jaleco em 3D: só o personagem (sem fundo, cenário ou botões), em /secreto-bot-3d.html — sem dependências,
+/** Epi, o mascote da M3D (o mesmo de m3d.pro), em 3D: só o personagem (sem fundo, cenário ou botões), em /epi-3d.html — sem dependências,
  *  abre offline. A cabeça e o corpo seguem o mouse (a página repassa a posição ao iframe) e ele faz movimentos aleatórios.
  *  Não recebe cliques (pointer-events: none): nada atrapalha a tela. Enquanto o 3D carrega, ou se o navegador não tiver WebGL,
  *  aparece a versão 2D animada. `pose`: sit | stand | wave. `fluido`: ocupa 100% do pai; senão usa `tamanho` (largura). */
-export default function Mascote3D({ pose = 'sit', tamanho = 220, fluido = false, titulo = 'Secreto-Bot, o mascote', className = '' }) {
+export default function Mascote3D({ pose = 'sit', tamanho = 220, fluido = false, titulo = 'Epi, o mascote da M3D', className = '' }) {
   const ref = useRef(null);
   const [pronto, setPronto] = useState(false);
   const sem3d = typeof window !== 'undefined' && window.__SIMULACAO__ === true;   // arquivo autônomo (file://): só a versão 2D
@@ -42,7 +42,7 @@ export default function Mascote3D({ pose = 'sit', tamanho = 220, fluido = false,
     <div className={`mascote3d ${fluido ? 'fluido ' : ''}${pronto ? 'tem3d ' : ''}${className}`} style={estilo}>
       {!pronto && <Secreto2D pose={pose} titulo={titulo} />}
       {!sem3d && (
-        <iframe ref={ref} title={titulo} src={`/secreto-bot-3d.html?pose=${encodeURIComponent(pose)}`} loading="lazy" tabIndex={-1} aria-hidden={!pronto}
+        <iframe ref={ref} title={titulo} src={`/epi-3d.html?pose=${encodeURIComponent(pose)}`} tabIndex={-1} aria-hidden={!pronto}
           style={{ opacity: pronto ? 1 : 0, pointerEvents: 'none' }} />
       )}
     </div>

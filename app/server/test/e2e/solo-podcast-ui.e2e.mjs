@@ -54,26 +54,26 @@ await passo('logomarca: M facetado + robozinho com balão no cabeçalho (SVG inl
   await p.context().close();
 });
 
-await passo('fundo inspirador (hospital) e Secreto-Bot 3D (só o personagem, segue o mouse) no Início', async () => {
+await passo('fundo inspirador (hospital) e Epi 3D (só o personagem, segue o mouse) no Início', async () => {
   const p = await abrir(); await p.waitForSelector('[data-testid=painel] .pn-bot iframe', { state: 'attached' });
   assert.match(await p.evaluate(() => getComputedStyle(document.body, '::before').backgroundImage), /fundo-hospital\.svg/);
-  assert.match(await p.locator('.pn-bot iframe').getAttribute('src'), /secreto-bot-3d\.html\?pose=stand/);
+  assert.match(await p.locator('.pn-bot iframe').getAttribute('src'), /epi-3d\.html\?pose=stand/);
   assert.equal(await p.locator('.pn-bot iframe').evaluate((e) => getComputedStyle(e).pointerEvents), 'none', 'o mascote não captura cliques');
   await p.waitForTimeout(1500); await p.screenshot({ path: join(saida, 'painel-bot.png') });
   await p.context().close();
 });
 
-await passo('login: Secreto-Bot 3D sem dependências (só o personagem), 2D como reserva, dicas que trocam sozinhas', async () => {
+await passo('login: Epi 3D sem dependências (só o personagem), 2D como reserva, dicas que trocam sozinhas', async () => {
   const c = await nav.newContext({ viewport: { width: 1000, height: 800 } });
   await c.addInitScript(() => { try { localStorage.setItem('rv_shell', 'classico'); } catch { /* sem storage */ } });   // estes testes cobrem o menu clássico; a mesa tem mesa.e2e.mjs
   await c.route(/fonts\.(googleapis|gstatic)\.com/, (r) => r.abort());
   const p = await c.newPage(); await p.goto(srv.url + '/');
   await p.waitForSelector('.cena-palco .mascote3d iframe', { state: 'attached' });
-  assert.match(await p.locator('.cena-palco iframe').getAttribute('src'), /secreto-bot-3d\.html\?pose=sit/);
+  assert.match(await p.locator('.cena-palco iframe').getAttribute('src'), /epi-3d\.html\?pose=sit/);
   assert.equal(await p.locator('.cena-palco button').count(), 0, 'sem botões na cena');
   await p.waitForSelector('.cena-nota.on', { timeout: 5000 });   // a dica aparece sozinha
-  assert.match(await p.locator('.cena-nota').innerText(), /dica do secreto-bot/i);
-  const r = await p.request.get(srv.url + '/secreto-bot-3d.html');
+  assert.match(await p.locator('.cena-nota').innerText(), /dica do epi/i);
+  const r = await p.request.get(srv.url + '/epi-3d.html');
   assert.equal(r.status(), 200); const h = await r.text();
   assert.ok(h.includes('rv3dMouse') && !/cdnjs|jsdelivr|unpkg|three\.min\.js/.test(h), 'página 3D sem bibliotecas externas e com rastreio do mouse');
   await c.close();

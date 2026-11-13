@@ -7,6 +7,9 @@
 #   VPS_SSH_KEY   chave privada SSH com acesso de root (ou de um usuário com sudo sem senha) à VPS
 # Segredo OPCIONAL:
 #   INSTALL_CODE  código do instalador web escolhido por você (6+ letras/números/hífen). Vale até concluir a instalação.
+#   SERVIDOR_ENV  bloco de credenciais (uma por linha: KEY=valor ou "KEY": "valor"): e-mail (SMTP_*), Agora, chaves de IA
+#                 (GEMINI/GOOGLE/OPENAI/POLLINATIONS/ANTHROPIC — o app tenta uma após a outra) e afins. Só as chaves que o
+#                 app usa são gravadas em server/.env na VPS; o resto é ignorado. Os valores nunca aparecem no log.
 # Variáveis OPCIONAIS (mesma tela, aba Variables) — sem elas valem os padrões abaixo:
 #   VPS_HOST (159.223.22.82)  VPS_USER (root)  VPS_PORT (22)  VPS_DIR (/opt/revalida)
 #   DOMINIO (revalida.m3d.pro)  EMAIL_CERT (e-mail para o Let's Encrypt avisar de vencimento)
@@ -63,8 +66,9 @@ jobs:
       - name: Instalar ou atualizar, proxy reverso e HTTPS
         env:
           CODIGO: ${{ secrets.INSTALL_CODE }}
+          SERVIDOR_ENV: ${{ secrets.SERVIDOR_ENV }}
         run: |
-          EXTRA=""; [ -n "$EMAIL_CERT" ] && EXTRA="--email $EMAIL_CERT"
-          if [ -n "$CODIGO" ]; then EXTRA="$EXTRA --codigo-stdin"; fi
-          # o código vai pela entrada padrão (não aparece em log nem na linha de comando)
-          printf '%s\n' "$CODIGO" | $SSH "cd '$PASTA/app' && $SUDO bash scripts/vps-preparar.sh --dominio '$DOMINIO' $EXTRA"
+          EXTRA="--env-stdin"; [ -n "$EMAIL_CERT" ] && EXTRA="$EXTRA --email $EMAIL_CERT"
+          # código e credenciais vão pela entrada padrão (não aparecem em log nem na linha de comando)
+          { [ -n "$CODIGO" ] && printf 'INSTALL_CODE=%s\n' "$CODIGO"; printf '%s\n' "$SERVIDOR_ENV"; } \
+            | $SSH "cd '$PASTA/app' && $SUDO bash scripts/vps-preparar.sh --dominio '$DOMINIO' $EXTRA"

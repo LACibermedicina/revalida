@@ -2,7 +2,8 @@
 # Instala ou atualiza o Revalida Prático numa VPS Linux (Ubuntu/Debian), atrás de um proxy reverso com HTTPS.
 # Uso (como root ou com sudo), dentro da pasta do app:
 #   bash scripts/vps-preparar.sh --dominio revalida.m3d.pro [--email voce@exemplo.com] [--porta 8180] [--codigo-stdin]
-#   (--codigo-stdin: lê da entrada o código do instalador; o GitHub passa o segredo INSTALL_CODE por aqui)
+#   (--env-stdin: lê da entrada um bloco KEY=VALOR com INSTALL_CODE e credenciais; o GitHub passa os segredos
+#    INSTALL_CODE e SERVIDOR_ENV por aqui — nada vai para log, linha de comando ou repositório)
 # O que faz (pode rodar quantas vezes quiser; é o que o GitHub Actions roda a cada atualização):
 #   1. instala o Docker, se faltar;
 #   2. escolhe portas livres acima de 1000 (só na primeira vez; ficam gravadas em .env) e prende o app em 127.0.0.1;
@@ -16,13 +17,14 @@ if [ "$(id -u)" -ne 0 ]; then exec sudo -E bash "$0" "$@"; fi
 cd "$(dirname "$0")/.."
 APP_DIR="$(pwd)"
 
-DOMINIO=""; EMAIL=""; PORTA_PEDIDA=""; CODIGO_NOVO=""
+DOMINIO=""; EMAIL=""; PORTA_PEDIDA=""; CODIGO_NOVO=""; ENTRADA=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --dominio) DOMINIO="${2:-}"; shift 2 ;;
     --email) EMAIL="${2:-}"; shift 2 ;;
     --porta) PORTA_PEDIDA="${2:-}"; shift 2 ;;
     --codigo-stdin) IFS= read -r CODIGO_NOVO || true; CODIGO_NOVO="$(printf '%s' "$CODIGO_NOVO" | tr -d '\r' | tr 'a-z' 'A-Z' | sed 's/^ *//; s/ *$//')"; shift ;;
+    --env-stdin) ENTRADA="$(cat || true)"; shift ;;   # bloco KEY=VALOR (segredo SERVIDOR_ENV do GitHub + INSTALL_CODE)
     -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
     *) echo "Opção desconhecida: $1" >&2; exit 2 ;;
   esac
@@ -106,6 +108,33 @@ fi
 # endereço público e proxies confiáveis (VPS: proxy reverso + nginx do container = 2)
 if grep -q '^APP_URL=' server/.env; then sed -i "s|^APP_URL=.*|APP_URL=$URL|" server/.env; else echo "APP_URL=$URL" >> server/.env; fi
 if grep -q '^TRUST_PROXY=' server/.env; then sed -i "s|^TRUST_PROXY=.*|TRUST_PROXY=2|" server/.env; else echo "TRUST_PROXY=2" >> server/.env; fi
+# ---------- credenciais vindas do GitHub (segredo SERVIDOR_ENV): só as chaves que o app usa ----------
+APLICADAS=""; IGNORADAS=""
+if [ -n "$ENTRADA" ]; then
+  PERMITIDAS=" SMTP_URL SMTP_HOST SMTP_PORT SMTP_SECURE SMTP_USER SMTP_PASS MAIL_FROM EMAIL_DE AGORA_APP_ID AGORA_APP_CERTIFICATE \
+    ANTHROPIC_API_KEY IA_MODELO IA_ORDEM GEMINI_API_KEY GOOGLE_API_KEY GEMINI_CURL_API_KEY GEMINI_MODEL OPENAI_API_KEY OPENAI_MODEL \
+    AI_INTEGRATIONS_OPENAI_BASE_URL AI_INTEGRATIONS_OPENAI_API_KEY POLLINATIONS_API_KEY POLLINATIONS_MODEL \
+    TTS_URL TTS_CHAVE TTS_MODELO TTS_VOZ NOME_INSTITUICAO "
+  while IFS= read -r linha || [ -n "$linha" ]; do
+    linha="$(printf '%s' "$linha" | tr -d '\r' | sed -E 's/^[[:space:]]*(export[[:space:]]+)?//; s/[[:space:]]*,?[[:space:]]*$//')"
+    # aceita KEY=VALOR, KEY: VALOR e "KEY": "VALOR"
+    if [[ "$linha" =~ ^\"?([A-Za-z_][A-Za-z0-9_]*)\"?[[:space:]]*[=:][[:space:]]*(.*)$ ]]; then
+      k="${BASH_REMATCH[1]}"; v="${BASH_REMATCH[2]}"
+      v="$(printf '%s' "$v" | sed -E 's/^"(.*)"$/\1/; s/^'"'"'(.*)'"'"'$/\1/')"
+      [ -n "$v" ] || continue
+      if [ "$k" = INSTALL_CODE ]; then CODIGO_NOVO="$(printf '%s' "$v" | tr 'a-z' 'A-Z')"; continue; fi
+      if [[ "$PERMITIDAS" != *" $k "* ]]; then IGNORADAS="$IGNORADAS $k"; continue; fi
+      if [[ "$v" == *"'"* ]]; then erro "$k: o valor tem aspas simples; não aplicado."; continue; fi
+      if [ "$k" = AI_INTEGRATIONS_OPENAI_BASE_URL ] && [[ "$v" =~ ^https?://(localhost|127\.|0\.0\.0\.0) ]]; then IGNORADAS="$IGNORADAS $k(localhost)"; continue; fi
+      sed -i "/^#\\? *$k=/d" server/.env; printf "%s='%s'\n" "$k" "$v" >> server/.env
+      APLICADAS="$APLICADAS $k"
+    fi
+  done <<< "$ENTRADA"
+  [ -n "$APLICADAS" ] && ok "Credenciais do segredo SERVIDOR_ENV aplicadas:$(echo "$APLICADAS" | tr ' ' '\n' | sort -u | tr '\n' ' ')"
+  [ -n "$IGNORADAS" ] && av "Ignoradas (o app não usa):$(echo "$IGNORADAS" | tr ' ' '\n' | sort -u | tr '\n' ' ')"
+  chmod 600 server/.env
+fi
+
 # código do instalador fixo (sem isso a API sorteia outro a cada reinício e o código anotado deixa de valer)
 # se veio um código escolhido (segredo INSTALL_CODE do GitHub), ele manda
 if [ -n "$CODIGO_NOVO" ]; then

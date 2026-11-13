@@ -64,7 +64,7 @@ export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise,
     <div className="tela pn-tela" data-testid="painel">
       <div className="pn-topo">
         <div className="pn-saudacao">
-          <Mascote corpo pose="em-pe" tamanho={104} className="pn-bot" titulo="Secreto-Bot, o mascote" />
+          <Mascote corpo pose="em-pe" tamanho={104} className="pn-bot" titulo="Epi, o mascote da M3D" />
           <div><div className="sub">Bom treino,</div><div className="hello">{usuario.nome.split(' ')[0]} 👋</div></div>
         </div>
         <div className="pn-atalhos" role="group" aria-label="Atalhos">
