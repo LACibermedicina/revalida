@@ -280,6 +280,13 @@ curl -fsS --max-time 10 "http://127.0.0.1:$WEB_PORTA/api/saude" >/dev/null && ok
 if curl -fsS --max-time 15 "$URL/api/saude" >/dev/null 2>&1; then ok "$URL no ar"
 elif curl -fsS --max-time 15 -H "Host: $DOMINIO" "http://127.0.0.1/api/saude" >/dev/null 2>&1; then av "O proxy funciona, mas $URL ainda não abre de fora (DNS/HTTPS)."
 else av "$URL ainda não responde."; fi
+# peso da página (o que o navegador baixa ao abrir o app) e tempo de resposta pelo domínio
+IDX="$(curl -fsS --max-time 10 --compressed "http://127.0.0.1:$WEB_PORTA/" 2>/dev/null || true)"
+tot=0; for a in $(printf '%s' "$IDX" | grep -oE '/assets/[^"]+\.(js|css)' | sort -u); do
+  b="$(curl -so /dev/null -H 'Accept-Encoding: gzip' -w '%{size_download}' "http://127.0.0.1:$WEB_PORTA$a" 2>/dev/null || echo 0)"; tot=$((tot + ${b%.*}))
+done
+T="$(curl -so /dev/null -w '%{time_total}' --max-time 20 "$URL/" 2>/dev/null || echo '?')"
+ok "Página inicial: $((tot / 1024)) KB de código (comprimido); $URL respondeu em ${T}s"
 # serviços externos de verdade: cada chave de IA (na ordem do failsafe) e o login no SMTP — sem mostrar valores
 titulo "Serviços externos"
 docker compose exec -T api node src/diagnostico-servicos.js 2>/dev/null || av "Não consegui rodar o diagnóstico dos serviços."

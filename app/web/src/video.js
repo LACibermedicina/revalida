@@ -5,7 +5,7 @@
 //  • vídeo abre já na entrada; candidato e avaliador/ator ligam câmera e microfone sozinhos;
 //  • qualquer participante (inclusive observador) pode ABRIR a própria câmera;
 //  • observador só publica áudio se o chefe da sala liberou (padrão: bloqueado).
-import AgoraRTC from 'agora-rtc-sdk-ng';
+// a biblioteca da Agora (~1,5 MB) só é baixada quando alguém entra numa sala com vídeo de verdade
 
 /** `rotaToken(id)` devolve a URL do token: sessões antigas (padrão) ou salas permanentes (`/api/salas/:id/agora-token`). */
 const ROTA_SESSAO = (id) => `/api/sessoes/${id}/agora-token`;
@@ -33,6 +33,7 @@ export async function criarSalaVideo({ sessaoId, tokenAuth, rotaToken = ROTA_SES
   let pode = dados.pode || { video: true, audio: dados.publica !== false, chefe: false };
   if (dados.modo !== 'agora') return { modo: 'demo', pode, papel: dados.papel };
 
+  const { default: AgoraRTC } = await import('agora-rtc-sdk-ng');
   AgoraRTC.onAutoplayFailed = () => aoSomBloqueado?.(true);
   const cliente = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
   let mic = null; let cam = null;

@@ -2,6 +2,7 @@
 # Sem .env valem os padrões de desenvolvimento (5173, 3001, 5432; banco e API só em 127.0.0.1).
 services:
   db:
+    restart: unless-stopped   # volta sozinho depois de reiniciar a VPS ou o Docker
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: revalida
@@ -17,6 +18,7 @@ services:
       retries: 10
 
   api:
+    restart: unless-stopped   # volta sozinho depois de reiniciar a VPS ou o Docker
     build: ./server
     env_file: ./server/.env
     environment:
@@ -27,6 +29,7 @@ services:
       db: { condition: service_healthy }
 
   web:
+    restart: unless-stopped   # volta sozinho depois de reiniciar a VPS ou o Docker
     build:
       context: .
       dockerfile: web/Dockerfile
