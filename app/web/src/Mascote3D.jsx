@@ -5,7 +5,7 @@ import Secreto2D from './Secreto2D.jsx';
  *  abre offline. A cabeça e o corpo seguem o mouse (a página repassa a posição ao iframe) e ele faz movimentos aleatórios.
  *  Não recebe cliques (pointer-events: none): nada atrapalha a tela. Enquanto o 3D carrega, ou se o navegador não tiver WebGL,
  *  aparece a versão 2D animada. `pose`: sit | stand | wave. `fluido`: ocupa 100% do pai; senão usa `tamanho` (largura). */
-export default function Mascote3D({ pose = 'sit', tamanho = 220, fluido = false, titulo = 'Epi, o mascote da M3D', className = '' }) {
+export default function Mascote3D({ pose = 'sit', tamanho = 220, fluido = false, cutucar = 0, titulo = 'Epi, o mascote da M3D', className = '' }) {
   const ref = useRef(null);
   const [pronto, setPronto] = useState(false);
   const sem3d = typeof window !== 'undefined' && window.__SIMULACAO__ === true;   // arquivo autônomo (file://): só a versão 2D
@@ -36,6 +36,9 @@ export default function Mascote3D({ pose = 'sit', tamanho = 220, fluido = false,
   useEffect(() => {
     if (pronto && ref.current?.contentWindow) ref.current.contentWindow.postMessage({ rv3dPose: pose }, destino);
   }, [pose, pronto, destino]);
+  useEffect(() => {
+    if (cutucar && pronto && ref.current?.contentWindow) ref.current.contentWindow.postMessage({ rv3dCutuca: cutucar }, destino);
+  }, [cutucar, pronto, destino]);
 
   const estilo = fluido ? { width: '100%', height: '100%' } : { width: tamanho, height: Math.round(tamanho * 1.05) };
   return (

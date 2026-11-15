@@ -324,6 +324,7 @@ addEventListener('pointermove', (e) => mouseLocal(e.clientX, e.clientY, Math.max
 addEventListener('message', (e) => {
   if (alvoMsg !== '*' && e.origin !== location.origin) return; const d = e.data || {};
   if (d.rv3dPose) { pose = d.rv3dPose === 'sit' ? 'sit' : 'stand'; acenoFixo = d.rv3dPose === 'wave'; }
+  if (d.rv3dCutuca && typeof agir === 'function') agir();
   if (Array.isArray(d.rv3dMouse)) mouseLocal(d.rv3dMouse[0], d.rv3dMouse[1], d.rv3dMouse[2]);
 });
 

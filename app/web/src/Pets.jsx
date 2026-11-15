@@ -25,7 +25,7 @@ function novoCao(cao, x) {
   return { cao, x, alvo: x, dir: cao === 'golden' ? 1 : -1, pose: 'sentado', ate: 0, andando: false, fase: 0, pulo: 0, puloDur: 0, acao: 'sentar', zzz: false };
 }
 
-export default function Pets() {
+export default function Pets({ reserva = 320 }) {
   const area = useRef(null);
   const els = useRef({});
   const caes = useRef([novoCao('golden', 60), novoCao('spotty', 220)]);
@@ -38,7 +38,7 @@ export default function Pets() {
     // pré-carrega as poses (sem piscar na troca)
     for (const cao of Object.keys(P)) for (const pose of Object.keys(P[cao])) { const i = new Image(); i.src = URL(cao, pose); }
 
-    const largura = () => Math.max(260, (area.current?.clientWidth || 800) - 320);   // não invade o canto do Epi
+    const largura = () => Math.max(260, (area.current?.clientWidth || 800) - reserva);   // não invade o canto do Epi
     const outro = (c) => caes.current.find((d) => d !== c);
 
     function decidir(c, agora) {

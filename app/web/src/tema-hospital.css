@@ -143,6 +143,27 @@ html:not([data-layout=largo]) .app:has(.faixa-marca)::before{height:36px}
 html[data-layout=largo] .tela.login{max-width:1080px;width:100%;margin-inline:auto;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);column-gap:44px;align-items:center;justify-content:normal}
 html[data-layout=largo] .tela.login .hero{font-size:2.4rem}
 
+/* ===== login no computador: o Epi e os cachorrinhos vivem no próprio fundo; só o formulário fica num cartão ===== */
+.cena-toque{position:absolute;left:0;bottom:0;width:62%;height:78%;z-index:2;border:0;padding:0;background:transparent;border-radius:40%;cursor:pointer}
+.cena-toque:focus-visible{outline:3px solid var(--mar);outline-offset:-6px}
+.cena-nota small{display:block;margin-top:6px;font:700 .7rem/1.2 var(--corpo);color:var(--suave)}
+html[data-layout=largo] body:has(.tela.login){background:transparent}
+html[data-layout=largo] body:has(.tela.login)::before{inset:-28px;transform:translate3d(var(--px,0px),var(--py,0px),0);transition:transform .7s cubic-bezier(.2,.7,.3,1)}
+html[data-layout=largo] .tela.login .cena-marca,html[data-layout=largo] .tela.login .cena-palco{position:relative;z-index:2}
+html[data-layout=largo] .tela.login .login-form{position:relative;z-index:3}
+html[data-layout=largo] .app:has(.tela.login){background:transparent;border-color:transparent;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+html[data-layout=largo] .app:has(.tela.login)::before,html[data-layout=largo] .app:has(.tela.login) .blobs{display:none}
+html[data-layout=largo] .tela.login .cena-marca{justify-content:flex-start}
+html[data-layout=largo] .tela.login .cena-marca b{text-shadow:0 2px 0 rgba(255,255,255,.8)}
+html[data-layout=largo] .tela.login .cena-palco{max-width:none;height:clamp(420px,68vh,620px);background:none;border:0;border-radius:0;box-shadow:none;overflow:visible}
+html[data-layout=largo] .tela.login .cena-luz{background:radial-gradient(circle,rgba(255,255,255,.55),rgba(255,255,255,0) 60%)}
+html[data-layout=largo] .tela.login .cena-palco .mascote3d{left:-4%;bottom:0;width:80%!important;height:96%!important}
+html[data-layout=largo] .tela.login .login-form{padding:28px 30px;border-radius:30px;background:rgba(255,255,255,.93);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:2px solid #fff;box-shadow:0 6px 0 rgba(214,230,248,.95),0 30px 60px -26px rgba(31,72,130,.6)}
+.login-chao{position:fixed;left:0;bottom:0;width:52vw;height:150px;z-index:-1;pointer-events:none}
+.login-chao .pets{left:24px}
+@media (prefers-reduced-motion:reduce){html[data-layout=largo] body:has(.tela.login)::before{transform:none;transition:none}}
+
 /* Início: o personagem solto, sem cartão atrás */
 .pn-bot{background:transparent!important}
 .sim-fita{position:absolute;z-index:30;bottom:12px;left:50%;transform:translateX(-50%);padding:4px 14px;border-radius:99px;background:#FF6B6B;color:#fff;font:800 .64rem var(--display);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;box-shadow:0 3px 0 #C9393E;pointer-events:none}
