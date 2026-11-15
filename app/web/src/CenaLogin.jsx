@@ -36,7 +36,6 @@ export default function CenaLogin() {
       <div className="cena-palco">
         <i className="cena-luz" aria-hidden="true" />
         <Mascote3D fluido pose="sit" titulo="Epi, o mascote da M3D: um robozinho de juta com jaleco, sentado com o balão da m3d.pro." />
-        <figure className="cena-placa" aria-hidden="true"><b>REVALIDA.M3D</b><span>Estudos preparatórios</span></figure>
         <div className={`cena-nota${on ? ' on' : ''}`} role="status" aria-live="polite"><span>Dica do Epi</span>{DICAS[i]}</div>
       </div>
     </section>
