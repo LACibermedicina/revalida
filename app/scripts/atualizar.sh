@@ -5,8 +5,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 # o banco precisa estar no ar para o backup e as migrações (ex.: logo depois de reiniciar a VPS)
 docker compose up -d db >/dev/null
-for i in $(seq 1 60); do docker compose exec -T db pg_isready -U revalida -d revalida -q 2>/dev/null && break; sleep 2; done
-docker compose exec -T db pg_isready -U revalida -d revalida -q || { echo "O banco não ficou pronto em 2 minutos (docker compose logs db)." >&2; exit 1; }
+for i in $(seq 1 60); do docker compose exec -T db pg_isready -h 127.0.0.1 -U revalida -d revalida -q 2>/dev/null && break; sleep 2; done
+docker compose exec -T db pg_isready -h 127.0.0.1 -U revalida -d revalida -q || { echo "O banco não ficou pronto em 2 minutos (docker compose logs db)." >&2; exit 1; }
 bash scripts/backup.sh
 for f in db/migracoes/*.sql; do
   echo "Aplicando $f"

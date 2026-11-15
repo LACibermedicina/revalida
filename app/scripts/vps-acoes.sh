@@ -15,7 +15,11 @@ titulo(){ printf '\n\033[1m== %s ==\033[0m\n' "$*"; }
 DEST=/opt/revalida/backups-acoes; mkdir -p "$DEST"; chmod 700 "$DEST"
 QUANDO="$(date +%Y%m%d-%H%M%S)"
 
-esperar_banco(){ for i in $(seq 1 60); do docker compose exec -T db pg_isready -U revalida -d revalida -q 2>/dev/null && return 0; sleep 2; done; erro "O banco não ficou pronto."; return 1; }
+# pela rede (-h 127.0.0.1): durante a criação de um banco novo o PostgreSQL sobe um servidor provisório só no socket
+# e depois reinicia; esperar pelo socket pegava o provisório e a conexão caía no meio da estrutura
+esperar_banco(){ local n=0; for i in $(seq 1 90); do
+  if docker compose exec -T db pg_isready -h 127.0.0.1 -U revalida -d revalida -q 2>/dev/null; then n=$((n+1)); [ "$n" -ge 3 ] && return 0; else n=0; fi; sleep 2; done
+  erro "O banco não ficou pronto."; return 1; }
 backup_ok(){ [ -s "$1" ] && gzip -t "$1" 2>/dev/null && [ "$(gzip -dc "$1" | head -c 200000 | grep -c 'PostgreSQL database dump')" -gt 0 ]; }
 
 zerar_app(){
@@ -25,8 +29,13 @@ zerar_app(){
   docker compose exec -T db pg_dump -U revalida -d revalida | gzip > "$F"
   backup_ok "$F" || { erro "Backup falhou: nada foi apagado."; exit 1; }
   ok "Backup completo: $F ($(du -h "$F" | cut -f1))"
-  P="$DEST/parametros-$QUANDO.sql"
-  docker compose exec -T db pg_dump -U revalida -d revalida --data-only --inserts --on-conflict-do-nothing -t config_servidor > "$P"
+  ANT="$(ls -t "$DEST"/parametros-*.sql 2>/dev/null | head -1 || true)"
+  if [ -n "$ANT" ] && grep -q "INSERT INTO" "$ANT"; then
+    P="$ANT"; av "Retomando uma tentativa anterior que parou no meio: usando os parâmetros guardados em $(basename "$P")"
+  else
+    P="$DEST/parametros-$QUANDO.sql"
+    docker compose exec -T db pg_dump -U revalida -d revalida --data-only --inserts --on-conflict-do-nothing -t config_servidor > "$P"
+  fi
   grep -q "INSERT INTO" "$P" && ok "Parâmetros guardados ($(grep -c 'INSERT INTO' "$P") itens)" || av "Nenhum parâmetro gravado no banco para guardar."
   PROJ="$(grep -E '^COMPOSE_PROJECT_NAME=' .env 2>/dev/null | cut -d= -f2)"; PROJ="${PROJ:-revalida}"
   docker compose stop web api >/dev/null 2>&1 || true
