@@ -4,6 +4,8 @@ COPY web/package.json ./
 RUN npm install
 COPY web/index.html web/vite.config.js ./
 COPY web/src ./src
+# arquivos estáticos (Epi 3D, imagens, fundo, ícones): sem esta linha nada de public/ ia para o site
+COPY web/public ./public
 RUN npm run build
 
 FROM nginx:alpine

@@ -280,6 +280,14 @@ curl -fsS --max-time 10 "http://127.0.0.1:$WEB_PORTA/api/saude" >/dev/null && ok
 if curl -fsS --max-time 15 "$URL/api/saude" >/dev/null 2>&1; then ok "$URL no ar"
 elif curl -fsS --max-time 15 -H "Host: $DOMINIO" "http://127.0.0.1/api/saude" >/dev/null 2>&1; then av "O proxy funciona, mas $URL ainda não abre de fora (DNS/HTTPS)."
 else av "$URL ainda não responde."; fi
+# arquivos estáticos servidos de verdade (não a página do app no lugar): mascote, imagens, fundo
+for arq in /epi-3d.html:text/html:"rv3d" /marca/epi-sentado.webp:image/webp: /marca/fundo-hospital.svg:image/svg:"<svg" /marca/pets/golden-sentado.webp:image/webp:; do
+  caminho="${arq%%:*}"; resto="${arq#*:}"; tipo="${resto%%:*}"; marca="${resto#*:}"
+  info="$(curl -fsS --max-time 10 -o /tmp/rv-estatico -w '%{http_code} %{content_type}' "http://127.0.0.1:$WEB_PORTA$caminho" 2>/dev/null || echo "000 -")"
+  if [[ "$info" == 200\ *"$tipo"* ]] && { [ -z "$marca" ] || grep -q "$marca" /tmp/rv-estatico; }; then ok "arquivo $caminho servido"
+  else erro "arquivo $caminho NÃO está sendo servido ($info)"; falhou=1; fi
+done
+rm -f /tmp/rv-estatico
 # peso da página (o que o navegador baixa ao abrir o app) e tempo de resposta pelo domínio
 IDX="$(curl -fsS --max-time 10 --compressed "http://127.0.0.1:$WEB_PORTA/" 2>/dev/null || true)"
 tot=0; for a in $(printf '%s' "$IDX" | grep -oE '/assets/[^"]+\.(js|css)' | sort -u); do
