@@ -38,8 +38,13 @@ function Evolucao({ pontos }) {
 }
 
 import Mascote from './Mascote.jsx';
+import { bloco, useBloco } from './bloco.js';
+import { FocoBloco, ListaBloco } from './BlocoIA.jsx';
 
-export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise, aoPraticar, aoIr, aoAbrirSala, aoAbrirSalaAntiga }) {
+export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise, aoPraticar, aoPraticarIA, aoIr, aoAbrirSala, aoAbrirSalaAntiga }) {
+  const b = useBloco();
+  const [foco, setFoco] = useState(undefined);   // undefined = janela fechada; null = segue a próxima pronta; número = estação escolhida
+  const sortearBloco = () => { bloco.sortear(api, token); setFoco(null); };
   const [p, setP] = useState(null);
   const [sugestoes, setSugestoes] = useState(null);
   const [antigas, setAntigas] = useState([]);
@@ -113,7 +118,10 @@ export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise,
 
       <section className="cartao sugestoes" data-testid="sugestoes" aria-label="Treinar agora">
         <div className="sec">Treinar agora</div>
-        {sugestoes === null ? <p className="sub">Escolhendo pelo seu desempenho…</p>
+        {b ? (<>
+          <p className="sub">Bloco com IA: uma estação nova para cada grande área.</p>
+          <ListaBloco b={b} api={api} token={token} aoAbrir={(n) => setFoco(n)} />
+        </>) : sugestoes === null ? <p className="sub">Escolhendo pelo seu desempenho…</p>
           : sugestoes.sugestoes.length === 0 ? <p className="sub">Ainda não há estações aprovadas para sugerir.</p>
             : sugestoes.sugestoes.map((e) => (
               <button type="button" key={e.id} className="sug" data-testid="sugestao-estacao" onClick={() => aoPraticar?.(e.id)} title="Abrir nos ciclos para treinar">
@@ -121,9 +129,15 @@ export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise,
                 <span className="tag espera">Treinar</span>
               </button>))}
         <div className="acoes">
-          <button type="button" className="btn mini" onClick={carregarSugestoes}>🔀 Sortear outras 5</button>
+          <button type="button" className="btn mini menta" onClick={sortearBloco} data-testid="sortear-bloco" title="A IA cria 5 estações novas, uma por grande área">🔀 Sortear outras 5</button>
+          {b && <button type="button" className="btn mini" onClick={() => setFoco(null)}>Continuar bloco</button>}
+          {b && <button type="button" className="btn mini" onClick={() => bloco.limpar()}>Voltar às sugestões</button>}
           <button type="button" className="btn mini" onClick={() => aoIr('estacoes', { aba: 'disponiveis' })}>Ver todas as estações disponíveis ({p?.estacoes.disponiveis ?? sugestoes?.total_disponiveis ?? 0})</button>
         </div>
+        {b && foco !== undefined && (
+          <FocoBloco b={b} n={foco} api={api} token={token} aoFechar={() => setFoco(undefined)} aoMudar={(n) => setFoco(n)}
+            aoSozinho={(id) => { setFoco(undefined); aoPraticarIA?.(id); }} aoAbrirSala={(id) => { setFoco(undefined); aoAbrirSala(id); }} />
+        )}
       </section>
 
       {((p?.salas?.length ?? 0) + antigas.length > 0) && (

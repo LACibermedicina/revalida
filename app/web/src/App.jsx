@@ -888,6 +888,7 @@ export default function App() {
   return (
     <TelaPainel usuario={sessaoAuth.usuario} token={sessaoAuth.token} api={api}
       aoPraticar={(id) => { setSugestao(id); setChaveCiclos((k) => k + 1); setTela('ciclos'); }}
+      aoPraticarIA={(id) => { setEstacaoIA(id); setTela('solo'); }}
       aoIr={(dest, cmd = {}) => { setComando({ tela: dest, ...cmd, n: Date.now() }); setTela(dest); }}
       aoAbrirSala={abrirSalaCiclos} aoAbrirSalaAntiga={abrirSala} aoAnalise={abrirAnalise} aoCarregar={() => window.__boot?.pronto()} />
   );

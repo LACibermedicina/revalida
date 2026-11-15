@@ -29,3 +29,41 @@
 .pn-sala b{font-family:var(--display);line-height:1.25}.pn-sala small{color:var(--suave)}.pn-sala .tag{font-size:.7rem}
 .pn-sala i{display:block;width:100%;height:6px;border-radius:3px;background:var(--borda);overflow:hidden}.pn-sala i u{display:block;height:100%;background:var(--menta)}
 @media (min-width:900px){.pn-tela{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-content:start;column-gap:16px}.pn-tela>.pn-topo,.pn-tela>.pn-kpis,.pn-tela>.pn-duas,.pn-tela>.pn-aval,.pn-tela>section[aria-label="Minhas salas"],.pn-tela>section[aria-label="Estações que fiz"]{grid-column:1/-1}}
+
+/* ===== bloco de 5 com IA (uma estação por grande área) ===== */
+.bl-lista{list-style:none;margin:8px 0 4px;padding:0;display:flex;flex-direction:column;gap:8px}
+.bl-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:16px;background:#fff;box-shadow:inset 0 0 0 2px #E3EEFA}
+.bl-item.feita{opacity:.75}
+.bl-num{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:800 .9rem var(--display);color:#fff;background:var(--cor,var(--mar))}
+.bl-item.gerando .bl-num{background:#C9D8EA;animation:bl-pulsa 1.2s ease-in-out infinite}
+.bl-item.falhou .bl-num{background:var(--coral)}
+.bl-txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.bl-txt small{font:800 .66rem/1.2 var(--display);letter-spacing:.1em;text-transform:uppercase;color:var(--suave)}
+.bl-txt b{font-weight:800;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bl-gerando{color:var(--suave)!important;font-weight:700!important}
+.bl-falha{color:var(--coral)!important;font-weight:700!important;white-space:normal!important}
+@keyframes bl-pulsa{50%{opacity:.45}}
+
+.bl-fundo{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:16px;background:rgba(28,43,74,.35);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);animation:bl-aparece .2s ease-out}
+.bl-foco{position:relative;width:min(520px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:26px 26px 22px;border-radius:28px;background:#fff;color:var(--fg);outline:none;
+  box-shadow:0 6px 0 #D6E6F8,0 30px 70px -20px rgba(31,72,130,.65);animation:rv-entra .35s cubic-bezier(.3,1.3,.5,1) both}
+.bl-foco h3{margin:4px 0 6px;font:800 1.45rem/1.15 var(--display)}
+.bl-x{position:absolute;top:10px;right:12px;width:36px;height:36px;border:0;border-radius:50%;background:#F1F6FC;color:var(--suave);font:700 1.4rem/1 var(--corpo);cursor:pointer}
+.bl-trilha{display:flex;gap:8px;margin:0 0 16px}
+.bl-ponto{width:34px;height:34px;border-radius:50%;border:0;font:800 .9rem var(--display);color:#fff;background:var(--cor);cursor:pointer;opacity:.55;transition:transform .15s,opacity .15s}
+.bl-ponto.atual{opacity:1;transform:scale(1.15);box-shadow:0 0 0 3px #fff,0 0 0 5px var(--cor)}
+.bl-ponto.gerando{background:#C9D8EA;animation:bl-pulsa 1.2s ease-in-out infinite;cursor:default}
+.bl-ponto.falhou{background:#F3C4C6;cursor:default}
+.bl-area{margin:0;font:800 .72rem/1.2 var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--cor)}
+.bl-motivo{margin:8px 0 0;padding:8px 12px;border-radius:12px;background:#F4F8FD;color:var(--suave);font-size:.86rem}
+.bl-escolha{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px}
+.bl-escolha .btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:14px 12px;white-space:normal;text-align:center}
+.bl-escolha .btn small{font:600 .72rem/1.25 var(--corpo);opacity:.85}
+.bl-nav{display:flex;justify-content:space-between;margin-top:14px}
+.bl-rodape{margin:12px 0 0;font-size:.8rem;color:var(--suave);text-align:center}
+.bl-espera{text-align:center;padding:10px 4px 6px}
+.bl-roda{width:54px;height:54px;margin:4px auto 12px;border-radius:50%;border:5px solid #E3EEFA;border-top-color:var(--menta);animation:bl-gira 1s linear infinite}
+@keyframes bl-gira{to{transform:rotate(1turn)}}
+@keyframes bl-aparece{from{opacity:0}}
+@media (max-width:480px){.bl-escolha{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.bl-roda,.bl-ponto.gerando,.bl-item.gerando .bl-num{animation:none}.bl-fundo,.bl-foco{animation:none}}

@@ -108,3 +108,25 @@ test('execução finalizada de uma estação solo conta na modalidade "solo" do 
   assert.equal((await chamar('GET', '/api/desempenho?modalidade=solo', { token: u })).corpo.resumo.estacoes, 1);
   assert.equal((await chamar('GET', '/api/desempenho?modalidade=sala', { token: u })).corpo.resumo.estacoes, 0);
 });
+
+test('bloco de 5: uma estação por área pedida, tema da área com mais necessidade, rascunho do usuário; área inválida e limite', async () => {
+  const u = await uid('Duda'); rnd = 0;
+  await tema('Bronquiolite', 'pediatria');
+  const areas = ['clinica_medica', 'cirurgia', 'ginecologia_obstetricia', 'pediatria', 'mfc'];
+  const rs = await Promise.all(areas.map((area) => chamar('POST', '/api/solo/bloco/estacao', { token: u, corpo: { area } })));
+  for (const [i, r] of rs.entries()) {
+    assert.equal(r.status, 201, JSON.stringify(r.corpo));
+    assert.equal(r.corpo.area, areas[i]);
+    assert.ok(r.corpo.titulo && r.corpo.area_nome && r.corpo.duracao_min);
+    const e = (await q('select status, origem, criado_por, area from estacoes where id=$1', [r.corpo.id])).rows[0];
+    assert.deepEqual([e.status, e.origem, e.criado_por, e.area], ['rascunho', 'ia', u, areas[i]]);
+  }
+  assert.equal(new Set(rs.map((r) => r.corpo.id)).size, 5, '5 estações diferentes');
+  const tp = (await q(`select nome from temas where area = 'pediatria'`)).rows.map((r) => r.nome);
+  assert.ok(tp.includes(rs[3].corpo.tema), 'pediatria usa um tema de pediatria');
+  assert.equal(iaFalsa.chamadas.at(-1).area !== undefined, true);
+  assert.equal((await chamar('POST', '/api/solo/bloco/estacao', { token: u, corpo: { area: 'x' } })).status, 400);
+  iaFalsa.on = false;
+  assert.equal((await chamar('POST', '/api/solo/bloco/estacao', { token: u, corpo: { area: 'mfc' } })).status, 503);
+  iaFalsa.on = true;
+});

@@ -58,7 +58,7 @@ function motivo(t) {
 
 const inteiro = (v, min, max) => { const n = Number(v); return Number.isFinite(n) ? Math.min(max, Math.max(min, Math.round(n))) : null; };
 
-export function registrarSolo(app, { q, autenticar, ia, aleatorio = Math.random, limitador = new Limitador({ max: 8, janelaMs: 3_600_000 }) }) {
+export function registrarSolo(app, { q, autenticar, ia, aleatorio = Math.random, limitador = new Limitador({ max: 8, janelaMs: 3_600_000 }), limitadorBloco = new Limitador({ max: 25, janelaMs: 3_600_000 }) }) {
   async function sugerir(userId) {
     const [temas, rec] = await Promise.all([
       desempenhoTemas(q, userId),
@@ -72,6 +72,38 @@ export function registrarSolo(app, { q, autenticar, ia, aleatorio = Math.random,
   app.get('/api/solo/sugestao', autenticar, rota(async (req, res) => {
     const s = await sugerir(req.usuario.id);
     res.json({ sugestao: s, padroes: { dificuldade: DIFICULDADE_PADRAO, tempo_min: null, tempo_padrao_min: TEMPO_PADRAO_MIN, itens: ITENS_PADRAO }, ia: ia.configurado() });
+  }));
+
+  // Bloco de 5 com IA: o painel pede uma estação por grande área (5 pedidos em paralelo). Em cada área, o tema é o que o
+  // usuário mais precisa treinar ali (sem histórico, a IA escolhe). A estação fica como rascunho do próprio usuário,
+  // e serve tanto para treinar sozinho com o paciente IA quanto para levar a uma sala com um colega.
+  app.post('/api/solo/bloco/estacao', autenticar, rota(async (req, res) => {
+    if (!ia.configurado()) return res.status(503).json({ erro: 'A IA não está configurada neste servidor.', codigo: 'IA_NAO_CONFIGURADA' });
+    const area = req.body?.area;
+    if (!AREAS.includes(area)) return res.status(400).json({ erro: 'Área inválida.' });
+    if (limitadorBloco.excedeu(req.usuario.id)) return res.status(429).json({ erro: 'Muitas estações geradas na última hora. Tente de novo mais tarde.', codigo: 'LIMITE' });
+    limitadorBloco.registrar(req.usuario.id);
+    const [temas, rec] = await Promise.all([
+      desempenhoTemas(q, req.usuario.id),
+      q(`select tema from praticas_solo where usuario_id = $1 and criado_em > now() - interval '3 days'`, [req.usuario.id]),
+    ]);
+    const t = escolherTema(temas.filter((x) => x.area === area), { aleatorio, recentes: rec.rows.map((r) => r.tema) });
+    const alvo = t ? { tema: t.nome, motivo: motivo(t) } : { tema: '', motivo: 'Tema escolhido pela IA para variar o treino.' };
+    try {
+      const r = await ia.gerarEstacao({
+        area, subtema: alvo.tema, dificuldade: NIVEIS[DIFICULDADE_PADRAO],
+        instrucoes: `Estação de um bloco de treino com 5 grandes áreas. O checklist (PEP) deve ter cerca de ${ITENS_PADRAO} itens observáveis, cobrindo anamnese, exame, conduta e comunicação.`,
+        diretrizes: alvo.tema ? await diretrizesDoTema(q, { nome: alvo.tema, area }) : [],
+      });
+      const estacao = { ...r.estacao, area, titulo: await tituloLivre(q, r.estacao.titulo) };
+      const id = await inserirEstacao(q, { estacao, origem: 'ia', status: 'rascunho', usuarioId: req.usuario.id, semente: r.sorteio?.semente ?? null, dificuldade: NIVEIS[DIFICULDADE_PADRAO] });
+      const tema = limpaTema(alvo.tema || estacao.diagnostico_alvo || estacao.titulo);
+      await q('update estacoes set variacao_tema = $2 where id = $1', [id, tema]);
+      res.status(201).json({ id, titulo: estacao.titulo, area, area_nome: NOME_AREA[area], tema, motivo: alvo.motivo, duracao_min: estacao.duracao_min || TEMPO_PADRAO_MIN });
+    } catch (e) {
+      if (e instanceof ErroIA) return res.status(ERROS_IA[e.codigo] ?? 502).json({ erro: e.message, codigo: e.codigo });
+      throw e;
+    }
   }));
 
   app.get('/api/solo/historico', autenticar, rota(async (req, res) => {
