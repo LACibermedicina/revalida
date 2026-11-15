@@ -46,6 +46,8 @@ env:
 jobs:
   publicar:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # só para gravar as fotos do site no ramo fotos-do-site
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
@@ -104,11 +106,12 @@ jobs:
           done
           ls -la fotos
 
-      - name: Guardar as fotos
+      - name: Guardar as fotos (ramo fotos-do-site)
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: fotos-do-site
-          path: fotos/
-          retention-days: 7
-          if-no-files-found: ignore
+        continue-on-error: true
+        run: |
+          [ -n "$(ls fotos 2>/dev/null)" ] || exit 0
+          cd fotos && git init -q && git checkout -q -b fotos-do-site
+          git config user.name "publicacao-vps" && git config user.email "actions@users.noreply.github.com"
+          date -u +%FT%TZ > quando.txt && git add -A && git commit -q -m "Fotos do site $(date -u +%FT%TZ)"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" fotos-do-site
