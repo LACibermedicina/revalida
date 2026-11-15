@@ -20,6 +20,16 @@ on:
     branches: [main]
     paths: ['app/**', '.github/workflows/publicar-vps.yml']
   workflow_dispatch:
+    inputs:
+      acao:
+        description: 'Ação extra (destrutiva; faz backup antes). Deixe "nenhuma" para só publicar.'
+        type: choice
+        default: nenhuma
+        options: [nenhuma, zerar-app, apagar-copia-antiga, zerar-app-e-apagar-copia-antiga]
+      confirmar:
+        description: 'Para executar a ação, digite SIM'
+        type: string
+        default: ''
 
 concurrency:
   group: publicar-vps
@@ -72,3 +82,12 @@ jobs:
           # código e credenciais vão pela entrada padrão (não aparecem em log nem na linha de comando)
           { [ -n "$CODIGO" ] && printf 'INSTALL_CODE=%s\n' "$CODIGO"; printf '%s\n' "$SERVIDOR_ENV"; } \
             | $SSH "cd '$PASTA/app' && $SUDO bash scripts/vps-preparar.sh --dominio '$DOMINIO' $EXTRA"
+
+      - name: Ação extra (só quando pedida e confirmada)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.acao != 'nenhuma' }}
+        env:
+          ACAO: ${{ inputs.acao }}
+          CONFIRMAR: ${{ inputs.confirmar }}
+        run: |
+          if [ "$CONFIRMAR" != "SIM" ]; then echo "::error::Ação '$ACAO' não executada: digite SIM no campo de confirmação."; exit 1; fi
+          $SSH "cd '$PASTA/app' && $SUDO bash scripts/vps-acoes.sh '$ACAO'"
