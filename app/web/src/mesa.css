@@ -169,3 +169,21 @@ i.on{width:9px;height:9px;border-radius:99px;background:#9a9a9a;flex:none}i.on.s
 /* janela estreita: a mesa só existe em telas largas; nada a ajustar aqui */
 @media (prefers-reduced-motion:reduce){.jan,.toast{animation:none}.dk-item{transition:none}}
 .ic-nome{padding:2px 9px;border-radius:99px;background:rgba(255,255,255,.92);color:var(--fg);text-shadow:none;box-shadow:0 2px 0 rgba(201,220,242,.9)}
+
+/* Golden Paws e Spotty Pal: passeiam no rodapé do desktop, atrás das janelas, sem receber cliques */
+.pets{position:absolute;left:24px;right:0;bottom:2px;height:150px;z-index:0;pointer-events:none;--pets-escala:1}
+.pet{position:absolute;left:0;bottom:0;width:0;will-change:transform}
+.pet-corpo{position:absolute;bottom:4px;left:0;transform-origin:50% 100%;will-change:transform;
+  filter:drop-shadow(0 3px 3px rgba(31,72,130,.18))}
+.pet-corpo img{display:block;width:auto;max-width:none;user-select:none;-webkit-user-drag:none;transform:translateX(-50%);margin-left:50%}
+.pet-corpo{width:0}
+.pet-corpo img{position:relative;left:0}
+.pet-sombra{position:absolute;bottom:0;left:0;width:84px;height:12px;border-radius:50%;transform:translateX(-50%);
+  background:radial-gradient(ellipse,rgba(31,72,130,.32),rgba(31,72,130,0) 70%)}
+.pet-zzz{position:absolute;left:10px;bottom:56px;font:800 15px/1 var(--display,system-ui);color:#5B7BA6;pointer-events:none}
+.pet-zzz i{position:absolute;font-style:normal;opacity:0;animation:pet-z 3s ease-out infinite}
+.pet-zzz i:nth-child(2){animation-delay:1s;font-size:19px}.pet-zzz i:nth-child(3){animation-delay:2s;font-size:23px}
+@keyframes pet-z{0%{opacity:0;transform:translate(0,0)}20%{opacity:.9}100%{opacity:0;transform:translate(26px,-46px)}}
+@media (max-width:900px){.pets{display:none}}
+@media (min-width:1600px){.pets{--pets-escala:1.12}}
+@media (prefers-reduced-motion:reduce){.pet-zzz i{animation:none;opacity:.7}}

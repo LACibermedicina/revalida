@@ -4,6 +4,7 @@ import { Icone } from './Icones.jsx';
 import Notas, { criarNota } from './Notas.jsx';
 import Central from './Central.jsx';
 import Mascote3D from './Mascote3D.jsx';
+import Pets from './Pets.jsx';
 import { GRADE, TELAS, TELAS_FAVORITAVEIS } from './useMesa.js';
 
 const FRASES = [
@@ -226,6 +227,7 @@ export default function Mesa({ usuario, token, api, jan, estado, salvar, avisos,
         </div>
         {estado.favoritos.length === 0 && jan.lista.length === 0 && <p className="mesa-vazia">Sua mesa está vazia. Use <b>Favoritos</b> para fixar recursos, estações e temas aqui.</p>}
         <FraseMesa />
+        <Pets />
         <div className="mesa-bot" aria-hidden="true">
           <Mascote3D fluido pose="wave" titulo="" />
           <figure className="mesa-placa"><img src="/marca/avatar.png" alt="" width="52" height="52" /><figcaption>REVALIDA.M3D<small>Estudos preparatórios</small></figcaption></figure>

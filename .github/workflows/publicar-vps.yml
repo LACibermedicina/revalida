@@ -91,3 +91,24 @@ jobs:
         run: |
           if [ "$CONFIRMAR" != "SIM" ]; then echo "::error::Ação '$ACAO' não executada: digite SIM no campo de confirmação."; exit 1; fi
           $SSH "cd '$PASTA/app' && $SUDO bash scripts/vps-acoes.sh '$ACAO'"
+
+      - name: Fotos do site no ar (computador e celular)
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          mkdir -p fotos
+          for t in "1400,900:computador" "390,844:celular"; do
+            tam="${t%%:*}"; nome="${t##*:}"
+            timeout 60 google-chrome --headless=new --no-sandbox --hide-scrollbars --use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader \
+              --window-size="$tam" --virtual-time-budget=12000 --screenshot="fotos/$nome.png" "https://$DOMINIO/" 2>/dev/null || true
+          done
+          ls -la fotos
+
+      - name: Guardar as fotos
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fotos-do-site
+          path: fotos/
+          retention-days: 7
+          if-no-files-found: ignore
