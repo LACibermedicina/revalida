@@ -99,6 +99,9 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p fotos
+          # espera a API terminar de subir (logo depois da publicação ela ainda está iniciando)
+          for i in $(seq 1 30); do curl -fsS --max-time 5 "https://$DOMINIO/api/saude" >/dev/null 2>&1 && break; sleep 3; done
+          sleep 5
           for t in "1400,900:computador" "390,844:celular"; do
             tam="${t%%:*}"; nome="${t##*:}"
             timeout 60 google-chrome --headless=new --no-sandbox --hide-scrollbars --use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader \
