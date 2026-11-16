@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import Logo from './Logo.jsx';
+import Logo, { Wordmark } from './Logo.jsx';
 import Mascote3D from './Mascote3D.jsx';
 import { createPortal } from 'react-dom';
 import Pets from './Pets.jsx';
+import Contagem from './Contagem.jsx';
 
 const DICAS = [
   'Leia o enunciado com calma: um minuto lendo evita três minutos corrigindo o rumo.',
@@ -68,8 +69,9 @@ export default function CenaLogin() {
     <section className="cena" aria-label="Epi, o mascote da M3D, no Revalida Prático">
       <div className="cena-marca">
         <Logo tamanho={96} />
-        <div><b>Revalida Prático</b><small>Estudos preparatórios · 2ª fase</small></div>
+        <div><b><Wordmark /></b><small>Estudos preparatórios · 2ª fase</small></div>
       </div>
+      <Contagem compacta />
       <div className="cena-palco">
         <i className="cena-luz" aria-hidden="true" />
         <Mascote3D fluido pose="sit" cutucar={cutuca} titulo="Epi, o mascote da M3D: um robozinho de juta com jaleco, sentado com o balão da m3d.pro." />

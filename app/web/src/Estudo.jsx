@@ -9,6 +9,7 @@ import { criarEntrada, estadoInicial, zoomEm, resetar } from './nav3d.js';
 import Mapa2D, { VISTAS } from './Mapa2D.jsx';
 import './estudo.css';
 import { CartaRPG, TodosCartoes, AssistenteCartoes } from './Cartoes.jsx';
+import Seletor from './Seletor.jsx';
 
 const AREAS = { clinica_medica: 'Clínica Médica', cirurgia: 'Cirurgia', ginecologia_obstetricia: 'Ginecologia e Obstetrícia', pediatria: 'Pediatria', mfc: 'Medicina de Família e Comunidade' };
 const CATEGORIAS = [['conhecimento', 'Conhecimento'], ['sequencia', 'Sequência'], ['comunicacao', 'Comunicação'], ['tempo', 'Tempo']];
@@ -264,7 +265,7 @@ function Mapa({ token, api, inicial, aoCartoes, aoPraticar }) {
           {g.tipos?.length > 0 && <fieldset><legend>Tipo de relação</legend>{g.tipos.map((t) => <button key={t} type="button" className={`es-chip${tipos.has(t) ? ' on' : ''}`} aria-pressed={tipos.has(t)} onClick={() => setTipos((x) => alternarEm(x, t))}>{TIPO_REL[t] ?? t}</button>)}</fieldset>}
           <fieldset><legend>Informações associadas</legend>
             {[['estacoes', 'Com estações'], ['cartoes', 'Com cartões'], ['lacunas', 'Com lacunas'], ['vizinhos', 'Só vizinhos do tema escolhido']].map(([k, r]) => <button key={k} type="button" className={`es-chip${assoc[k] ? ' on' : ''}`} aria-pressed={assoc[k]} disabled={k === 'vizinhos' && !sel} onClick={() => setAssoc((x) => ({ ...x, [k]: !x[k] }))}>{r}</button>)}</fieldset>
-          <div className="es-grade"><label className="campo"><span>Área</span><select value={area} onChange={(e) => setArea(e.target.value)}><option value="">Todas</option>{Object.entries(AREAS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+          <div className="es-grade"><label className="campo"><span>Área</span><Seletor value={area} onChange={(e) => setArea(e.target.value)}><option value="">Todas</option>{Object.entries(AREAS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</Seletor></label>
             <label className="campo"><span>Buscar tema</span><input value={filtro} onChange={(e) => setFiltro(e.target.value)} /></label></div>
           {ativos > 0 && <button type="button" className="ln" onClick={limpar}>Limpar filtros</button>}
         </details>
@@ -453,8 +454,8 @@ function Revisao({ id, token, api, aoVoltar }) {
           <label className="es-check"><input type="checkbox" checked={!!m[i.id]} onChange={(e) => marcar(i.id, e.target.checked)} /> <span>{i.descricao}{i.critico ? ' (crítico)' : ''} <em>{i.resultado === 'parcial' ? 'parcial' : 'não feito'}</em></span></label>
           {m[i.id] && (
             <div className="es-grade">
-              <label className="campo"><span>Categoria</span><select value={m[i.id].categoria} onChange={(e) => set(i.id, 'categoria', e.target.value)}>{CATEGORIAS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
-              <label className="campo"><span>Tipo de erro</span><select value={m[i.id].erro_tipo} onChange={(e) => set(i.id, 'erro_tipo', e.target.value)}><option value="">Outro</option>{Object.entries(r.tipos_erro).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+              <label className="campo"><span>Categoria</span><Seletor value={m[i.id].categoria} onChange={(e) => set(i.id, 'categoria', e.target.value)}>{CATEGORIAS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</Seletor></label>
+              <label className="campo"><span>Tipo de erro</span><Seletor value={m[i.id].erro_tipo} onChange={(e) => set(i.id, 'erro_tipo', e.target.value)}><option value="">Outro</option>{Object.entries(r.tipos_erro).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</Seletor></label>
               <label className="campo es-larga"><span>O que faltou (comportamento)</span><input value={m[i.id].descricao} maxLength={300} onChange={(e) => set(i.id, 'descricao', e.target.value)} placeholder="Ex.: não verbalizei a dose do salbutamol" /></label>
             </div>
           )}
@@ -489,10 +490,10 @@ function Diretrizes({ token, usuario, api }) {
           <label className="campo"><span>Título</span><input value={f.titulo} maxLength={160} onChange={set('titulo')} required /></label>
           <div className="es-grade">
             <label className="campo"><span>Fonte</span><input value={f.fonte} maxLength={200} onChange={set('fonte')} placeholder="Ministério da Saúde, 2022" /></label>
-            <label className="campo"><span>Área</span><select value={f.area} onChange={set('area')}><option value="">Todas</option>{Object.entries(AREAS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+            <label className="campo"><span>Área</span><Seletor value={f.area} onChange={set('area')}><option value="">Todas</option>{Object.entries(AREAS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</Seletor></label>
           </div>
           <div className="es-grade">
-            <label className="campo"><span>Tipo da fonte</span><select value={f.categoria} onChange={set('categoria')}>{Object.entries(CATEG).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+            <label className="campo"><span>Tipo da fonte</span><Seletor value={f.categoria} onChange={set('categoria')}>{Object.entries(CATEG).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</Seletor></label>
             <label className="ca-chk"><input type="checkbox" checked={f.obrigatoria} onChange={(e) => setF((x) => ({ ...x, obrigatoria: e.target.checked }))} />Bibliografia exigida (a análise das estações usa primeiro)</label>
           </div>
           <label className="campo"><span>Link (opcional)</span><input value={f.url} maxLength={400} onChange={set('url')} placeholder="https://…" /></label>

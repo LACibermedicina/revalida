@@ -1,6 +1,7 @@
 // Painel de salas abertas, chat interno, configuração da sala e "solucionar problemas" de câmera/microfone.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { diagnosticarMidia, problemasDe } from './midia.js';
+import Seletor from './Seletor.jsx';
 
 export const PRAZOS = [[6, '6 horas'], [12, '12 horas'], [24, '24 horas'], [48, '2 dias'], [168, '7 dias'], [720, '30 dias']];
 const prazoTxt = (h) => PRAZOS.find(([v]) => v === h)?.[1] ?? `${h} h`;
@@ -54,7 +55,7 @@ export function ConfigurarSala({ sala, api, token, aoSalvar }) {
       <form onSubmit={salvar}>
         <label className="campo"><span>Nome</span><input value={nome} onChange={(e) => setNome(e.target.value)} maxLength={60} /></label>
         <label className="campo"><span>Desfazer a sala se ficar vazia por</span>
-          <select value={horas} onChange={(e) => setHoras(e.target.value)}>{PRAZOS.map(([v, r]) => <option key={v} value={v}>{r}</option>)}{!PRAZOS.some(([v]) => v === Number(horas)) && <option value={horas}>{prazoTxt(Number(horas))}</option>}</select></label>
+          <Seletor value={horas} onChange={(e) => setHoras(e.target.value)}>{PRAZOS.map(([v, r]) => <option key={v} value={v}>{r}</option>)}{!PRAZOS.some(([v]) => v === Number(horas)) && <option value={horas}>{prazoTxt(Number(horas))}</option>}</Seletor></label>
         <button className="btn mini" type="submit">Salvar</button> {msg && <span className="sub" role="status">{msg}</span>}
       </form>
     </details>

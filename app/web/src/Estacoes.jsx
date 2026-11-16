@@ -6,6 +6,7 @@ import { CatalogoLista, CatalogoTemas, ImportarCaderno } from './Catalogo.jsx';
 import QuadroTema from './QuadroTema.jsx';
 import { ScriptEstudo } from './PraticaIA.jsx';
 import './estacoes.css';
+import Seletor from './Seletor.jsx';
 
 const AREAS = [['clinica_medica', 'Clínica Médica'], ['cirurgia', 'Cirurgia'], ['ginecologia_obstetricia', 'Ginecologia e Obstetrícia'], ['pediatria', 'Pediatria'], ['mfc', 'Medicina de Família e Comunidade']];
 const TIPOS = [['laboratorial', 'Exame laboratorial'], ['imagem', 'Imagem'], ['biopsia', 'Biópsia'], ['laudo', 'Laudo'], ['outro', 'Outro']];
@@ -71,8 +72,8 @@ function Disponiveis({ token, api, usuario, aoPraticar, aoAbrir, aoPraticarIA, f
   return (
     <div data-testid="estacoes-disponiveis" className="est-disp">
       <div className="est-grade">
-        <label className="campo"><span>Área</span><select value={f.area} aria-label="Filtrar por área" onChange={(e) => setF({ ...f, area: e.target.value })}><option value="">Todas</option>{AREAS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
-        <label className="campo"><span>Dificuldade</span><select value={f.dificuldade} onChange={(e) => setF({ ...f, dificuldade: e.target.value })}><option value="">Todas</option>{DIFICULDADES.map((d) => <option key={d} value={d}>{d}</option>)}</select></label>
+        <label className="campo"><span>Área</span><Seletor value={f.area} aria-label="Filtrar por área" onChange={(e) => setF({ ...f, area: e.target.value })}><option value="">Todas</option>{AREAS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</Seletor></label>
+        <label className="campo"><span>Dificuldade</span><Seletor value={f.dificuldade} onChange={(e) => setF({ ...f, dificuldade: e.target.value })}><option value="">Todas</option>{DIFICULDADES.map((d) => <option key={d} value={d}>{d}</option>)}</Seletor></label>
       </div>
       <label className="campo"><span>Buscar</span><input type="search" value={f.busca} placeholder="título da estação" onChange={(e) => setF({ ...f, busca: e.target.value })} /></label>
       <p className="sub" aria-live="polite">{lista ? `${vistas.length} de ${lista.length} estações aprovadas` : 'Carregando…'}</p>
@@ -263,15 +264,15 @@ function Gerar({ token, api, ia, aoPronta, aoVoltar, aoPraticar }) {
         {modo === 'avancado' && (<>
         <div className="est-grade">
           <label className="campo"><span>Área</span>
-            <select value={f.area} onChange={set('area')}><option value="">Sortear</option>{AREAS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+            <Seletor value={f.area} onChange={set('area')}><option value="">Sortear</option>{AREAS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</Seletor></label>
           <label className="campo"><span>Dificuldade</span>
-            <select value={f.dificuldade} onChange={set('dificuldade')}><option value="">Sortear</option>{DIFICULDADES.map((d) => <option key={d} value={d}>{d}</option>)}</select></label>
+            <Seletor value={f.dificuldade} onChange={set('dificuldade')}><option value="">Sortear</option>{DIFICULDADES.map((d) => <option key={d} value={d}>{d}</option>)}</Seletor></label>
         </div>
         <label className="campo"><span>Tema</span><input value={f.subtema} maxLength={120} onChange={set('subtema')} placeholder="Ex.: pré-eclâmpsia (ou deixe em branco)" /></label>
         <label className="campo"><span>Se o tema ficar em branco, sortear entre</span>
-          <select value={f.prioridade} onChange={set('prioridade')} disabled={!!f.subtema.trim()}>
+          <Seletor value={f.prioridade} onChange={set('prioridade')} disabled={!!f.subtema.trim()}>
             <option value="">Todos os temas</option><option value="relevantes">Os mais relevantes (base de referência)</option><option value="fracos">Meus pontos mais fracos</option>
-          </select></label>
+          </Seletor></label>
         <details className="est-modelo"><summary>Modelo da estação (opcional)</summary>
           <div className="est-grade">
             <label className="campo"><span>Cenário de atendimento</span><input value={f.cenario} maxLength={200} onChange={set('cenario')} placeholder="UBS, pronto-socorro, ambulatório…" /></label>
@@ -283,10 +284,10 @@ function Gerar({ token, api, ia, aoPronta, aoVoltar, aoPraticar }) {
         </details>
           <fieldset className="est-av" data-testid="config-avancada"><legend>Configurações avançadas</legend>
             <div className="est-grade">
-              <label className="campo"><span>Duração</span><select value={av.duracao_min} onChange={setA('duracao_min')}><option value="">Automática</option>{[5, 8, 10, 12, 15, 20].map((m) => <option key={m} value={m}>{m} min</option>)}</select></label>
+              <label className="campo"><span>Duração</span><Seletor value={av.duracao_min} onChange={setA('duracao_min')}><option value="">Automática</option>{[5, 8, 10, 12, 15, 20].map((m) => <option key={m} value={m}>{m} min</option>)}</Seletor></label>
               <label className="campo"><span>Itens do checklist (PEP)</span><input type="number" min="8" max="40" value={av.itens} onChange={setA('itens')} placeholder="Automático (8 a 40)" /></label>
-              <label className="campo"><span>Materiais liberáveis (exames/imagens)</span><select value={av.materiais} onChange={setA('materiais')}><option value="">Automático</option><option value="0">Nenhum</option>{[1, 2, 3, 4, 5, 6].map((m) => <option key={m} value={m}>{m}</option>)}</select></label>
-              <label className="campo"><span>Comportamento do paciente</span><select value={av.comportamento} onChange={setA('comportamento')}><option value="">Automático</option><option value="colaborativo">Colaborativo</option><option value="ansioso">Ansioso</option><option value="reticente">Reticente</option><option value="falante">Falante</option><option value="irritado">Impaciente</option></select></label>
+              <label className="campo"><span>Materiais liberáveis (exames/imagens)</span><Seletor value={av.materiais} onChange={setA('materiais')}><option value="">Automático</option><option value="0">Nenhum</option>{[1, 2, 3, 4, 5, 6].map((m) => <option key={m} value={m}>{m}</option>)}</Seletor></label>
+              <label className="campo"><span>Comportamento do paciente</span><Seletor value={av.comportamento} onChange={setA('comportamento')}><option value="">Automático</option><option value="colaborativo">Colaborativo</option><option value="ansioso">Ansioso</option><option value="reticente">Reticente</option><option value="falante">Falante</option><option value="irritado">Impaciente</option></Seletor></label>
             </div>
             <div className="est-enfase"><span>Dar mais peso a (até 4)</span>
               {[['anamnese', 'Anamnese'], ['exame_fisico', 'Exame físico'], ['exames', 'Exames'], ['conduta', 'Conduta'], ['comunicacao', 'Comunicação'], ['etica', 'Ética']].map(([k, n]) => (
@@ -403,7 +404,7 @@ function Variacao({ base, token, api, ia, aoAbrir }) {
         <label className="campo"><span>Novo perfil do paciente</span><input value={f.perfil} maxLength={200} onChange={set('perfil')} placeholder="Criança de 6 anos" /></label>
         <label className="campo"><span>Novo cenário</span><input value={f.cenario} maxLength={200} onChange={set('cenario')} placeholder="UBS, pronto-socorro…" /></label>
         <label className="campo"><span>Outro diagnóstico alvo</span><input value={f.diagnostico_alvo} maxLength={200} onChange={set('diagnostico_alvo')} /></label>
-        <label className="campo"><span>Dificuldade</span><select value={f.dificuldade} onChange={set('dificuldade')}><option value="">Manter</option>{DIFICULDADES.map((d) => <option key={d}>{d}</option>)}</select></label>
+        <label className="campo"><span>Dificuldade</span><Seletor value={f.dificuldade} onChange={set('dificuldade')}><option value="">Manter</option>{DIFICULDADES.map((d) => <option key={d}>{d}</option>)}</Seletor></label>
       </div>
       <label className="campo"><span>Orientações (opcional)</span><textarea value={f.instrucoes} maxLength={2000} onChange={set('instrucoes')} placeholder="Ex.: incluir diabetes como comorbidade" /></label>
       {erro && <div className="msg e" role="alert">{erro}</div>}
@@ -481,7 +482,7 @@ function Editor({ id, token, usuario, api, nota, aoVoltar, aoExportar, aoAbrir, 
         <div className="est-bloco cartao">
           <Campo rotulo="Título" incerto={inc('titulo')}><input value={e.titulo} maxLength={120} onChange={set('titulo')} /></Campo>
           <div className="est-grade">
-            <Campo rotulo="Área" incerto={inc('area')}><select value={e.area} onChange={set('area')}>{AREAS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></Campo>
+            <Campo rotulo="Área" incerto={inc('area')}><Seletor value={e.area} onChange={set('area')}>{AREAS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</Seletor></Campo>
             <Campo rotulo="Duração (min)" incerto={inc('duracao_min')}><input inputMode="numeric" value={e.duracao_min} onChange={set('duracao_min')} /></Campo>
           </div>
           <Campo rotulo="Síntese da estação" incerto={inc('sintese')}><textarea value={e.sintese} maxLength={3000} onChange={set('sintese')} placeholder="Perfil do paciente, queixa e o que a estação avalia." /></Campo>
@@ -524,7 +525,7 @@ function Editor({ id, token, usuario, api, nota, aoVoltar, aoExportar, aoAbrir, 
           {e.materiais.map((m, i) => (
             <div className={`est-mat${inc(`materiais[${i}]`) ? ' incerto' : ''}`} key={i}>
               <div className="est-linha">
-                <label className="campo"><span>Tipo</span><select value={m.tipo} onChange={(ev) => setLista('materiais', i, 'tipo', ev.target.value)}>{TIPOS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+                <label className="campo"><span>Tipo</span><Seletor value={m.tipo} onChange={(ev) => setLista('materiais', i, 'tipo', ev.target.value)}>{TIPOS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</Seletor></label>
                 <label className="campo"><span>Título{inc(`materiais[${i}]`) && <em className="est-conferir"> conferir</em>}</span><input value={m.titulo} maxLength={120} onChange={(ev) => setLista('materiais', i, 'titulo', ev.target.value)} /></label>
               </div>
               <label className="campo"><span>Libera quando o candidato…</span><input value={m.gatilho} maxLength={300} onChange={(ev) => setLista('materiais', i, 'gatilho', ev.target.value)} placeholder="Ex.: solicitar hemograma" /></label>

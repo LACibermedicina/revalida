@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import Seletor from './Seletor.jsx';
 
 /** "Criar podcast" a partir de onde o usuário estuda (estação, trilha, cartões, caderno de erros).
  *  O servidor monta o conteúdo já formatado (POST /api/podcast/rapido); aqui o usuário escolhe o modo e os minutos,
@@ -63,7 +64,7 @@ export default function BotaoPodcast({ api, token, origem, estacaoId, execucaoId
                   </fieldset>)}
                 {origem === 'cartoes' && <p className="sub">O episódio lê as perguntas, dá uma pausa para você pensar e depois explica as respostas.</p>}
                 {origem === 'trilha' && <p className="sub">O episódio percorre os temas da trilha, do que mais precisa de reforço ao que menos.</p>}
-                <label className="pod-min">Duração aproximada <select value={min} onChange={(e) => setMin(Number(e.target.value))}>{MINUTOS.map((m) => <option key={m} value={m}>{m} minutos</option>)}</select></label>
+                <label className="pod-min">Duração aproximada <Seletor value={min} onChange={(e) => setMin(Number(e.target.value))}>{MINUTOS.map((m) => <option key={m} value={m}>{m} minutos</option>)}</Seletor></label>
                 {erro && <p className="aviso" role="alert">{erro}</p>}
                 <div className="acoes"><button type="button" className="btn menta" data-testid="podcast-gerar" onClick={criar}>Criar podcast</button><button type="button" className="btn" onClick={fechar}>Cancelar</button></div>
               </>)}

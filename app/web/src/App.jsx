@@ -13,6 +13,7 @@ import TelaComunidade from './Comunidade.jsx';
 import TelaDesempenho from './Desempenho.jsx';
 import TelaSolo from './Solo.jsx';
 import Logo, { Wordmark } from './Logo.jsx';
+import Contagem, { recarregarProva } from './Contagem.jsx';
 import Mesa from './Mesa.jsx';
 import { GRUPOS, RESUMO, TELAS, useEstadoMesa, useJanelas, useAvisos } from './useMesa.js';
 import CenaLogin from './CenaLogin.jsx';
@@ -21,6 +22,7 @@ import TelaPodcast from './Podcast.jsx';
 import EscolhaInicial from './Inicio.jsx';
 import { AdminDenuncias } from './Seguranca.jsx';
 import { gravarModo, podeTrocarVersao } from './dispositivo.js';
+import Seletor from './Seletor.jsx';
 
 /* Relógio de bolso: atalho discreto, sempre no canto, para a versão mini (/watch/). */
 function RelogioDeBolso() {
@@ -228,7 +230,7 @@ function TelaRedefinir({ token, aoConcluir, aoCancelar }) {
   };
   return (
     <div className="tela estreita">
-      <span className="marca marca-grande"><Logo tamanho={64} />Revalida Prático</span>
+      <span className="marca marca-grande"><Logo tamanho={64} /><Wordmark /></span>
       <h1 className="hero">Crie uma <em>nova senha</em></h1>
       <p className="sub">Escolha uma senha que você não usa em outros lugares.</p>
       <div className="campo"><label htmlFor="rd-senha">Nova senha</label>
@@ -349,8 +351,8 @@ function TelaAdmin({ token, usuario }) {
           <b>{p.nome}</b><small>{p.email} · {dataCurta(p.criado_em)}</small>
           {p.mensagem && <p className="sub">“{p.mensagem}”</p>}
           <div className="acoes">
-            <select aria-label="Validade do token" value={prazo[p.id] || '72'} onChange={(e) => setPrazo({ ...prazo, [p.id]: e.target.value })}>
-              {PRAZOS.map(([v, r]) => <option key={v} value={v}>{r}</option>)}</select>
+            <Seletor aria-label="Validade do token" value={prazo[p.id] || '72'} onChange={(e) => setPrazo({ ...prazo, [p.id]: e.target.value })}>
+              {PRAZOS.map(([v, r]) => <option key={v} value={v}>{r}</option>)}</Seletor>
             <button className="btn mini menta" type="button" onClick={() => agir(`/api/admin/pedidos/${p.id}/aprovar`, 'POST', { validadeH: Number(prazo[p.id] || 72) },
               (r) => setSegredo({ titulo: `Token para ${p.nome}`, valor: r.token, nota: r.emailEnviado ? 'Também enviado por e-mail.' : 'E-mail não enviado: envie você o token.' }))}>Aprovar</button>
             <button className="btn mini coral" type="button" onClick={() => window.confirm('Recusar este pedido?') && agir(`/api/admin/pedidos/${p.id}/recusar`, 'POST')}>Recusar</button>
@@ -364,7 +366,7 @@ function TelaAdmin({ token, usuario }) {
           <input aria-label="E-mail (opcional)" type="email" placeholder="e-mail da pessoa (opcional)" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <input aria-label="Nota" placeholder="nota (opcional)" maxLength={120} value={form.nota} onChange={(e) => setForm({ ...form, nota: e.target.value })} />
           <div className="acoes">
-            <select aria-label="Validade" value={form.validadeH} onChange={(e) => setForm({ ...form, validadeH: e.target.value })}>{PRAZOS.map(([v, r]) => <option key={v} value={v}>{r}</option>)}</select>
+            <Seletor aria-label="Validade" value={form.validadeH} onChange={(e) => setForm({ ...form, validadeH: e.target.value })}>{PRAZOS.map(([v, r]) => <option key={v} value={v}>{r}</option>)}</Seletor>
             {euRoot ? <input aria-label="Usos" type="number" min="1" max="100" style={{ width: 90 }} value={form.usosMax} onChange={(e) => setForm({ ...form, usosMax: e.target.value })} /> : <span className="sub">1 uso</span>}
           </div>
           <button className="btn menta" type="button" onClick={() => agir('/api/admin/tokens', 'POST',
@@ -394,14 +396,14 @@ function TelaAdmin({ token, usuario }) {
                   <button className="btn mini coral" type="button" onClick={() => agir(`/api/admin/usuarios/${u.id}`, 'PATCH', { ativo: !u.ativo })}>{u.ativo ? 'Bloquear' : 'Desbloquear'}</button>
                   {u.ativo && <button className="btn mini" type="button" onClick={() => agir(`/api/admin/usuarios/${u.id}/redefinicao`, 'POST', undefined,
                     (r) => setSegredo({ titulo: `Link de senha de ${u.nome}`, valor: r.link, nota: `Vale ${r.validadeMin} minutos. Entregue à pessoa por um canal seguro.` }))}>Link de senha</button>}
-                  {euRoot && <select aria-label="Papel" value={u.papel_app} onChange={(e) => agir(`/api/admin/usuarios/${u.id}`, 'PATCH', { papel_app: e.target.value })}>
-                    {['usuario', 'moderador', 'admin'].map((p) => <option key={p} value={p}>{ROTULO_PAPEL_APP[p]}</option>)}</select>}
+                  {euRoot && <Seletor aria-label="Papel" value={u.papel_app} onChange={(e) => agir(`/api/admin/usuarios/${u.id}`, 'PATCH', { papel_app: e.target.value })}>
+                    {['usuario', 'moderador', 'admin'].map((p) => <option key={p} value={p}>{ROTULO_PAPEL_APP[p]}</option>)}</Seletor>}
                 </div>)}
             </div>);
         })}
       </>)}
 
-      {aba === 'sistema' && <SistemaRoot token={token} />}
+      {aba === 'sistema' && <><ConfigProva token={token} /><SistemaRoot token={token} /></>}
       {aba === 'denuncias' && <AdminDenuncias api={api} token={token} />}
 
       {aba === 'registro' && dados.map((a) => (
@@ -411,6 +413,40 @@ function TelaAdmin({ token, usuario }) {
 }
 
 /* ---------- SISTEMA (só root): reinstalar e limpar banco ---------- */
+/** Data da próxima prova prática: aparece na contagem regressiva do app (Início, mesa e login). */
+function ConfigProva({ token }) {
+  const [f, setF] = useState(null);
+  const [msg, setMsg] = useState('');
+  useEffect(() => {
+    api('/api/admin/config', { token }).then((r) => {
+      const d = r.config?.PROVA_DATA?.valor || '';
+      setF({ dia: d.split('T')[0] || '', hora: d.split('T')[1] || '08:00', nome: r.config?.PROVA_NOME?.valor || '', amb: r.config?.PROVA_DATA?.origem === 'ambiente' });
+    }).catch((e) => setMsg(e.message));
+  }, [token]);
+  const salvar = async () => {
+    setMsg('');
+    try {
+      await api('/api/admin/config', { metodo: 'POST', token, corpo: { PROVA_DATA: f.dia ? `${f.dia}T${f.hora || '08:00'}` : '', PROVA_NOME: f.nome } });
+      recarregarProva(); setMsg('Data salva. A contagem já está usando a nova data.');
+    } catch (e) { setMsg(e.message); }
+  };
+  if (!f) return msg ? <p className="msg e">{msg}</p> : null;
+  return (
+    <div className="cartao" data-testid="config-prova" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="sec">Contagem para a prova prática</div>
+      <p className="sub">Data e horário de Brasília da próxima 2ª etapa. Em branco, vale a data prevista pelo Inep (27/03/2027).</p>
+      <div className="acoes">
+        <label className="campo">Dia<input type="date" value={f.dia} disabled={f.amb} onChange={(e) => setF({ ...f, dia: e.target.value })} /></label>
+        <label className="campo">Hora<input type="time" value={f.hora} disabled={f.amb} onChange={(e) => setF({ ...f, hora: e.target.value })} /></label>
+      </div>
+      <label className="campo">Nome mostrado<input value={f.nome} maxLength={80} disabled={f.amb} placeholder="Revalida 2026 · 2ª etapa (prova prática)" onChange={(e) => setF({ ...f, nome: e.target.value })} /></label>
+      <div className="acoes"><button type="button" className="btn mini menta" onClick={salvar} disabled={f.amb}>Salvar data</button></div>
+      {msg && <p className="sub" role="status">{msg}</p>}
+      <Contagem compacta />
+    </div>
+  );
+}
+
 function SistemaRoot({ token }) {
   const [f, setF] = useState({ senha: '', confirmacao: '', apagarEstacoes: false });
   const [acao, setAcao] = useState(null); // 'reinstalar' | 'limpar-banco'

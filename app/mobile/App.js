@@ -35,7 +35,7 @@ export default function App() {
     };
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#eef3ff', justifyContent: 'center', padding: 24 }}>
-        <Text style={{ fontSize: 26, fontWeight: '800', marginBottom: 8 }}>Revalida Prático</Text>
+        <Text style={{ fontSize: 26, fontWeight: '900', marginBottom: 8, color: '#B07A42', letterSpacing: 1 }}>REVALIDA<Text style={{ color: '#E0504C' }}>.</Text><Text style={{ color: '#14A897' }}>M3D</Text></Text>
         <Text style={{ marginBottom: 12 }}>Informe o endereço do servidor da sua instituição.</Text>
         <TextInput value={texto} onChangeText={setTexto} autoCapitalize="none" autoCorrect={false} keyboardType="url"
           placeholder="https://revalida.seudominio.com" style={{ backgroundColor: '#fff', borderRadius: 14, padding: 12, minHeight: 48 }} />

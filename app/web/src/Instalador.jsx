@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SMTP_VAZIO, montarSmtpUrl, lerBlocoSmtp, formatarRemetente } from './smtp.js';
+import Seletor from './Seletor.jsx';
 
 // Instalador do primeiro acesso. O código de instalação fica só em memória (nunca em localStorage/URL).
 const ETAPAS = ['Código', 'Verificação', 'Parâmetros', 'Administradores', 'Concluir'];
@@ -188,9 +189,9 @@ export default function Instalador({ aoConcluir }) {
               <label className="campo">Servidor<input value={smtp.host} onChange={(e) => setSmtp({ ...smtp, host: e.target.value.trim() })} placeholder="smtp.hostinger.com" autoComplete="off" /></label>
               <label className="campo">Porta<input value={smtp.porta} inputMode="numeric" onChange={(e) => setSmtp({ ...smtp, porta: e.target.value.replace(/\D/g, '') })} placeholder="465" /></label>
               <label className="campo">Segurança
-                <select value={smtp.seguranca} onChange={(e) => setSmtp({ ...smtp, seguranca: e.target.value, porta: e.target.value === 'ssl' ? '465' : e.target.value === 'starttls' ? '587' : '25' })}>
+                <Seletor value={smtp.seguranca} onChange={(e) => setSmtp({ ...smtp, seguranca: e.target.value, porta: e.target.value === 'ssl' ? '465' : e.target.value === 'starttls' ? '587' : '25' })}>
                   <option value="ssl">SSL/TLS (465)</option><option value="starttls">STARTTLS (587)</option><option value="nenhuma">Nenhuma (25)</option>
-                </select>
+                </Seletor>
               </label>
             </div>
             <div className="smtp-linha">
@@ -240,9 +241,9 @@ export default function Instalador({ aoConcluir }) {
           <label className="campo">E-mail<input value={novo.email} onChange={(e) => setNovo({ ...novo, email: e.target.value })} type="email" autoComplete="off" /></label>
           <label className="campo">Senha<input value={novo.senha} onChange={(e) => setNovo({ ...novo, senha: e.target.value })} type="password" autoComplete="new-password" /></label>
           <label className="campo">Papel
-            <select value={novo.papel} onChange={(e) => setNovo({ ...novo, papel: e.target.value })}>
+            <Seletor value={novo.papel} onChange={(e) => setNovo({ ...novo, papel: e.target.value })}>
               <option value="admin">Administrador</option><option value="moderador">Moderador (só revisa estações)</option>
-            </select></label>
+            </Seletor></label>
           <button className="btn mini" type="button" disabled={ocupado || !novo.nome || !novo.email || novo.senha.length < 10} onClick={criarAdmin}>Criar usuário</button>
           <ul className="verif">{admins.map((a) => (
             <li key={a.email} className={a.provisoria ? 'aviso' : 'ok'}><span aria-hidden="true">{a.provisoria ? '⚠️' : '✅'}</span>

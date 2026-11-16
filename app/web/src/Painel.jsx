@@ -42,6 +42,7 @@ import { bloco, useBloco } from './bloco.js';
 import { FocoBloco, ListaBloco } from './BlocoIA.jsx';
 import { Widget } from './Widgets.jsx';
 import FraseMesa from './Frase.jsx';
+import Contagem from './Contagem.jsx';
 
 export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise, aoPraticar, aoPraticarIA, aoIr, aoAbrirSala, aoAbrirSalaAntiga, widgets = false }) {
   const b = useBloco();
@@ -83,6 +84,7 @@ export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise,
           <button type="button" className="btn mini" onClick={() => aoIr('estudo')}>Estudar</button>
         </div>
       </div>)}
+      {W('contagem', 'Contagem para a prova', {}, <Contagem compacta={!widgets} />)}
       {widgets && W('frase', 'Frase do dia', {}, <FraseMesa />)}
       {erro && <div className="msg e" role="alert">{erro}</div>}
 

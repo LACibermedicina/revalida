@@ -2,6 +2,7 @@
 // Uma só cor de magnitude (azul-mar); a identidade vem do rótulo, nunca só da cor. Há visão em tabela para leitores de tela.
 import React, { useCallback, useEffect, useState } from 'react';
 import './social.css';
+import Seletor from './Seletor.jsx';
 
 const AREAS = { clinica_medica: 'Clínica médica', cirurgia: 'Cirurgia', ginecologia_obstetricia: 'Ginecologia e obstetrícia', pediatria: 'Pediatria', mfc: 'Medicina de família' };
 const MODS = { sala: 'Sala (chefe/convite)', randomico: 'Ciclo randômico', trilha: 'Trilha guiada', solo: 'Prática solo com IA', comunidade: 'Chamado da comunidade' };
@@ -56,10 +57,10 @@ export default function TelaDesempenho({ token, api }) {
       <h2>Meu desempenho</h2>
       <p className="sub">Resultado das estações que você fez como candidato, organizado pelos blocos que compõem um PEP.</p>
       <div className="dv-filtros" role="group" aria-label="Filtros">
-        <label className="campo"><span>Área</span><select value={f.area} onChange={set('area')} data-testid="f-area"><option value="">Todas</option>{Object.entries(AREAS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
-        <label className="campo"><span>Período</span><select value={f.periodo} onChange={set('periodo')} data-testid="f-periodo">{PERIODOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+        <label className="campo"><span>Área</span><Seletor value={f.area} onChange={set('area')} data-testid="f-area"><option value="">Todas</option>{Object.entries(AREAS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Seletor></label>
+        <label className="campo"><span>Período</span><Seletor value={f.periodo} onChange={set('periodo')} data-testid="f-periodo">{PERIODOS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Seletor></label>
         {f.periodo === 'x' && <><label className="campo"><span>De</span><input type="date" value={f.de} onChange={set('de')} data-testid="f-de" /></label><label className="campo"><span>Até</span><input type="date" value={f.ate} onChange={set('ate')} data-testid="f-ate" /></label></>}
-        <label className="campo"><span>Modalidade</span><select value={f.modalidade} onChange={set('modalidade')} data-testid="f-modalidade"><option value="">Todas</option>{Object.entries(MODS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+        <label className="campo"><span>Modalidade</span><Seletor value={f.modalidade} onChange={set('modalidade')} data-testid="f-modalidade"><option value="">Todas</option>{Object.entries(MODS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Seletor></label>
       </div>
       {erro && <p className="aviso" role="alert">{erro}</p>}
       {!d ? <p className="sub">Carregando…</p> : (

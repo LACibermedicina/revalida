@@ -1,6 +1,7 @@
 // Segurança social: bloquear e denunciar (bilateral e sem exposição de quem bloqueou), notificações, direito de resposta e decisão do administrador.
 import React, { useCallback, useEffect, useState } from 'react';
 import './social.css';
+import Seletor from './Seletor.jsx';
 
 export const MOTIVOS = { assedio: 'Assédio ou constrangimento', conduta: 'Conduta antiética ou desrespeitosa', conteudo: 'Conteúdo impróprio', fraude: 'Fraude ou falsidade', outro: 'Outro (descreva)' };
 const DECISAO = { manter_bloqueio: 'Mantido: só os dois deixam de se relacionar', suspender: 'Suspenso por 7 dias', arquivar: 'Arquivada: sem providência' };
@@ -35,7 +36,7 @@ export function AcoesUsuario({ usuarioId, nome, api, token, salaId = null, aoFei
             <>
               <p>Denunciar <b>{nome}</b>. Ela será <b>avisada</b> do motivo (sem ver quem denunciou), poderá <b>responder</b>, e o <b>administrador</b> será notificado. Por padrão, só vocês dois deixam de se relacionar; uma suspensão semanal só acontece se o administrador decidir.</p>
               <label className="campo"><span>Motivo</span>
-                <select value={motivo} onChange={(e) => setMotivo(e.target.value)} data-testid="denuncia-motivo">{Object.entries(MOTIVOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+                <Seletor value={motivo} onChange={(e) => setMotivo(e.target.value)} data-testid="denuncia-motivo">{Object.entries(MOTIVOS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Seletor></label>
               <label className="campo"><span>O que aconteceu (opcional, exceto em “Outro”)</span>
                 <textarea rows={3} maxLength={2000} value={detalhe} onChange={(e) => setDetalhe(e.target.value)} data-testid="denuncia-detalhe" /></label>
             </>

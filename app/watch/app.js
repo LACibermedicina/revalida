@@ -20,7 +20,7 @@ function sair() { token = null; try { localStorage.removeItem('rv-watch'); } cat
 function parar() { clearInterval(iv); iv = null; sala = null; }
 
 function telaEntrar(msg = '') {
-  el(`<h1>Revalida</h1><input id="e" type="email" placeholder="e-mail" autocomplete="username"><input id="s" type="password" placeholder="senha" autocomplete="current-password">
+  el(`<h1><img src="/marca/revalida-m3d.svg" alt="REVALIDA.M3D" style="display:block;width:100%;max-width:220px;height:auto;margin:0 auto"></h1><input id="e" type="email" placeholder="e-mail" autocomplete="username"><input id="s" type="password" placeholder="senha" autocomplete="current-password">
     <div class="erro" role="alert">${esc(msg)}</div><button id="b">Entrar</button>`);
   const ir = async () => {
     try {

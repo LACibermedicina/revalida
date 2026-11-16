@@ -2,6 +2,7 @@
 // e (moderador) importação de caderno INEP em texto → pacote .rvpack de rascunhos.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import './catalogo.css';
+import Seletor from './Seletor.jsx';
 
 const AREAS = { clinica_medica: 'Clínica Médica', cirurgia: 'Cirurgia', ginecologia_obstetricia: 'Ginecologia e Obstetrícia', pediatria: 'Pediatria', mfc: 'Medicina de Família e Comunidade' };
 const CLASSE = { inep: ['INEP', 'c-inep'], inep_modificado: ['INEP modificada', 'c-mod'], sem_inep: ['Sem INEP', 'c-sem'] };
@@ -21,14 +22,14 @@ function Card({ e, aoSalvar, aoGerar, aoAbrir, aoTema, ocupado, ia }) {
       <p className="ca-meta">{AREAS[e.area]}{e.especialidade && e.especialidade !== AREAS[e.area] ? ` · ${e.especialidade}` : ''}{e.procedimento ? ' · procedimento' : ''}{e.didatica ? ' · didática' : ''} · {e.duracao_min} min</p>
       <div className="ca-controles">
         <label>Estudo
-          <select value={e.estudo.status} onChange={(ev) => aoSalvar(e.codigo, { status: ev.target.value })}>
+          <Seletor value={e.estudo.status} onChange={(ev) => aoSalvar(e.codigo, { status: ev.target.value })}>
             {Object.entries(STATUS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}
-          </select>
+          </Seletor>
         </label>
         <label>Prioridade
-          <select value={e.estudo.prioridade} onChange={(ev) => aoSalvar(e.codigo, { prioridade: Number(ev.target.value) })}>
+          <Seletor value={e.estudo.prioridade} onChange={(ev) => aoSalvar(e.codigo, { prioridade: Number(ev.target.value) })}>
             {PRIO.map((n, i) => <option key={i} value={i}>{n}</option>)}
-          </select>
+          </Seletor>
         </label>
       </div>
       <label className="ca-obs">Anotações
@@ -78,8 +79,8 @@ export function CatalogoLista({ token, api, aoAbrir, aoTema }) {
         <span>{AREAS[a.area]}</span><i><u style={{ width: `${a.total ? Math.round((a.dominadas / a.total) * 100) : 0}%` }} /></i><em>{a.dominadas}/{a.total}</em></button>)}</div>}
       <div className="ca-filtros">
         <label className="campo">Buscar<input type="search" value={f.busca} onChange={set('busca')} placeholder="título da estação" /></label>
-        <label className="campo">Origem<select value={f.classificacao} onChange={set('classificacao')}><option value="">Todas</option>{Object.entries(CLASSE).map(([c, [n]]) => <option key={c} value={c}>{n}</option>)}</select></label>
-        <label className="campo">Estudo<select value={f.status} onChange={set('status')}><option value="">Todos</option>{Object.entries(STATUS).map(([c, n]) => <option key={c} value={c}>{n}</option>)}</select></label>
+        <label className="campo">Origem<Seletor value={f.classificacao} onChange={set('classificacao')}><option value="">Todas</option>{Object.entries(CLASSE).map(([c, [n]]) => <option key={c} value={c}>{n}</option>)}</Seletor></label>
+        <label className="campo">Estudo<Seletor value={f.status} onChange={set('status')}><option value="">Todos</option>{Object.entries(STATUS).map(([c, n]) => <option key={c} value={c}>{n}</option>)}</Seletor></label>
         <label className="ca-chk"><input type="checkbox" checked={f.procedimento === '1'} onChange={set('procedimento')} />Só com procedimento</label>
       </div>
       {erro && <p className="erro" role="alert">{erro}</p>}{msg && <p className="ca-ok" role="status">{msg}</p>}
@@ -100,7 +101,7 @@ export function CatalogoTemas({ token, api, aoTema }) {
   const max = useMemo(() => Math.max(1, ...(d?.linhas ?? []).map((l) => l.vezes)), [d]);
   return (
     <>
-      <label className="campo">Área<select value={area} onChange={(e) => setArea(e.target.value)}><option value="">Todas</option>{Object.entries(AREAS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+      <label className="campo">Área<Seletor value={area} onChange={(e) => setArea(e.target.value)}><option value="">Todas</option>{Object.entries(AREAS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</Seletor></label>
       {erro && <p className="erro" role="alert">{erro}</p>}
       {!d ? <p>Carregando…</p> : (
         <div className="ca-matriz" role="region" aria-label="Temas cobrados por ano" tabIndex={0}>
@@ -136,7 +137,7 @@ export function ImportarCaderno({ token, usuario, api }) {
   return (
     <div className="ca-imp">
       <p>Envie o <b>texto</b> (.txt) de um caderno de estações INEP. Cada estação com pontuação por item vira um rascunho, que você importa direto ou baixa como pacote. Estações que já existem não são repetidas. Nada é publicado automaticamente: trechos que o leitor não conseguiu confirmar ficam marcados para conferência.</p>
-      <label className="campo">Área do caderno<select value={area} onChange={(e) => setArea(e.target.value)}>{Object.entries(AREAS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select></label>
+      <label className="campo">Área do caderno<Seletor value={area} onChange={(e) => setArea(e.target.value)}>{Object.entries(AREAS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</Seletor></label>
       <label className="campo">Arquivo de texto<input type="file" accept=".txt,text/plain" onChange={enviar} /></label>
       {carregando && <p>Lendo o caderno…</p>}{erro && <p className="erro" role="alert">{erro}</p>}
       {res && (

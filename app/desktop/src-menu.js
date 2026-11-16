@@ -26,7 +26,7 @@ export function comandoValido(c) {
 export function montarMenu({ enviar, servidorAtivo, trocarServidor, recarregar }) {
   const cmd = (rotulo, chave, accelerator) => ({ label: rotulo, accelerator, enabled: servidorAtivo(), click: () => enviar(COMANDOS[chave]) });
   return [
-    { label: 'Revalida', submenu: [
+    { label: 'REVALIDA.M3D', submenu: [
       { label: 'Trocar servidor…', click: trocarServidor },
       { label: 'Recarregar', accelerator: 'CmdOrCtrl+R', click: recarregar },
       { type: 'separator' }, { role: 'quit', label: 'Sair' },

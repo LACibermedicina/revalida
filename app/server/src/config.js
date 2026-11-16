@@ -19,6 +19,7 @@ export const CHAVES = {
   AI_INTEGRATIONS_OPENAI_BASE_URL: { segredo: false }, AI_INTEGRATIONS_OPENAI_API_KEY: { segredo: true },
   POLLINATIONS_API_KEY: { segredo: true }, POLLINATIONS_MODEL: { segredo: false },
   TTS_URL: { segredo: false }, TTS_CHAVE: { segredo: true }, TTS_MODELO: { segredo: false }, TTS_VOZ: { segredo: false },   // voz do podcast (compatível com OpenAI /audio/speech)
+  PROVA_DATA: { segredo: false }, PROVA_NOME: { segredo: false },   // contagem regressiva para a 2ª etapa (data em horário de Brasília)
   RADIA_URL: { segredo: false }, RADIA_TOKEN: { segredo: true },                                                         // sincronização com a rádio radIA.m3d
 };
 
@@ -35,6 +36,11 @@ const VALIDADORES = {
   AGORA_APP_ID: (v) => { if (!/^[0-9a-f]{32}$/i.test(v)) throw 0; return v.toLowerCase(); },
   AGORA_APP_CERTIFICATE: (v) => { if (!/^[0-9a-f]{32}$/i.test(v)) throw 0; return v.toLowerCase(); },
   IA_ORDEM: (v) => { const l = v.split(',').map((x) => x.trim().toLowerCase()).filter(Boolean); if (!l.length || !l.every((x) => PROVEDORES_IA.includes(x))) throw 0; return [...new Set(l)].join(','); },
+  PROVA_DATA: (v) => {
+    const m = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))?$/.exec(v); if (!m) throw 0;
+    if (Number.isNaN(Date.parse(`${m[1]}T${m[2] || '08:00'}:00-03:00`))) throw 0; return m[2] ? `${m[1]}T${m[2]}` : m[1];
+  },
+  PROVA_NOME: (v) => { if (v.length > 80 || /[\r\n<>]/.test(v)) throw 0; return v; },
   TTS_URL: (v) => urlHttp(v).toString(),
   RADIA_URL: (v) => urlHttp(v).toString(),
   TTS_CHAVE: (v) => { if (!/^[\x21-\x7e]{8,400}$/.test(v)) throw 0; return v; },

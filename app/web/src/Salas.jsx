@@ -12,6 +12,7 @@ import { AcoesUsuario } from './Seguranca.jsx';
 import { PainelSalas, ConfigurarSala, SalaChat, Solucionar, PRAZOS } from './SalaPainel.jsx';
 import { diagnosticarMidia, midiaDesconectada, mostrarSolucionar } from './midia.js';
 import './salas.css';
+import Seletor from './Seletor.jsx';
 
 const PAPEL = { admin: 'Chefe', candidato: 'Candidato', observador: 'Observador' };
 const PAPEIS_PEDIDO = [['admin', 'Ser o chefe'], ['candidato', 'Ser o candidato']];
@@ -56,7 +57,7 @@ export default function TelaCiclos({ token, usuario, api, sugestao, aoRevisar, a
         <h3>Nova sala</h3>
         <label className="campo"><span>Nome da sala</span><input value={nomeNova} onChange={(e) => setNomeNova(e.target.value)} maxLength={60} placeholder="ex.: Treino de sábado" /></label>
         <label className="campo"><span>Desfazer se ficar vazia por</span>
-          <select value={prazo} onChange={(e) => setPrazo(e.target.value)}>{PRAZOS.map(([v, r]) => <option key={v} value={v}>{r}</option>)}</select></label>
+          <Seletor value={prazo} onChange={(e) => setPrazo(e.target.value)}>{PRAZOS.map(([v, r]) => <option key={v} value={v}>{r}</option>)}</Seletor></label>
         <button className="btn" onClick={criar} disabled={ocupado}>Criar sala</button>
         <p className="sub">Os ciclos de estações são criados depois, já dentro da sala.</p>
       </section>

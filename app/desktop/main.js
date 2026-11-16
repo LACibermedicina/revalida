@@ -20,7 +20,7 @@ function abrir() {
 app.whenReady().then(() => {
   janela = new BrowserWindow({
     icon: join(aqui, 'assets', 'icon.png'),
-    width: 1280, height: 860, minWidth: 900, minHeight: 640, title: 'Revalida Prático',
+    width: 1280, height: 860, minWidth: 900, minHeight: 640, title: 'REVALIDA.M3D',
     webPreferences: { preload: join(aqui, 'preload.cjs'), contextIsolation: true, nodeIntegration: false, sandbox: true },
   });
 

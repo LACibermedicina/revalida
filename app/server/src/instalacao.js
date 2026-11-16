@@ -266,6 +266,18 @@ export function registrarManutencao(app, d) {
   const auditar = (req, acao, detalhes = {}) =>
     q(`insert into auditoria_admin (ator_id, acao, alvo, detalhes) values ($1,$2,'instalador',$3)`, [req.usuario.id, acao, JSON.stringify(detalhes)]);
 
+  // Data da próxima prova da 2ª etapa (contagem regressiva no app). Pública; o root muda em Admin › Sistema.
+  // Padrão: 27/03/2027, data prevista pelo Inep para a 2ª etapa do Revalida 2026 (anúncio de 11/11/2026; edital em jan/2027).
+  app.get('/api/prova', (_req, res) => {
+    const data = cfg.obter('PROVA_DATA') || '2027-03-27';
+    const [dia, hora] = data.split('T');
+    res.set('Cache-Control', 'no-cache').json({
+      data, inicio: `${dia}T${hora || '08:00'}:00-03:00`,
+      nome: cfg.obter('PROVA_NOME') || 'Revalida 2026 · 2ª etapa (prova prática)',
+      definida: Boolean(cfg.obter('PROVA_DATA')),
+    });
+  });
+
   // Parâmetros do servidor (chaves de IA, SMTP, Agora…) depois de instalado: só root. Segredos nunca voltam; só "definido".
   app.get('/api/admin/config', autenticar, SOMENTE_ROOT, rota(async (_req, res) => res.json({ config: cfg.visao() })));
   app.post('/api/admin/config', autenticar, SOMENTE_ROOT, rota(async (req, res) => {

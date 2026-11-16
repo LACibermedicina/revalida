@@ -5,6 +5,7 @@ import PraticaIA from './PraticaIA.jsx';
 import Mascote from './Mascote.jsx';
 import HistoricoEstacoes from './Historico.jsx';
 import './solo.css';
+import Seletor from './Seletor.jsx';
 
 const NIVEIS = [['facil', 'Fácil', '🌱'], ['medio', 'Médio', '⚡'], ['dificil', 'Difícil', '🔥']];
 const TEMPOS = [[null, 'Padrão (10 min)'], [8, '8 min'], [10, '10 min'], [15, '15 min'], [20, '20 min']];
@@ -66,8 +67,8 @@ export default function TelaSolo({ token, api, aoPraticarEstacao, estacaoInicial
           <button key={v} type="button" className={`solo-nivel${dif === v ? ' on' : ''}`} aria-pressed={dif === v} onClick={() => setDif(v)} data-testid={`solo-dif-${v}`}><span aria-hidden="true">{ic}</span>{r}</button>))}
       </fieldset>
       <label className="campo"><span>Tempo</span>
-        <select value={tempo ?? ''} onChange={(e) => setTempo(e.target.value ? Number(e.target.value) : null)} data-testid="solo-tempo">
-          {TEMPOS.map(([v, r]) => <option key={r} value={v ?? ''}>{r}</option>)}</select></label>
+        <Seletor value={tempo ?? ''} onChange={(e) => setTempo(e.target.value ? Number(e.target.value) : null)} data-testid="solo-tempo">
+          {TEMPOS.map(([v, r]) => <option key={r} value={v ?? ''}>{r}</option>)}</Seletor></label>
       <p className="sub">Checklist: {info?.padroes?.itens ?? 15} itens.</p>
 
       {erro && <p className="erro" role="alert">{erro}</p>}

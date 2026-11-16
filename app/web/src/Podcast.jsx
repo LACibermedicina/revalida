@@ -2,6 +2,7 @@
 // programa da rádio e pacote de exportação (pool). Sem voz do servidor, o navegador lê a transcrição em voz alta (SpeechSynthesis).
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './podcast.css';
+import Seletor from './Seletor.jsx';
 
 const fmt = (s) => `${Math.floor((s || 0) / 60)}:${String(Math.floor((s || 0) % 60)).padStart(2, '0')}`;
 const data = (d) => (d ? new Date(d).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
@@ -111,7 +112,7 @@ function Mais({ item, playlists, atual, api, token, aoMudar }) {
           : <button type="button" className="botao ghost" onClick={() => ligar(true)}>Criar link público do episódio</button>)}
         {outras.length > 0 && (
           <div className="pc-linha">
-            <select value={dest} onChange={(e) => setDest(e.target.value)} aria-label="Playlist de destino"><option value="">Levar para a playlist…</option>{outras.map((p) => <option key={p.id} value={p.id}>{p.titulo}</option>)}</select>
+            <Seletor value={dest} onChange={(e) => setDest(e.target.value)} aria-label="Playlist de destino"><option value="">Levar para a playlist…</option>{outras.map((p) => <option key={p.id} value={p.id}>{p.titulo}</option>)}</Seletor>
             <button type="button" className="botao ghost" disabled={!dest} onClick={() => levar(false)}>Mover</button>
             <button type="button" className="botao ghost" disabled={!dest} onClick={() => levar(true)}>Copiar</button>
           </div>)}
@@ -204,8 +205,8 @@ function MinhasPlaylists({ api, token, cfg, aoTocar }) {
             <form onSubmit={addItem} className="pc-form pc-novo">
               <h4>Novo episódio</h4>
               <div className="pc-linha">
-                <label>Tipo<select value={ne.tipo} onChange={(e) => setNe({ ...ne, tipo: e.target.value })}><option value="tema">Aprofundamento de tema</option><option value="revisao_cards">Revisão dos cartões do tema</option></select></label>
-                <label>Duração<select value={ne.minutos} onChange={(e) => setNe({ ...ne, minutos: Number(e.target.value) })}>{[3, 5, 8, 12, 20].map((m) => <option key={m} value={m}>{m} min</option>)}</select></label>
+                <label>Tipo<Seletor value={ne.tipo} onChange={(e) => setNe({ ...ne, tipo: e.target.value })}><option value="tema">Aprofundamento de tema</option><option value="revisao_cards">Revisão dos cartões do tema</option></Seletor></label>
+                <label>Duração<Seletor value={ne.minutos} onChange={(e) => setNe({ ...ne, minutos: Number(e.target.value) })}>{[3, 5, 8, 12, 20].map((m) => <option key={m} value={m}>{m} min</option>)}</Seletor></label>
               </div>
               <label>Tema<input value={ne.tema} onChange={(e) => setNe({ ...ne, tema: e.target.value })} list="pc-temas" maxLength={80} placeholder="Ex.: Pré-eclâmpsia" /></label>
               <datalist id="pc-temas">{sugest.map((s) => <option key={s.id} value={s.nome} />)}</datalist>

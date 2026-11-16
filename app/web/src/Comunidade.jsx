@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { AcoesUsuario, Notificacoes, PainelSeguranca } from './Seguranca.jsx';
 import './social.css';
+import Seletor from './Seletor.jsx';
 
 export const AREAS = { clinica_medica: 'Clínica médica', cirurgia: 'Cirurgia', ginecologia_obstetricia: 'Ginecologia e obstetrícia', pediatria: 'Pediatria', mfc: 'Medicina de família' };
 
@@ -49,7 +50,7 @@ function Randomico({ api, token, aoAbrirSala }) {
       {esperando ? <EsperaRandomica api={api} token={token} onPar={aoAbrirSala} onCancelar={() => setEsperando(false)} /> : (
         <div className="acoes">
           <label className="campo" style={{ margin: 0 }}><span>Área (opcional)</span>
-            <select value={area} onChange={(e) => setArea(e.target.value)} data-testid="randomico-area"><option value="">Qualquer</option>{Object.entries(AREAS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+            <Seletor value={area} onChange={(e) => setArea(e.target.value)} data-testid="randomico-area"><option value="">Qualquer</option>{Object.entries(AREAS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Seletor></label>
           <button type="button" className="btn menta" onClick={entrar} data-testid="entrar-randomico">Estou disponível</button>
         </div>)}
       {erro && <p className="aviso" role="alert">{erro}</p>}
@@ -79,7 +80,7 @@ function Chamados({ api, token, aoAbrirSala, usuario }) {
       {meu?.estado === 'atendido' && meu.sala_id && <div className="acoes"><span>Alguém incluiu você numa sala.</span><button type="button" className="btn mini menta" onClick={() => aoAbrirSala(meu.sala_id)} data-testid="abrir-sala-chamado">Abrir a sala</button></div>}
       {meu?.estado !== 'aberto' && (
         <div className="acoes">
-          <label className="campo" style={{ margin: 0 }}><span>Área</span><select value={area} onChange={(e) => setArea(e.target.value)}><option value="">Qualquer</option>{Object.entries(AREAS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+          <label className="campo" style={{ margin: 0 }}><span>Área</span><Seletor value={area} onChange={(e) => setArea(e.target.value)}><option value="">Qualquer</option>{Object.entries(AREAS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Seletor></label>
           <label className="campo" style={{ margin: 0, flex: 1 }}><span>Mensagem (opcional)</span><input value={mensagem} maxLength={300} onChange={(e) => setMensagem(e.target.value)} data-testid="chamado-msg" /></label>
           <button type="button" className="btn" onClick={abrir} data-testid="abrir-chamado">Abrir chamado</button>
         </div>)}
