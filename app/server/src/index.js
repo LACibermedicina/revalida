@@ -19,6 +19,7 @@ import { registrarSocial } from './social.js';
 import { registrarMesa } from './mesa.js';
 import { registrarDesempenho } from './desempenho.js';
 import { registrarSolo } from './solo.js';
+import { registrarEpi } from './epi.js';
 import { registrarPodcast } from './podcast.js';
 import { registrarEstudo } from './estudo.js';
 import { registrarCatalogo } from './catalogo.js';
@@ -105,6 +106,7 @@ registrarSocial(app, { q, autenticar, difundir });
 registrarMesa(app, { q, autenticar });
 registrarDesempenho(app, { q, autenticar });
 registrarSolo(app, { q, autenticar, ia });
+registrarEpi(app, { autenticar, ia });
 registrarPodcast(app, { q, autenticar, ia, cfg });
 preencherAssinaturas(q).catch((e) => console.error('assinaturas das estações:', e.message)); // estações antigas ganham título/conteúdo normalizados
 registrarEstudo(app, { q, autenticar, ia });

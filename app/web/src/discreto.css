@@ -348,3 +348,57 @@
 @keyframes fx-entra{from{opacity:0;transform:translateY(8px) scale(.95)}}
 @keyframes fx-traco{to{stroke-dashoffset:0}}
 @media (prefers-reduced-motion:reduce){.fx-passo,.fx-linha path{animation:none;stroke-dashoffset:0}}
+
+/* ===== Epi assistente ===== */
+.mesa-bot{z-index:200}
+.epi-canto{position:fixed;right:18px;bottom:18px;z-index:280;width:66px;height:66px;padding:4px;border:0;border-radius:50%;cursor:pointer;
+  background:radial-gradient(circle at 35% 30%,#fff,#EAF4FF);box-shadow:0 0 0 3px #fff,0 12px 24px -10px rgba(16,40,80,.6);animation:epi-flutua 4s ease-in-out infinite}
+.epi-canto img{width:100%;height:100%;object-fit:contain}
+.epi-canto:hover{transform:scale(1.06)}
+.epi-mudo{position:fixed;right:84px;bottom:20px;z-index:281;width:34px;height:34px;border:0;border-radius:50%;cursor:pointer;background:#fff;font-size:1rem;box-shadow:0 2px 0 #D3E1F3,0 8px 16px -10px rgba(16,40,80,.6)}
+.epi-mudo.na-mesa{right:auto;bottom:auto}
+.epi-mudo.on{background:#FFE3E0}
+.epi-balao{position:fixed;z-index:285;width:340px;max-height:min(70vh,560px);display:flex;flex-direction:column;border-radius:22px;overflow:hidden;color:var(--fg);
+  background:rgba(255,255,255,.97);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 0 0 1px #DCE6F3,0 26px 50px -20px rgba(16,40,80,.6);animation:epi-abre .25s cubic-bezier(.3,1.4,.5,1) both}
+.epi-balao > header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(180deg,#E9FBF6,#DDF6EF);border-bottom:1px solid #CFEDE4}
+.epi-nome{font:800 1rem var(--display);color:#0E8F86}
+.epi-x{width:26px;height:26px;border:0;border-radius:50%;background:#fff;cursor:pointer;font-size:1rem}
+.epi-corpo{flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:.9rem;line-height:1.45}
+.epi-corpo p{margin:0}
+.epi-tit{font:800 1rem var(--display)}
+.epi-sub{font:800 .68rem var(--display)!important;letter-spacing:.09em;text-transform:uppercase;color:var(--suave)}
+.epi-passos{margin:0;padding-left:20px}
+.epi-passos li{margin:2px 0}
+.epi-atalhos{display:flex;flex-wrap:wrap;gap:8px}
+.epi-atalho{display:flex;flex-direction:column;align-items:center;gap:2px}
+.epi-atalho-ic{display:flex;flex-direction:column;align-items:center;gap:3px;width:92px;padding:8px 6px;border:0;border-radius:16px;cursor:pointer;background:#F4F8FD;box-shadow:inset 0 0 0 1px #E3ECF7;transition:transform .15s}
+.epi-atalho-ic:hover{transform:translateY(-2px);background:#fff}
+.epi-atalho-ic svg{width:36px;height:36px}
+.epi-atalho-ic span{font:700 .7rem/1.15 var(--corpo);text-align:center}
+.epi-como{border:0;background:none;padding:0;color:#2563C9;font:700 .68rem var(--corpo);text-decoration:underline;cursor:pointer}
+.epi-opcoes{display:flex;flex-direction:column;gap:6px}
+.epi-opcao{padding:9px 12px;border:0;border-radius:12px;text-align:left;cursor:pointer;background:#F4F8FD;font:700 .86rem var(--corpo);color:var(--fg);box-shadow:inset 0 0 0 1px #E3ECF7}
+.epi-opcao:hover{background:#fff;box-shadow:inset 0 0 0 2px #22C7B0}
+.epi-voltar{align-self:flex-start;border:0;background:none;color:var(--suave);font:700 .76rem var(--corpo);cursor:pointer;padding:0}
+.epi-resp{white-space:pre-wrap}
+.epi-perg{display:flex;gap:6px;padding:10px 12px;border-top:1px solid #E3ECF7;background:#F8FBFE}
+.epi-perg input{flex:1;min-width:0;min-height:36px;border-radius:12px}
+.epi-mic{width:36px;height:36px;border:0;border-radius:50%;cursor:pointer;background:#fff;box-shadow:inset 0 0 0 1px #DCE6F3}
+.epi-mic.on{background:#FF5A4E;color:#fff;animation:epi-pulsa 1.2s infinite}
+@keyframes epi-abre{from{opacity:0;transform:translateY(8px) scale(.96)}}
+@keyframes epi-flutua{50%{transform:translateY(-4px)}}
+@keyframes epi-pulsa{50%{box-shadow:0 0 0 6px rgba(255,90,78,.25)}}
+
+/* ===== "me mostre como": destaque com desfoque e seta ===== */
+.hf{position:fixed;inset:0;z-index:400;pointer-events:none}
+.hf-veu{position:fixed;pointer-events:auto;background:rgba(14,26,50,.38);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.hf-anel{position:fixed;border-radius:16px;box-shadow:0 0 0 3px #FFC93C,0 0 0 9px rgba(255,201,60,.35);animation:hf-pulsa 1.4s ease-in-out infinite;pointer-events:none}
+.hf-seta{position:fixed;pointer-events:none;animation:hf-seta .8s ease-in-out infinite alternate;filter:drop-shadow(0 4px 4px rgba(0,0,0,.25))}
+.hf-seta.de-baixo{transform:rotate(180deg);animation-name:hf-seta-b}
+.hf-balao{position:fixed;width:300px;pointer-events:auto;padding:12px 14px;border-radius:18px;background:#fff;color:var(--fg);box-shadow:0 0 0 1px #DCE6F3,0 20px 40px -16px rgba(16,40,80,.6)}
+.hf-balao small{font:800 .66rem var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--suave)}
+.hf-balao p{margin:4px 0 8px;font-weight:700}
+@keyframes hf-pulsa{50%{box-shadow:0 0 0 3px #FFC93C,0 0 0 14px rgba(255,201,60,.15)}}
+@keyframes hf-seta{to{transform:translateY(10px)}}
+@keyframes hf-seta-b{from{transform:rotate(180deg)}to{transform:rotate(180deg) translateY(10px)}}
+@media (prefers-reduced-motion:reduce){.hf-anel,.hf-seta,.epi-canto,.epi-balao{animation:none}}

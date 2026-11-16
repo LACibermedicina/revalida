@@ -31,3 +31,13 @@ test('fluxograma: ids únicos, ligações só para frente e para passos existent
   assert.deepEqual(v.passos[1].proximos, [{ para: 'c', rotulo: 'sim' }]);
   assert.equal(v.passos[2].tipo, 'acao');
 });
+
+import { validarEpi, promptEpi } from '../src/epi.js';
+test('Epi: resposta obrigatória, tela de destino só se existir, no máximo 4 passos; fala vai como DADO', () => {
+  const v = validarEpi({ resposta: 'Vá em Estudo.', ir_para: 'estudo', passos: ['a', 'b', 'c', 'd', 'e'] });
+  assert.equal(v.ok, true); assert.equal(v.ir_para, 'estudo'); assert.equal(v.passos.length, 4);
+  assert.equal(validarEpi({ resposta: 'x', ir_para: 'hackear' }).ir_para, null);
+  assert.equal(validarEpi({}).ok, false);
+  const p = promptEpi({ modo: 'conduta', fala: 'paciente com dor no peito', tela: 'solo' });
+  assert.match(p.usuario, /DADO/); assert.match(p.usuario, /PRÓXIMO passo/);
+});

@@ -20,8 +20,8 @@ function EpiMesa() {
   const pos = p ?? (cfg.x != null ? { x: cfg.x, y: cfg.y } : null);
   return (
     <div ref={ref} className={`mesa-bot${p ? ' movendo' : ''}${cfg.semPlaca ? ' sem-placa' : ''}`} style={pos ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto' } : undefined}
-      role="button" tabIndex={0} aria-label="Epi, o mascote. Arraste para mudar de lugar; toque para ele acenar." data-testid="epi-mesa"
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCutuca((n) => n + 1); } }}
+      role="button" tabIndex={0} aria-label="Epi, o assistente. Toque para pedir ajuda; arraste para mudar de lugar." data-testid="epi-mesa"
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCutuca((n) => n + 1); dispatchEvent(new Event('rv-epi-alternar')); } }}
       onPointerDown={(e) => {
         if (e.button > 0 || e.target.closest('button')) return;
         const r = ref.current.getBoundingClientRect(), pai = ref.current.parentElement.getBoundingClientRect();
@@ -33,7 +33,7 @@ function EpiMesa() {
         if (!s.mov && Math.hypot(dx, dy) < 5) return; s.mov = true;
         setP({ x: Math.min(Math.max(s.x + dx, 0), s.w), y: Math.min(Math.max(s.y + dy, 0), s.h) });
       }}
-      onPointerUp={() => { const s = a.current; a.current = null; if (s?.mov && p) salvarCfg({ ...cfg, x: Math.round(p.x), y: Math.round(p.y) }); else if (s) setCutuca((n) => n + 1); setP(null); }}
+      onPointerUp={() => { const s = a.current; a.current = null; if (s?.mov && p) salvarCfg({ ...cfg, x: Math.round(p.x), y: Math.round(p.y) }); else if (s) { setCutuca((n) => n + 1); dispatchEvent(new Event('rv-epi-alternar')); } setP(null); }}
       onPointerCancel={() => { a.current = null; setP(null); }}>
       <Mascote3D fluido pose="wave" cutucar={cutuca} titulo="" />
       {!cfg.semPlaca && (

@@ -7,6 +7,7 @@
 import { promptCartoes, validarCartoes, promptResumo, validarResumo, promptExpandir, validarExpansao, promptFluxo, validarFluxo } from './estudo-ia.js';
 import { promptRoteiro, validarRoteiro } from './podcast-ia.js';
 import { promptPaciente, validarPaciente } from './paciente-ia.js';
+import { promptEpi, validarEpi } from './epi.js';
 import { promptAnalise, validarAnalise, promptTranscreverAudio, validarTranscricaoAudio } from './analise-transcricao.js';
 import { AREAS, NOMES_AREA, TIPOS_MATERIAL, avisosDeCoerencia, sortearCampos, validarEstacao } from './estacao-esquema.js';
 
@@ -365,6 +366,11 @@ export function criarIA({ cfg, fetchImpl = (...a) => fetch(...a), relogio = Date
     async expandirTema(p) {
       const { sistema, usuario } = promptExpandir(p);
       try { const r = await gerarJSON({ sistema, usuario, validar: validarExpansao, maxTokens: 3000 }); return { ...validarExpansao(r.dados), provedor: r.provedor, modelo: r.modelo }; } catch (e) { throw traduzir(e); }
+    },
+    /** Epi assistente: resposta curta sobre o app ou o tema, ou o próximo passo da conduta a partir da fala. */
+    async responderEpi(p) {
+      const { sistema, usuario } = promptEpi(p);
+      try { const r = await gerarJSON({ sistema, usuario, validar: validarEpi, maxTokens: 1200 }); const v = validarEpi(r.dados); return { resposta: v.resposta, ir_para: v.ir_para, passos: v.passos }; } catch (e) { throw traduzir(e); }
     },
     /** Fluxograma simplificado da conduta/raciocínio do tema (no contexto de uma estação, se houver). */
     async gerarFluxo(p) {

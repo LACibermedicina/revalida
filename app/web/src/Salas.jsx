@@ -159,6 +159,14 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
   useEffect(() => { if (exe?.id) setPainelAberto(true); }, [exe?.id]);   // estação começou: o painel abre sozinho
   // terminou a estação: a lateral mostra o resultado
   useEffect(() => { if (!exe && ultima) setAba((a) => a ?? 'resultado'); }, [exe?.id, ultima?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // o Epi oferece os próximos passos a quem fez ou avaliou a estação (uma vez por estação)
+  const avisado = useRef(null);
+  useEffect(() => {
+    if (!ultima || exe || avisado.current === ultima.id) return;
+    if (meu !== 'candidato' && !euAvaliou(ultima, est, eu)) return;
+    avisado.current = ultima.id;
+    dispatchEvent(new CustomEvent('rv-epi', { detail: { evento: 'fim-estacao', execId: ultima.id, titulo: ultima.titulo } }));
+  }, [ultima?.id, exe?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // checklist: só quem avalia recebe (o servidor nega para o candidato)
   useEffect(() => {

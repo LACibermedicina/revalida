@@ -33,6 +33,8 @@ export default function PraticaIA({ execId, token, api, aoSair, aoNova }) {
   const [ouvindo, setOuvindo] = useState(false);
   const [agora, setAgora] = useState(Date.now());
   const [resultado, setResultado] = useState(null);
+  // terminou e corrigiu: o Epi oferece os próximos passos (revisar o tema, criar cartões…)
+  useEffect(() => { if (resultado && resultado.nota !== undefined) dispatchEvent(new CustomEvent('rv-epi', { detail: { evento: 'fim-estacao', execId } })); }, [Boolean(resultado)]); // eslint-disable-line react-hooks/exhaustive-deps
   const [corrigindo, setCorrigindo] = useState(false);
   const [cartas, setCartas] = useState(null);
   const fim = useRef(null); const tr = useRef(null); const enviarRef = useRef(null);

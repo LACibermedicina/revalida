@@ -15,6 +15,7 @@ import TelaSolo from './Solo.jsx';
 import Logo, { Wordmark } from './Logo.jsx';
 import Contagem, { recarregarProva } from './Contagem.jsx';
 import VideoFlutuante from './VideoFlutuante.jsx';
+import EpiAssistente from './EpiAssistente.jsx';
 import { chamada } from './chamada.js';
 import Mesa from './Mesa.jsx';
 import { GRUPOS, RESUMO, TELAS, useEstadoMesa, useJanelas, useAvisos } from './useMesa.js';
@@ -853,6 +854,8 @@ export default function App() {
   const abrirAnalise = (id) => { setAnaliseId(id); setTela('analise'); };
   const sair = (motivo = '') => { chamada.sair(); try { sessionStorage.removeItem('rv_modo_ok'); } catch { /* sem storage */ } setEscolheu(false); localStorage.removeItem('rp-auth'); setSessaoAuth(null); setSala(null); setTela('entrar'); setAviso(motivo); };
   const abrirSala = (id, papel) => { setSala({ id, papel }); setTela('sala'); };
+  // atalho direto que o Epi oferece: abre a tela (e a aba, quando houver)
+  const irParaEpi = (t, aba) => { if (aba) setComando({ tela: t, aba, n: Date.now() }); setTela(t); };
   const abrirSalaCiclos = (id) => { try { sessionStorage.setItem('rv_sala', id); } catch { /* sem storage */ } setChaveCiclos((k) => k + 1); setTela('ciclos'); };
 
   useEffect(() => {
@@ -962,6 +965,7 @@ export default function App() {
         renderTela={(t) => telaAuth(t, true)} ehAdmin={ehAdminApp} aoFavorito={abrirFavorito} aoSair={() => sair()} aoClassico={() => trocarShell('classico')}
         aoSobrepor={sobrepostos} areaRef={areaRef} temSala={!!sala}>
         <VideoFlutuante aoAbrirSala={() => abrirSalaCiclos(chamada.atual().salaId)} />
+        <EpiAssistente mesa tela={jan.topo ?? 'painel'} temPainel={Boolean(jan.topo)} irPara={irParaEpi} api={api} token={sessaoAuth.token} />
       </Mesa>
     );
   }
@@ -978,6 +982,7 @@ export default function App() {
       {podeTrocarVersao(dispositivo) && <RelogioDeBolso />}
       {SIMULACAO && <div className="sim-fita" role="status">Modo de simulação · nada é enviado</div>}
       {sessaoAuth && <VideoFlutuante aoAbrirSala={() => abrirSalaCiclos(chamada.atual().salaId)} />}
+      {sessaoAuth && instalado && !tokenSenha && <EpiAssistente tela={tela} temPainel={tela !== 'painel'} irPara={irParaEpi} api={api} token={sessaoAuth.token} />}
       {conteudo}
       {instalado && sessaoAuth && !tokenSenha && <ConvitesRecebidos api={api} token={sessaoAuth.token} aoEntrar={(id) => { try { sessionStorage.setItem('rv_sala', id); } catch { /* sem storage */ } setChaveCiclos((k) => k + 1); setTela('ciclos'); }} />}
       {instalado && sessaoAuth && !tokenSenha && (
@@ -993,12 +998,12 @@ export default function App() {
         <nav className="nav" id="menu-principal" aria-label="Navegação" hidden={menuOculto}>
           <span className="marca nav-marca"><Logo tamanho={menuModo === 'icones' ? 44 : 88} />{menuModo !== 'icones' && <Wordmark />}</span>
           <ZoomTela />
-          <button type="button" aria-current={tela === 'painel' ? 'page' : undefined} onClick={() => setTela('painel')}><span className="ni" aria-hidden="true"><Icone nome="inicio" /></span>Início</button>
+          <button type="button" data-tela="painel" aria-current={tela === 'painel' ? 'page' : undefined} onClick={() => setTela('painel')}><span className="ni" aria-hidden="true"><Icone nome="inicio" /></span>Início</button>
           {GRUPOS.map((g) => (
             <div key={g.id} className="nav-grupo" role="group" aria-label={g.nome} style={{ '--gcor': g.cor }}>
               <p className="nav-grupo-tit" aria-hidden="true">{g.nome}</p>
               {g.telas.filter((t) => !['notas', 'notificacoes'].includes(t) && (t !== 'admin' || ehAdminApp)).map((t) => (
-                <button key={t} type="button" aria-current={tela === t ? 'page' : undefined} disabled={t === 'sala' && !sala}
+                <button key={t} type="button" data-tela={t} aria-current={tela === t ? 'page' : undefined} disabled={t === 'sala' && !sala}
                   onClick={() => (t !== 'sala' || sala) && setTela(t)} style={t === 'sala' && !sala ? { opacity: .4 } : undefined} title={RESUMO[t]}>
                   <span className="ni" aria-hidden="true"><Icone nome={TELAS[t][1]} /></span>{TELAS[t][0]}
                 </button>))}
