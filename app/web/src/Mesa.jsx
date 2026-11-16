@@ -5,7 +5,7 @@ import Notas, { criarNota } from './Notas.jsx';
 import Central from './Central.jsx';
 import Mascote3D from './Mascote3D.jsx';
 import Pets from './Pets.jsx';
-import { widgets } from './Widgets.jsx';
+import { Widget, widgets, useWidgets } from './Widgets.jsx';
 import { GRADE, GRUPOS, RESUMO, TELAS, TELAS_FAVORITAVEIS } from './useMesa.js';
 
 /* ---------- Epi da mesa: sempre presente, discreto; arrasta para qualquer lugar; a placa da base pode ser removida ---------- */
@@ -46,6 +46,32 @@ function EpiMesa() {
 }
 const epiCfg = (mudar) => { const c = { ...lerEpi(), ...mudar }; try { localStorage.setItem('rv_epi_mesa', JSON.stringify(c)); } catch { /* sem storage */ } dispatchEvent(new Event('rv-epi')); };
 
+/* arrastar um recurso para a mesa cria um atalho (ícone) onde ele for solto */
+const TIPO_ARRASTE = 'application/x-rv-tela';
+function arrastarTela(e, t) { e.dataTransfer.setData(TIPO_ARRASTE, t); e.dataTransfer.setData('text/plain', TELAS[t][0]); e.dataTransfer.effectAllowed = 'copy'; }
+
+/* ---------- caixa do grupo na mesa: abre ao clicar no grupo do dock; fecha no ✕ e reabre quando quiser ---------- */
+function CaixaGrupo({ g, telas, jan, abrir, titulo, avisos }) {
+  return (
+    <Widget id={`grupo-${g.id}`} rotulo={`grupo ${g.nome}`} padraoOculto titulo="Fechar o grupo (clique no ícone do grupo no dock para reabrir)" className="wd-grupo">
+      <p className="gp-tit" style={{ '--gcor': g.cor }}><span className="gp-tit-ic" aria-hidden="true"><Icone nome={g.icone} /></span><b>{g.nome}</b><small>arraste um ícone para a mesa para criar atalho</small></p>
+      <div className="gc-grade">
+        {telas.map((t) => {
+          const w = jan.lista.find((x) => x.tela === t);
+          return (
+            <button key={t} type="button" className={`gc-item${w ? ' aberto' : ''}`} data-tela={t} draggable onDragStart={(e) => arrastarTela(e, t)}
+              onClick={() => abrir(t)} title={RESUMO[t]} style={{ '--gcor': g.cor }}>
+              <span className="gc-ic" aria-hidden="true"><Icone nome={TELAS[t][1]} /></span>
+              <b>{titulo(t)}{t === 'notificacoes' && avisos.total > 0 ? ` (${avisos.total})` : ''}</b>
+              <small>{RESUMO[t]}</small>
+            </button>
+          );
+        })}
+      </div>
+    </Widget>
+  );
+}
+
 /* ---------- grupo do dock: um ícone; ao passar o mouse (ou focar/tocar) abre o bloco com os recursos e o que há em cada um ---------- */
 function GrupoDock({ g, telas, aberto, setAberto, jan, abrir, titulo, avisos }) {
   const fechar = useRef(null);
@@ -60,7 +86,7 @@ function GrupoDock({ g, telas, aberto, setAberto, jan, abrir, titulo, avisos }) 
     <div className={`dk-grupo-ic${on ? ' aberto-grupo' : ''}`} onPointerEnter={(e) => e.pointerType === 'mouse' && entrar()} onPointerLeave={(e) => e.pointerType === 'mouse' && sair()}
       onFocus={entrar} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) sair(); }} onKeyDown={(e) => { if (e.key === 'Escape') { setAberto(null); e.currentTarget.querySelector('.dk-item')?.focus(); } }}>
       <button type="button" className={`dk-item${abertas.length ? ' aberto' : ''}${ativo ? ' ativo' : ''}`} aria-expanded={on} aria-controls={`gp-${g.id}`} data-grupo={g.id}
-        onClick={() => setAberto(on ? null : g.id)} style={{ '--gcor': g.cor }}>
+        onClick={() => { setAberto(null); widgets.alternar(`grupo-${g.id}`, true); }} style={{ '--gcor': g.cor }} title={`${g.nome}: clique para abrir a caixa do grupo`}>
         <span className="dk-ic" aria-hidden="true"><Icone nome={g.icone} /></span>
         {pil > 0 && <b className="dk-pil">{pil > 9 ? '9+' : pil}</b>}
         <span className="dk-rot">{g.nome}</span>
@@ -73,6 +99,7 @@ function GrupoDock({ g, telas, aberto, setAberto, jan, abrir, titulo, avisos }) 
               const w = jan.lista.find((x) => x.tela === t);
               return (
                 <button key={t} type="button" className={`gp-cartao${w ? ' aberto' : ''}${jan.topo === t ? ' ativo' : ''}`} data-tela={t} aria-current={jan.topo === t ? 'page' : undefined}
+                  draggable onDragStart={(e) => arrastarTela(e, t)} title="Clique para abrir; arraste para a mesa para criar um atalho"
                   onClick={() => { setAberto(null); if (w && jan.topo === t) jan.minimizar(t); else abrir(t); }}>
                   <span className="gp-ic" aria-hidden="true"><Icone nome={TELAS[t][1]} /></span>
                   <span className="gp-txt"><b>{titulo(t)}{t === 'notificacoes' && avisos.total > 0 ? ` (${avisos.total})` : ''}</b><small>{RESUMO[t]}</small></span>
@@ -224,6 +251,8 @@ export default function Mesa({ usuario, token, api, jan, estado, salvar, avisos,
 
   const abertas = jan.lista.map((w) => w.tela);
   const [grupoAberto, setGrupoAberto] = useState(null);
+  const [soltando, setSoltando] = useState(false);
+  useWidgets();   // a caixa de grupo aberta/fechada redesenha o dock
   const telasDoGrupo = (g) => g.telas.filter((t) => (t !== 'sala' || temSala || abertas.includes('sala')) && (t !== 'admin' || ehAdmin));
   const noDock = ['painel', ...GRUPOS.flatMap((g) => g.telas)];
   const dockExtras = abertas.filter((t) => !noDock.includes(t));
@@ -288,16 +317,30 @@ export default function Mesa({ usuario, token, api, jan, estado, salvar, avisos,
         </div>
       </header>
 
-      <main className="mesa-area" ref={areaRef} aria-label="Mesa de trabalho">
+      <main className={`mesa-area${soltando ? ' soltando' : ''}`} ref={areaRef} aria-label="Mesa de trabalho"
+        onDragOver={(e) => { if (e.dataTransfer.types.includes(TIPO_ARRASTE)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; if (!soltando) setSoltando(true); } }}
+        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setSoltando(false); }}
+        onDrop={(e) => {
+          const t = e.dataTransfer.getData(TIPO_ARRASTE); setSoltando(false);
+          if (!t || !TELAS[t]) return; e.preventDefault();
+          const r = e.currentTarget.querySelector('.mesa-icones').getBoundingClientRect();
+          const x = Math.max(0, Math.round((e.clientX - r.left - 42) / GRADE) * GRADE), y = Math.max(0, Math.round((e.clientY - r.top - 40) / GRADE) * GRADE);
+          salvar((st) => (st.favoritos.some((f) => f.tipo === 'tela' && f.ref === t)
+            ? { ...st, favoritos: st.favoritos.map((f) => (f.tipo === 'tela' && f.ref === t ? { ...f, x, y } : f)) }
+            : st.favoritos.length >= 60 ? st : { ...st, favoritos: [...st.favoritos, { tipo: 'tela', ref: t, rotulo: TELAS[t][0], x, y }] }));
+        }}>
         <div className="mesa-icones">
           {estado.favoritos.map((f, i) => <IconeMesa key={`${f.tipo}-${f.ref}`} f={f} i={i} aoAbrir={aoFavorito} aoRemover={rm} aoMover={mover} aoMenu={(fv, x, y) => setMenuFav({ f: fv, i, x, y })} />)}
         </div>
         <Pets />
-        <i className="mesa-veu" aria-hidden="true" />
+        <i className={`mesa-veu${jan.topo ? ' escuro' : ''}`} aria-hidden="true" />
         <div className={`mesa-widgets${jan.topo ? ' escondidos' : ''}`} aria-hidden={jan.topo ? true : undefined} data-testid="mesa-widgets">
           {renderTela('painel')}
         </div>
         <EpiMesa />
+        <div className="mesa-grupos">
+          {GRUPOS.map((g) => <CaixaGrupo key={g.id} g={g} telas={telasDoGrupo(g)} jan={jan} abrir={abrir} titulo={titulo} avisos={avisos} />)}
+        </div>
         {jan.lista.filter((w) => w.tela !== 'painel').map((w) => <Janela key={w.tela} w={w} foco={jan.topo === w.tela} titulo={titulo(w.tela)} icone={TELAS[w.tela]?.[1] ?? 'inicio'} jan={jan}>{conteudo(w.tela)}</Janela>)}
         {menuFav && (
           <div className="menu-fav" role="menu" style={{ left: menuFav.x, top: menuFav.y }} onClick={() => setMenuFav(null)}>

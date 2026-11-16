@@ -384,7 +384,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
 
       {emAndamento && (
         <section className="sl-bloco sl-exec" id="sl-estacao" aria-label="Estação em andamento">
-          <h3>{exe.titulo}</h3>
+          <h3>{meu === 'candidato' && exe.candidato_id === eu ? 'Estação em andamento' : exe.titulo}</h3>
           <p className="sub">Candidato: {nome(exe.candidato_id)} · Avalia: {nome(exe.avaliador_id)}</p>
           <Relogio inicio={exe.iniciada_em} pausaSeg={exe.pausa_seg ?? 0} limiteMin={pep?.duracao_min} />
           <CartasEstacao execId={exe.id} papel={euAvalio ? 'avaliador' : meu} api={api} token={token} segmentos={aoVivo.segmentos} />
@@ -459,7 +459,7 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
           {fila.length === 0 && <p className="sub">Nenhuma estação visível ainda.</p>}
           {fila.map((i) => (
             <div key={i.id} className="sl-linha" data-estado={i.estado}>
-              <span>{i.posicao}. {i.titulo}{i.grupo && <em> · {i.grupo}</em>} <em className={`sl-est e-${i.estado}`}>{i.estado.replace('_', ' ')}</em></span>
+              <span>{i.posicao}. {meu === 'candidato' && ['pendente', 'em_andamento'].includes(i.estado) ? 'Estação surpresa' : i.titulo}{i.grupo && <em> · {i.grupo}</em>} <em className={`sl-est e-${i.estado}`}>{i.estado.replace('_', ' ')}</em></span>
               {souAdmin && (
                 <span className="acoes">
                   {i.estado === 'pendente' && <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/itens/${i.id}/liberar`, { liberada: !i.liberada }, 'PATCH')}>{i.liberada ? 'Bloquear' : 'Liberar'}</button>}

@@ -15,7 +15,7 @@ export function ListaBloco({ b, api, token, aoAbrir }) {
           <span className="bl-num" aria-hidden="true">{i.iniciada ? '✓' : n + 1}</span>
           <span className="bl-txt">
             <small>{NOME_AREA[i.area]}</small>
-            {i.situacao === 'pronta' ? <b>{i.titulo}</b> : i.situacao === 'gerando' ? <b className="bl-gerando">A IA está criando…</b> : <b className="bl-falha">{i.erro || 'Não foi possível criar.'}</b>}
+            {i.situacao === 'pronta' ? <b>{i.iniciada ? 'Estação iniciada' : 'Estação pronta'} · {i.duracao_min} min</b> : i.situacao === 'gerando' ? <b className="bl-gerando">A IA está criando…</b> : <b className="bl-falha">{i.erro || 'Não foi possível criar.'}</b>}
           </span>
           {i.situacao === 'pronta' && <button type="button" className="btn mini" onClick={() => aoAbrir(n)}>{i.iniciada ? 'Abrir' : 'Treinar'}</button>}
           {i.situacao === 'falhou' && <button type="button" className="btn mini" onClick={() => bloco.tentarDeNovo(api, token, n)}>Tentar de novo</button>}
@@ -76,8 +76,8 @@ export function FocoBloco({ b, n, api, token, aoFechar, aoMudar, aoSozinho, aoAb
         ) : (
           <>
             <p className="bl-area" style={{ '--cor': COR[item.area] }}>Estação {k + 1} de 5 · {NOME_AREA[item.area]}</p>
-            <h3 id="bl-titulo">{item.titulo}</h3>
-            <p className="sub">{item.tema ? <>Tema: <b>{item.tema}</b> · </> : null}{item.duracao_min} min</p>
+            <h3 id="bl-titulo">Estação surpresa de {NOME_AREA[item.area]}</h3>
+            <p className="sub">{item.duracao_min} min · o caso só é revelado quando a estação terminar, como na prova.</p>
             {item.motivo && <p className="bl-motivo">{item.motivo}</p>}
             <div className="bl-escolha">
               <button type="button" className="btn menta" onClick={sozinho} disabled={ocupado} data-testid="bloco-sozinho">Seguir sozinho com IA<small>o Epi faz o paciente e corrige no final</small></button>

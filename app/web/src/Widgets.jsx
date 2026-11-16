@@ -12,8 +12,10 @@ const gravar = (novo) => { estado = novo; try { localStorage.setItem(CHAVE, JSON
 export const widgets = {
   mover: (id, x, y, w) => gravar({ ...estado, [id]: { ...estado[id], x, y, w } }),
   ocultar: (id) => gravar({ ...estado, [id]: { ...estado[id], oculto: true } }),
-  mostrarTodos: () => gravar(Object.fromEntries(Object.entries(estado).map(([k, v]) => [k, { ...v, oculto: false }]))),
-  reorganizar: () => gravar({}),
+  mostrarTodos: () => gravar(Object.fromEntries(Object.entries(estado).map(([k, v]) => [k, k.startsWith('grupo-') ? v : { ...v, oculto: false }]))),
+  mostrar: (id) => gravar({ ...estado, [id]: { ...estado[id], oculto: false } }),
+  alternar: (id, padraoOculto) => gravar({ ...estado, [id]: { ...estado[id], oculto: !(estado[id]?.oculto ?? padraoOculto) } }),
+  reorganizar: () => gravar(Object.fromEntries(Object.entries(estado).filter(([k]) => k.startsWith('grupo-')).map(([k, v]) => [k, { oculto: v.oculto }]))),
   algumOculto: () => Object.values(estado).some((v) => v.oculto),
 };
 export function useWidgets() {
@@ -27,12 +29,12 @@ const a0 = (ref) => largura.get(ref.current);
 const INTERATIVO = 'button,a,input,select,textarea,label,[role=button],[contenteditable]';
 
 /** Uma caixa do Início na mesa. */
-export function Widget({ id, rotulo, children, className = '' }) {
+export function Widget({ id, rotulo, children, className = '', padraoOculto = false, titulo = null }) {
   const e = useWidgets()[id] || {};
   const ref = useRef(null);
   const arr = useRef(null);
   const [p, setP] = useState(null);
-  if (e.oculto) return null;
+  if (e.oculto ?? padraoOculto) return null;
   // sem posição salva, a caixa fica no fluxo (colunas automáticas); depois de arrastada, fica onde a pessoa soltou
   const solto = p || e.x != null;
   const pos = p ?? { x: e.x, y: e.y };
@@ -58,7 +60,7 @@ export function Widget({ id, rotulo, children, className = '' }) {
       }}
       onPointerUp={() => { const a = arr.current; arr.current = null; if (a?.mov && p) widgets.mover(id, Math.round(p.x), Math.round(p.y), a.w); setP(null); }}
       onPointerCancel={() => { arr.current = null; setP(null); }}>
-      <button type="button" className="wd-x" aria-label={`Ocultar ${rotulo}`} title="Ocultar (Exibir › Mostrar o Início traz de volta)" onClick={() => widgets.ocultar(id)}>×</button>
+      <button type="button" className="wd-x" aria-label={`Fechar ${rotulo}`} title={titulo ?? 'Ocultar (Exibir › Mostrar o Início traz de volta)'} onClick={() => widgets.ocultar(id)}>×</button>
       {children}
     </section>
   );

@@ -23,7 +23,8 @@
 .acoes{gap:8px}
 
 /* ===== mesa: véu translúcido sobre o fundo (o Epi fica por cima), widgets do Início e Epi móvel ===== */
-.mesa-veu{position:absolute;inset:0;z-index:1;pointer-events:none;background:rgba(242,248,255,.46);backdrop-filter:blur(3px) saturate(1.05);-webkit-backdrop-filter:blur(3px) saturate(1.05)}
+.mesa-veu{position:absolute;inset:0;z-index:1;pointer-events:none;background:rgba(14,26,50,0);transition:background .35s ease}
+.mesa-veu.escuro{background:rgba(14,26,50,.22)}   /* sem véu na mesa; só escurece um pouco quando uma janela está aberta */
 .mesa-icones{z-index:2}
 .mesa-widgets,.pn-widgets{position:absolute;inset:0}
 .mesa-widgets{z-index:3;pointer-events:none;transition:opacity .25s,visibility .25s}
@@ -66,3 +67,47 @@
 .wd{position:relative;display:block;margin:0 0 14px;break-inside:avoid}
 .wd.solto{position:absolute;margin:0}
 .mesa-frase{transition:none}
+
+/* ===== caixas de grupo (abertas pelo dock; fecham no ✕) ===== */
+.mesa-grupos{position:absolute;inset:0;z-index:40;pointer-events:none;display:flex;flex-wrap:wrap-reverse;align-content:flex-start;justify-content:center;align-items:flex-end;gap:14px;padding:0 240px 104px 116px;box-sizing:border-box}
+.mesa-grupos .wd{margin:0;width:min(420px,100%)}
+.mesa-grupos .wd.solto{width:420px}
+.wd-grupo .gp-tit{display:flex;align-items:center;gap:8px;margin:0 0 12px;color:var(--gcor);font:800 1rem var(--display)}
+.wd-grupo .gp-tit small{margin-left:auto;font:600 .68rem/1.2 var(--corpo);color:var(--suave);text-align:right;max-width:150px}
+.gp-tit-ic svg{width:26px;height:26px}
+.gc-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.gc-item{display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 8px 10px;border:0;border-radius:16px;background:rgba(255,255,255,.55);color:var(--fg);cursor:pointer;text-align:center;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.8);transition:transform .15s cubic-bezier(.3,1.4,.5,1),background .15s}
+.gc-item:hover,.gc-item:focus-visible{transform:translateY(-2px);background:#fff;outline:none;box-shadow:inset 0 0 0 2px var(--gcor),0 8px 16px -12px rgba(31,72,130,.6)}
+.gc-item.aberto::after{content:"";width:5px;height:5px;border-radius:50%;background:var(--gcor)}
+.gc-item b{font:800 .84rem/1.15 var(--display)}
+.gc-item small{font:600 .66rem/1.25 var(--corpo);color:var(--suave)}
+.gc-ic svg{width:38px;height:38px}
+.gc-item:active,.gp-cartao:active{cursor:grabbing}
+.mesa-area.soltando .mesa-icones{outline:3px dashed rgba(31,111,224,.45);outline-offset:-10px;border-radius:24px;background:rgba(255,255,255,.18)}
+
+/* ===== janelas: moldura de vidro com respiro entre a caixa e o conteúdo; conteúdo se adapta à largura ===== */
+.jan{border-radius:26px;border:1px solid rgba(255,255,255,.85);background:rgba(246,250,255,.78);backdrop-filter:blur(26px) saturate(1.5);-webkit-backdrop-filter:blur(26px) saturate(1.5);
+  box-shadow:0 1px 0 rgba(255,255,255,.7) inset,0 26px 60px -24px rgba(16,40,80,.55)}
+.jan.foco{box-shadow:0 1px 0 rgba(255,255,255,.7) inset,0 30px 70px -22px rgba(16,40,80,.65),0 0 0 1.5px rgba(61,155,255,.35)}
+.jan-barra{flex-basis:44px;background:none;border:0;box-shadow:none}
+.jan-barra h2{font:700 .88rem var(--display);color:#3A4A68}
+.jan-ic svg{width:18px;height:18px}
+.jan-corpo{margin:0 10px 10px;border-radius:18px;background:#fff;box-shadow:inset 0 0 0 1px #E6EEF8,0 1px 2px rgba(16,40,80,.06);container-type:inline-size}
+.jan.max .jan-corpo{margin:0 8px 8px}
+.jan-corpo .tela{padding:26px 30px 24px}
+.jan-corpo .tela > h2:first-child{display:none}       /* o nome já está na barra da janela */
+.jan-corpo .cartao,.jan-corpo .sl-bloco{padding:16px 18px;border-radius:16px}
+@container (max-width:680px){
+  .jan-corpo .tela{padding:16px 16px 18px}
+  .jan-corpo .grade,.jan-corpo .pn-duas,.jan-corpo .ec-grade{grid-template-columns:1fr!important}
+  .jan-corpo .acoes{flex-wrap:wrap}
+}
+
+/* ícones mais discretos: menores e sem brilho exagerado */
+.dk-ic svg{width:38px;height:38px}
+.ic-img svg{width:42px;height:42px}
+.gp-ic svg{width:36px;height:36px}
+.gp-ic{width:40px;height:40px}
+.ni svg{width:24px;height:24px}
+.pxi{filter:saturate(.92)}

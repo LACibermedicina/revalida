@@ -85,7 +85,7 @@ export default function PraticaIA({ execId, token, api, aoSair, aoNova }) {
   if (resultado) {
     return (
       <div className="pia" data-testid="pratica-ia-resultado">
-        <h2>Correção da IA</h2>
+        <h2>Correção da IA{info?.estacao?.titulo ? <small className="pia-nome"> · {info.estacao.titulo}</small> : null}</h2>
         {resultado.nota !== null && <p className="pia-nota" data-testid="pia-nota"><b>{resultado.nota}</b> / {resultado.max} pontos{resultado.criticos_falhos ? ` · ${resultado.criticos_falhos} item(ns) crítico(s) faltando` : ''}</p>}
         {resultado.aviso && <p className="aviso">{resultado.aviso}</p>}
         {info && <p className="sub">Registrado: estação feita com <b>Paciente IA</b>{info.variacao_tema ? <> · variação temática principal: <b>{info.variacao_tema}</b></> : null}.</p>}
@@ -99,7 +99,7 @@ export default function PraticaIA({ execId, token, api, aoSair, aoNova }) {
   return (
     <div className="pia" data-testid="pratica-ia">
       <header className="pia-topo">
-        <div><h2>{info?.estacao.titulo ?? 'Estação'}</h2><p className="sub">Você é o candidato. O paciente é interpretado pela IA com o script do ator. {info?.variacao_tema ? `Tema: ${info.variacao_tema}.` : ''}</p></div>
+        <div><h2>Estação em andamento</h2><p className="sub">Você é o candidato. O paciente é interpretado pela IA com o script do ator. O nome da estação aparece na correção.</p></div>
         {restante !== null && <span className={`pia-tempo${restante < 60000 ? ' fim' : ''}`} data-testid="pia-tempo" role="timer">⏱ {mmss(restante)}</span>}
       </header>
       {cartas && <details className="pia-cartas" open><summary>Descrição, cenário e materiais liberados</summary>

@@ -78,7 +78,8 @@ export default function TelaSolo({ token, api, aoPraticarEstacao, estacaoInicial
 
       {pronta && (
         <section className="solo-pronta" data-testid="solo-pronta">
-          <h3>{pronta.titulo}</h3>
+          <h3>Sua estação está pronta</h3>
+          <p className="sub">O nome fica em segredo até você terminar, como na prova.</p>
           <p className="sub">{AREAS[pronta.area]} · {pronta.tempo_min} min · {pronta.itens} itens de checklist</p>
           {pronta.avisos?.map((a) => <p key={a} className="sub">⚠ {a}</p>)}
           <button type="button" className="btn menta" onClick={() => comPaciente({ estacao_id: pronta.estacao_id })} disabled={gerando} data-testid="solo-praticar">Praticar agora com paciente IA</button>{' '}
