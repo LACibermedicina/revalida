@@ -42,7 +42,7 @@ export default function EpiAssistente({ tela, mesa, temPainel, irPara, api, toke
   const [tour, setTour] = useState(null);
   const [ouvindo, setOuvindo] = useState(false);
   const rec = useRef(null); const fala = useRef(''); const ultimaSug = useRef(0);
-  const ancora = useAncora(mesa, aberto);
+  const ancora = useAncora(mesa, aberto || (mesa && temPainel));
   const telaGuia = GUIA[tela] ? tela : 'painel';
   const g = GUIA[telaGuia];
 
@@ -120,7 +120,7 @@ export default function EpiAssistente({ tela, mesa, temPainel, irPara, api, toke
           <img src="/marca/avatar.png" alt="" width="56" height="56" />
         </button>
       )}
-      {temPainel && (
+      {temPainel && (!mesa || ancora) && (
         <button type="button" className={`epi-mudo${mudo ? ' on' : ''}${mesa ? ' na-mesa' : ''}`} onClick={alternarMudo} aria-pressed={mudo} data-testid="epi-mudo"
           title={mudo ? 'Epi silenciado: toque para ele voltar a ajudar' : 'Silenciar o Epi'} style={mesa && ancora ? { left: ancora.x - 6, top: ancora.y - 6 } : undefined}>
           {mudo ? '🔕' : '🔔'}
