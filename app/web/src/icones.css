@@ -74,3 +74,26 @@
 @keyframes px-flecha{from{transform:translate(10px,-10px);opacity:0}}
 
 @media (prefers-reduced-motion:reduce){.pxi,.pxi *{animation:none!important}}
+
+/* ===== marca voxel (Logo.jsx) ===== */
+.wordmark.vx{display:inline-flex;align-items:center;font-size:inherit;line-height:1;letter-spacing:0;filter:drop-shadow(0 2px 0 rgba(255,255,255,.7)) drop-shadow(0 4px 6px rgba(28,43,74,.18))}
+.wordmark.vx svg{display:block;height:1em;width:auto;overflow:visible}
+.vx-l .vx-salto{transform-box:fill-box;transform-origin:50% 100%;animation:vx-ola 7s cubic-bezier(.3,1.5,.5,1) infinite;animation-delay:calc(var(--i) * .07s)}
+.vx-ponto .vx-salto{animation:vx-ponto 2.4s cubic-bezier(.3,1.6,.5,1) infinite}
+:is(.mesa-marca,.nav-marca,.faixa-marca):hover .vx-l .vx-salto{animation:vx-pula .55s cubic-bezier(.3,1.6,.5,1) both;animation-delay:calc(var(--i) * .04s)}
+.vx-costura{animation:vx-costura 3s linear infinite}
+@keyframes vx-ola{0%,86%,100%{transform:none}90%{transform:translateY(-22%) scale(1.04,.96)}94%{transform:translateY(0) scale(.97,1.03)}}
+@keyframes vx-ponto{0%,60%,100%{transform:none}72%{transform:translateY(-120%) rotate(90deg)}84%{transform:translateY(0) scale(1.2,.8)}}
+@keyframes vx-pula{40%{transform:translateY(-26%) scale(1.06,.94)}75%{transform:scale(.97,1.03)}}
+@keyframes vx-costura{to{stroke-dashoffset:-12}}
+.vx-logo{overflow:visible}
+.vx-logo .vx-cabeca{transform-box:fill-box;transform-origin:50% 100%;animation:vx-balanca 5s ease-in-out infinite}
+.vx-logo .vx-olho{transform-box:fill-box;transform-origin:center;animation:vx-pisca 4.2s infinite}
+.vx-logo .vx-antena{transform-box:fill-box;transform-origin:50% 100%;animation:vx-antena 2.6s ease-in-out infinite}
+.vx-logo .vx-antena-luz{transform-box:fill-box;transform-origin:center;animation:vx-luz 1.6s ease-in-out infinite alternate}
+:is(.mesa-marca,.nav-marca,.faixa-marca,.marca):hover .vx-logo .vx-cabeca{animation:vx-pula .6s cubic-bezier(.3,1.6,.5,1)}
+@keyframes vx-balanca{0%,100%{transform:rotate(0)}50%{transform:rotate(-3deg) translateY(-1px)}}
+@keyframes vx-pisca{0%,46%,52%,100%{transform:none}49%{transform:scaleY(.12)}}
+@keyframes vx-antena{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+@keyframes vx-luz{from{opacity:.3;transform:scale(.8)}to{opacity:1;transform:scale(1.2)}}
+@media (prefers-reduced-motion:reduce){.wordmark.vx *,.vx-logo *{animation:none!important}}

@@ -37,7 +37,7 @@ function EpiMesa() {
       onPointerCancel={() => { a.current = null; setP(null); }}>
       <Mascote3D fluido pose="wave" cutucar={cutuca} titulo="" />
       {!cfg.semPlaca && (
-        <figure className="mesa-placa"><figcaption>REVALIDA.M3D<small>Estudos preparatórios</small></figcaption>
+        <figure className="mesa-placa"><figcaption><Wordmark /><small>Estudos preparatórios</small></figcaption>
           <button type="button" className="placa-x" aria-label="Remover a placa" title="Remover a placa (Exibir › Mostrar a placa do Epi traz de volta)" onClick={() => salvarCfg({ ...cfg, semPlaca: true })}>×</button>
         </figure>
       )}

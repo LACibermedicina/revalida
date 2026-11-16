@@ -24,7 +24,7 @@
 
 /* ===== mesa: véu translúcido sobre o fundo (o Epi fica por cima), widgets do Início e Epi móvel ===== */
 .mesa-veu{position:absolute;inset:0;z-index:1;pointer-events:none;background:rgba(14,26,50,0);transition:background .35s ease}
-.mesa-veu.escuro{background:rgba(14,26,50,.22)}   /* sem véu na mesa; só escurece um pouco quando uma janela está aberta */
+.mesa-veu.escuro{background:rgba(14,26,50,.3)}   /* sem véu na mesa; só escurece um pouco quando uma janela está aberta */
 .mesa-icones{z-index:2}
 .mesa-widgets,.pn-widgets{position:absolute;inset:0}
 .mesa-widgets{z-index:3;pointer-events:none;transition:opacity .25s,visibility .25s}
@@ -111,3 +111,11 @@
 .gp-ic{width:40px;height:40px}
 .ni svg{width:24px;height:24px}
 .pxi{filter:saturate(.92)}
+
+/* o escurecimento cobre todo o fundo da mesa, inclusive atrás do dock (só a barra de cima fica de fora) */
+.mesa-veu{bottom:calc(-1 * var(--dk))}
+/* tamanhos da marca voxel */
+.mesa-marca .wordmark.vx{font-size:2.05rem}
+.nav-marca .wordmark.vx{font-size:1.5rem}
+.faixa-marca .wordmark.vx{font-size:1rem}
+.mesa-placa .wordmark.vx{font-size:.95rem;filter:none}
