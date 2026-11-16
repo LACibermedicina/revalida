@@ -14,6 +14,8 @@ import TelaDesempenho from './Desempenho.jsx';
 import TelaSolo from './Solo.jsx';
 import Logo, { Wordmark } from './Logo.jsx';
 import Contagem, { recarregarProva } from './Contagem.jsx';
+import VideoFlutuante from './VideoFlutuante.jsx';
+import { chamada } from './chamada.js';
 import Mesa from './Mesa.jsx';
 import { GRUPOS, RESUMO, TELAS, useEstadoMesa, useJanelas, useAvisos } from './useMesa.js';
 import CenaLogin from './CenaLogin.jsx';
@@ -849,7 +851,7 @@ export default function App() {
   const guardar = (r) => { localStorage.setItem('rp-auth', JSON.stringify(r)); setSessaoAuth(r); };
   const entrar = (r) => { guardar(r); setTela('painel'); setAviso(''); };
   const abrirAnalise = (id) => { setAnaliseId(id); setTela('analise'); };
-  const sair = (motivo = '') => { try { sessionStorage.removeItem('rv_modo_ok'); } catch { /* sem storage */ } setEscolheu(false); localStorage.removeItem('rp-auth'); setSessaoAuth(null); setSala(null); setTela('entrar'); setAviso(motivo); };
+  const sair = (motivo = '') => { chamada.sair(); try { sessionStorage.removeItem('rv_modo_ok'); } catch { /* sem storage */ } setEscolheu(false); localStorage.removeItem('rp-auth'); setSessaoAuth(null); setSala(null); setTela('entrar'); setAviso(motivo); };
   const abrirSala = (id, papel) => { setSala({ id, papel }); setTela('sala'); };
   const abrirSalaCiclos = (id) => { try { sessionStorage.setItem('rv_sala', id); } catch { /* sem storage */ } setChaveCiclos((k) => k + 1); setTela('ciclos'); };
 
@@ -958,7 +960,9 @@ export default function App() {
     return (
       <Mesa usuario={sessaoAuth.usuario} token={sessaoAuth.token} api={api} jan={jan} estado={mesaEstado.estado} salvar={mesaEstado.salvar} avisos={avisos}
         renderTela={(t) => telaAuth(t, true)} ehAdmin={ehAdminApp} aoFavorito={abrirFavorito} aoSair={() => sair()} aoClassico={() => trocarShell('classico')}
-        aoSobrepor={sobrepostos} areaRef={areaRef} temSala={!!sala} />
+        aoSobrepor={sobrepostos} areaRef={areaRef} temSala={!!sala}>
+        <VideoFlutuante aoAbrirSala={() => abrirSalaCiclos(chamada.atual().salaId)} />
+      </Mesa>
     );
   }
 
@@ -973,6 +977,7 @@ export default function App() {
       )}
       {podeTrocarVersao(dispositivo) && <RelogioDeBolso />}
       {SIMULACAO && <div className="sim-fita" role="status">Modo de simulação · nada é enviado</div>}
+      {sessaoAuth && <VideoFlutuante aoAbrirSala={() => abrirSalaCiclos(chamada.atual().salaId)} />}
       {conteudo}
       {instalado && sessaoAuth && !tokenSenha && <ConvitesRecebidos api={api} token={sessaoAuth.token} aoEntrar={(id) => { try { sessionStorage.setItem('rv_sala', id); } catch { /* sem storage */ } setChaveCiclos((k) => k + 1); setTela('ciclos'); }} />}
       {instalado && sessaoAuth && !tokenSenha && (

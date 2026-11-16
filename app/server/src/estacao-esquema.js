@@ -5,7 +5,9 @@
 export const ESQUEMA_VERSAO = 1;
 export const AREAS = ['clinica_medica', 'cirurgia', 'ginecologia_obstetricia', 'pediatria', 'mfc'];
 export const NOMES_AREA = { clinica_medica: 'Clínica Médica', cirurgia: 'Cirurgia', ginecologia_obstetricia: 'Ginecologia e Obstetrícia', pediatria: 'Pediatria', mfc: 'Medicina de Família e Comunidade' };
-export const TIPOS_MATERIAL = ['laboratorial', 'imagem', 'biopsia', 'laudo', 'outro'];
+export const TIPOS_MATERIAL = ['exame_fisico', 'laboratorial', 'imagem', 'biopsia', 'laudo', 'outro'];
+/** Material que é, na prática, o exame físico (mesmo que tenha vindo como "outro"). */
+export const ehExameFisico = (m) => m.tipo === 'exame_fisico' || /\b(exame f[ií]sico|sinais vitais)\b/i.test(m.titulo || '');
 export const DIFICULDADES = ['básica', 'intermediária', 'avançada'];
 
 /** Temas de partida para sorteio quando o usuário não os informa (lista própria, só para variar a geração). */
@@ -58,7 +60,8 @@ export function validarEstacao(entrada, { completa = false } = {}) {
     if (!TIPOS_MATERIAL.includes(tipo)) erros.push(`materiais[${i}].tipo: use ${TIPOS_MATERIAL.join(', ')}`);
     const t = txt(m?.titulo, 120);
     if (!t) erros.push(`materiais[${i}].titulo: obrigatório`);
-    materiais.push({ ordem: i, tipo: TIPOS_MATERIAL.includes(tipo) ? tipo : 'outro', titulo: t, conteudo: txt(m?.conteudo, 6000), gatilho: txt(m?.gatilho, 300) });
+    const tp = TIPOS_MATERIAL.includes(tipo) ? tipo : 'outro';
+    materiais.push({ ordem: i, tipo: tp === 'outro' && ehExameFisico({ tipo: tp, titulo: t }) ? 'exame_fisico' : tp, titulo: t, conteudo: txt(m?.conteudo, 6000), gatilho: txt(m?.gatilho, 300) });
   });
 
   const vistos = new Set();
@@ -86,6 +89,14 @@ export function validarEstacao(entrada, { completa = false } = {}) {
   return { ok: erros.length === 0, erros, estacao };
 }
 
+/** Estação de atendimento ao paciente (consulta, PS, UBS…): o exame físico precisa existir. Estações só de comunicação,
+ *  ética, gestão ou procedimento isolado (ex.: notificação, atestado, comunicar má notícia) ficam de fora. */
+export function ehAtendimento(e) {
+  const txt = `${e.titulo || ''} ${e.sintese || ''} ${e.instrucoes_candidato || ''}`.toLowerCase();
+  if (/(comunica[çc][ãa]o de m[áa] not[íi]cia|notifica[çc][ãa]o compuls|atestado|declara[çc][ãa]o de [óo]bito|gest[ãa]o|vigil[âa]ncia|educa[çc][ãa]o em sa[úu]de|reuni[ãa]o|[ée]tica)/.test(txt) && !/exame f[íi]sico/.test(txt)) return false;
+  return Boolean(e.script_ator) || /(atendimento|consulta|pronto[- ]socorro|ubs|ambulat|enfermaria|emerg)/.test(`${txt} ${(e.cenario || '').toLowerCase()}`);
+}
+
 export const somaPontos = (estacao) => Math.round(estacao.pep.reduce((s, i) => s + i.pontos_total, 0) * 100) / 100;
 
 /** Avisos (não bloqueiam): conferências heurísticas que o revisor humano deve olhar. */
@@ -96,6 +107,8 @@ export function avisosDeCoerencia(estacao) {
   const cita = estacao.pep.some((i) => /\b(hemograma|ecg|eletrocardiograma|radiografia|raio[- ]x|tomografia|ultrassom|ultrassonografia|ressonância|glicemia|gasometria|urina|biópsia|laudo)\b/i.test(i.descricao));
   if (cita && estacao.materiais.length === 0) avisos.push('O checklist cita exames, mas a estação não tem materiais extras para liberar.');
   for (const m of estacao.materiais) if (!m.conteudo) avisos.push(`O material "${m.titulo}" está sem conteúdo.`);
+  if (ehAtendimento(estacao) && !estacao.materiais.some(ehExameFisico)) avisos.push('Estação de atendimento sem cartão de exame físico: inclua sinais vitais e achados por sistema (mesmo se normais).');
+  if (estacao.script_ator && !/^\s*P:/m.test(estacao.script_ator)) avisos.push('O roteiro do ator não está no formato pergunta a pergunta (P:/R:). Ele ainda funciona, mas fica menos prático para o ator.');
   return avisos;
 }
 

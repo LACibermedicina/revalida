@@ -6,7 +6,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { criarTranscritor, podeTranscrever } from './transcricao.js';
 import { detectarPedidos } from './pedidos.js';
 
-const TIPO_CARTA = { laboratorial: 'Exame laboratorial', imagem: 'Imagem', biopsia: 'Biópsia', laudo: 'Laudo', outro: 'Material' };
+const TIPO_CARTA = { exame_fisico: 'Exame físico', laboratorial: 'Exame laboratorial', imagem: 'Imagem', biopsia: 'Biópsia', laudo: 'Laudo', outro: 'Material' };
 const SITUACAO = { acerto: ['Acerto', '✓'], parcial: ['Parcial', '◐'], erro: ['Erro', '✕'], confusao: ['Confusão de termo', '⇄'], omissao: ['Não falou', '∅'] };
 const CATEG = { ministerio: 'Ministério da Saúde', oms: 'OMS', sociedade: 'Sociedade de especialidade', outra: 'Referência' };
 const SUGESTAO = { sim: 'Sim', parcial: 'Parcial', nao: 'Não' };
@@ -46,7 +46,7 @@ export function useAoVivo({ execId, ativo, api, token, intervaloMs = 4000, anali
   return { segmentos, sugestoes, info, analisar };
 }
 
-const GRUPOS = [['laboratorial', 'Exames laboratoriais', '🧪'], ['imagem', 'Estudos de imagem', '🩻'], ['biopsia', 'Biópsia e anatomia patológica', '🔬'], ['laudo', 'Laudos', '📄'], ['outro', 'Outras informações', '📋']];
+const GRUPOS = [['exame_fisico', 'Exame físico', '🩺'], ['laboratorial', 'Exames laboratoriais', '🧪'], ['imagem', 'Estudos de imagem', '🩻'], ['biopsia', 'Biópsia e anatomia patológica', '🔬'], ['laudo', 'Laudos', '📄'], ['outro', 'Outras informações', '📋']];
 
 export { formatarTexto };
 const Texto = ({ corpo }) => <TextoEstacao corpo={corpo} />;
@@ -55,16 +55,22 @@ const Texto = ({ corpo }) => <TextoEstacao corpo={corpo} />;
  * Descrição da estação, cenário e materiais liberados. O avaliador vê tudo organizado por tipo (laboratório, imagem, laudo…),
  * com o que o candidato já pode ver e o que ainda está guardado, e libera cada item quando o candidato pede. Os demais só veem o já liberado.
  */
-export function CartasEstacao({ execId, papel, api, token, segmentos = [], versao = 0 }) {
+/** Cartas da estação (uma única consulta compartilhada pelo painel do avaliador e pela trilha de cartões à direita). */
+export function useCartas({ execId, api, token, versao = 0 }) {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState('');
   const [ocupado, setOcupado] = useState(false);
-  const carregar = useCallback(() => api(`/api/execucoes/${execId}/cartas`, { token }).then((d) => { setDados(d); setErro(''); }).catch((e) => setErro(e.message)), [api, token, execId]);
-  useEffect(() => { setDados(null); carregar(); const t = setInterval(carregar, 5000); return () => clearInterval(t); }, [carregar, versao]);
+  const carregar = useCallback(() => (execId ? api(`/api/execucoes/${execId}/cartas`, { token }).then((d) => { setDados(d); setErro(''); }).catch((e) => setErro(e.message)) : null), [api, token, execId]);
+  useEffect(() => { setDados(null); if (!execId) return undefined; carregar(); const t = setInterval(carregar, 5000); return () => clearInterval(t); }, [carregar, versao, execId]);
   const liberar = async (ids) => {
     setOcupado(true);
     try { for (const mid of ids) await api(`/api/execucoes/${execId}/cartas/${mid}/liberar`, { metodo: 'POST', token }); await carregar(); } catch (e) { setErro(e.message); } finally { setOcupado(false); }
   };
+  return { dados, erro, ocupado, liberar };
+}
+
+export function CartasEstacao({ cartas, papel, segmentos = [] }) {
+  const { dados, erro, ocupado, liberar } = cartas;
   const pedidos = useMemo(() => new Set(dados && papel === 'avaliador' ? detectarPedidos(segmentos, dados.materiais) : []), [dados, papel, segmentos]);
   if (!dados) return erro ? <p className="aviso" role="alert">{erro}</p> : null;
   const avaliador = dados.papel === 'avaliador';

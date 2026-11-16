@@ -222,7 +222,7 @@ function Menu({ id, rotulo, aberto, setAberto, children, dir }) {
 const It = ({ children, ...p }) => <button type="button" role="menuitem" {...p}>{children}</button>;
 
 /** Shell estilo macOS: barra de menu no topo, mesa com favoritos, janelas e dock na base. */
-export default function Mesa({ usuario, token, api, jan, estado, salvar, avisos, renderTela, ehAdmin, aoFavorito, aoSair, aoClassico, aoSobrepor, areaRef, temSala }) {
+export default function Mesa({ usuario, token, api, jan, estado, salvar, avisos, renderTela, ehAdmin, aoFavorito, aoSair, aoClassico, aoSobrepor, areaRef, temSala, children }) {
   const [aberto, setAberto] = useState(null);
   const [dialogo, setDialogo] = useState(null);
   const [menuFav, setMenuFav] = useState(null);
@@ -367,6 +367,7 @@ export default function Mesa({ usuario, token, api, jan, estado, salvar, avisos,
       )}
       {dialogo && <AdicionarFavorito api={api} token={token} favoritos={estado.favoritos} inicio={dialogo} aoAdicionar={add} aoFechar={() => setDialogo(null)} />}
       {aoSobrepor}
+      {children}
     </div>
   );
 }

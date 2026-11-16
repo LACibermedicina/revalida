@@ -2,10 +2,11 @@
 // O servidor decide tudo (regras no banco); aqui só mostramos o estado que ele nos manda e chamamos as ações.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
-import { criarSalaVideo } from './video.js';
+import { chamada, useChamada } from './chamada.js';
+import CartasTrilho, { PainelEstacao } from './CartasTrilho.jsx';
+import RoteiroAtor from './RoteiroAtor.jsx';
 import TextoEstacao from './TextoEstacao.jsx';
-import FerramentasSala from './FerramentasSala.jsx';
-import { CartasEstacao, TranscricaoCandidato, FalaDoCandidato, Sugestao, AnaliseDaFala, useAoVivo } from './SalaExecucao.jsx';
+import { CartasEstacao, useCartas, TranscricaoCandidato, FalaDoCandidato, Sugestao, AnaliseDaFala, useAoVivo } from './SalaExecucao.jsx';
 import ApoioCognitivo, { useFalaLocal } from './ApoioCognitivo.jsx';
 import { Autocorrecao, BannerRandomico, ConvidarOnline, LiberarTranscricao } from './SalaExtras.jsx';
 import { AcoesUsuario } from './Seguranca.jsx';
@@ -83,11 +84,14 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
   const [ultima, setUltima] = useState(null);
   const [pep, setPep] = useState(null);
   const [marcas, setMarcas] = useState({});
-  const [video, setVideo] = useState({ cam: false, mic: false, modo: null, erro: '' });
-  const refs = useRef({ socket: null, video: null, ligando: false });
+  const ch = useChamada();
+  const video = { cam: ch.cam, mic: ch.mic, modo: ch.modo, erro: ch.erro };
+  const refs = useRef({ socket: null });
   const [tiqueChat, setTiqueChat] = useState(0);
   const [diag, setDiag] = useState(null);
   const [ajudaAberta, setAjudaAberta] = useState(false);
+  const [aba, setAba] = useState(null);
+  const [painelAberto, setPainelAberto] = useState(true);
   const eu = usuario.id;
 
   const carregar = useCallback(async () => {
@@ -151,6 +155,10 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
   const euAvalio = Boolean(exe && (exe.avaliador_id === eu || est?.sala.admin_id === eu));
 
   const aoVivo = useAoVivo({ execId: exe?.id, ativo: Boolean(exe && euAvalio), api, token });
+  const cartas = useCartas({ execId: exe?.id, api, token });
+  useEffect(() => { if (exe?.id) setPainelAberto(true); }, [exe?.id]);   // estação começou: o painel abre sozinho
+  // terminou a estação: a lateral mostra o resultado
+  useEffect(() => { if (!exe && ultima) setAba((a) => a ?? 'resultado'); }, [exe?.id, ultima?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // checklist: só quem avalia recebe (o servidor nega para o candidato)
   useEffect(() => {
@@ -171,53 +179,19 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
     }).catch(() => {});
   }, [est?.sala?.versao, exe?.id, salaId, api, token]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  // vídeo da sala
-  const [tiles, setTiles] = useState({});
-  const ligarVideo = async () => {
-    if (refs.current.video || refs.current.ligando) return;
-    refs.current.ligando = true;
-    try {
-      const v = await criarSalaVideo({
-        sessaoId: salaId, tokenAuth: token, rotaToken,
-        aoMudar: (ev) => {
-          if (ev.tipo === 'video') setTiles((t) => ({ ...t, [ev.uid]: { track: ev.track, local: ev.local } }));
-          if (ev.tipo === 'saiu-video' || ev.tipo === 'saiu') setTiles((t) => { const n = { ...t }; delete n[ev.uid]; return n; });
-        },
-        aoErro: (m) => setVideo((s) => ({ ...s, erro: m })),
-        aoSomBloqueado: () => {}, aoPermissao: () => {},
-      });
-      refs.current.video = v;
-      setVideo((s) => ({ ...s, modo: v.modo, erro: '' }));
-      setVideo((s) => ({ ...s, cam: Boolean(v.cameraLigada?.()), mic: Boolean(v.microfoneLigado?.()) }));
-    } catch (e) { setVideo((s) => ({ ...s, erro: e.message })); }
-    finally { refs.current.ligando = false; }
-  };
-  useEffect(() => () => { refs.current.video?.sair?.(); }, []);
-  // entra no vídeo sozinho assim que a sala carrega (um único botão para câmera e outro para microfone depois disso)
+  // vídeo da sala: a chamada vive fora da janela (chamada.js); fechar ou minimizar a janela não derruba o vídeo,
+  // que passa para miniaturas flutuantes. Só "Sair da sala" encerra.
+  const tiles = ch.salaId === salaId ? ch.tiles : {};
+  const ligarVideo = () => chamada.ligar({ salaId, token, rotaToken, nomeSala: est?.sala?.nome || 'Sala' });
   const salaPronta = Boolean(est);
   useEffect(() => { if (salaPronta) ligarVideo(); }, [salaPronta]); // eslint-disable-line react-hooks/exhaustive-deps
-  // admin pausou meu vídeo: relê o token (o servidor passa a negar a publicação)
   const minhaPausa = est?.participantes?.find((p) => p.usuario_id === eu)?.video_pausado;
-  useEffect(() => { if (minhaPausa !== undefined) refs.current.video?.sincronizar?.(); }, [minhaPausa]);
-  const alternar = async (que) => {
-    if (!refs.current.video) await ligarVideo();
-    const v = refs.current.video; if (!v) return;
-    if (v.modo === 'demo') return setVideo((s) => ({ ...s, [que]: !s[que] }));        // demonstração: não há aparelho real
-    const ligado = que === 'cam' ? await v.alternarCam(!video.cam) : await v.alternarMic(!video.mic);
-    setVideo((s) => ({ ...s, [que]: ligado }));
-  };
-  // diagnóstico do navegador + religar (botão "solucionar problemas" e verificação automática depois da troca de funções)
+  useEffect(() => { if (minhaPausa !== undefined) chamada.sincronizar(); }, [minhaPausa]);
+  const alternar = async (que) => { if (ch.salaId !== salaId) await ligarVideo(); await chamada.alternar(que); };
   const verificarMidia = async () => { const d = await diagnosticarMidia(); setDiag(d); return d; };
-  const religarMidia = async () => {
-    const v = refs.current.video;
-    if (!v) { await ligarVideo(); return; }
-    if (v.modo === 'demo') return;
-    try { await v.sincronizar?.(); } catch { /* o token é relido de novo na próxima ação */ }
-    const cam = await v.alternarCam(true); const mic = await v.alternarMic(true);
-    setVideo((s) => ({ ...s, cam, mic }));
-  };
+  const religarMidia = async () => { if (ch.salaId !== salaId) { await ligarVideo(); return; } await chamada.religar(); };
 
-  const sair = async () => { try { await api(`/api/salas/${salaId}/sair`, { metodo: 'POST', token }); } catch { /* sai assim mesmo */ } refs.current.video?.sair?.(); aoSair(); };
+  const sair = async () => { try { await api(`/api/salas/${salaId}/sair`, { metodo: 'POST', token }); } catch { /* sai assim mesmo */ } await chamada.sair(); aoSair(); };
 
   const nome = (id) => est?.participantes?.find((p) => p.usuario_id === id)?.nome ?? '—';
   const fila = est?.fila ?? [];
@@ -281,76 +255,22 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
     </div>
   );
 
-  const irPara = (id) => {
-    const el = document.getElementById(id); if (!el) return;
-    if (el.tagName === 'DETAILS') el.open = true;
-    el.scrollIntoView({ behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-    el.classList.add('sl-realce'); setTimeout(() => el.classList.remove('sl-realce'), 1500);
-  };
-  const SO_ESTACAO = new Set(['cam', 'mic', 'estacao', 'transcricao', 'conduta']);
   const pedidosPendentes = est.solicitacoes.filter((x) => x.solicitante_id !== eu).length;
-  // só aparecem as ferramentas que o papel e o momento permitem; a ordem escolhida pela pessoa é aplicada por cima (FerramentasSala)
-  const ferramentas = [
-    { id: 'cam', rotulo: video.cam ? 'Desligar câmera' : 'Ligar câmera', curto: 'Câmera', ativo: video.cam, aoClicar: () => alternar('cam') },
-    { id: 'mic', rotulo: video.mic ? 'Silenciar microfone' : 'Ligar microfone', curto: 'Mic', ativo: video.mic, aoClicar: () => alternar('mic') },
-    ...(souAdmin ? [{ id: 'audio', rotulo: est.sala.audio_observadores ? 'Bloquear áudio dos observadores' : 'Liberar áudio dos observadores', curto: 'Áudio obs.', ativo: est.sala.audio_observadores, aoClicar: () => agir(`/api/salas/${salaId}/audio-observadores`, { liberado: !est.sala.audio_observadores }, 'PATCH') }] : []),
-    { id: 'chat', rotulo: 'Chat da sala', curto: 'Chat', aoClicar: () => irPara('sl-chat') },
-    { id: 'pessoas', rotulo: 'Participantes', curto: 'Pessoas', aoClicar: () => irPara('sl-participantes') },
-    ...(podeConvidar ? [{ id: 'convidar', rotulo: 'Convidar pessoas online', curto: 'Convidar', aoClicar: () => irPara('sl-participantes') }] : []),
-    ...(pedidosPendentes > 0 && meu === 'admin' ? [{ id: 'pedidos', rotulo: 'Pedidos de papel', curto: 'Pedidos', aviso: pedidosPendentes, aoClicar: () => irPara('sl-pedidos') }] : []),
-    ...(emAndamento ? [{ id: 'estacao', rotulo: 'Estação em andamento', curto: 'Estação', aoClicar: () => irPara('sl-estacao') },
-      { id: 'transcricao', rotulo: euAvalio ? 'Fala do candidato em tempo real' : 'Minha transcrição', curto: 'Fala', aoClicar: () => irPara(euAvalio ? 'sl-transcricao' : 'sl-estacao') }] : []),
-    ...(emAndamento && apoioPermitido && meu === 'candidato' && exe.candidato_id === eu ? [{ id: 'conduta', rotulo: apoio ? 'Fechar o apoio cognitivo' : 'Apoio cognitivo: grafo da conduta', curto: 'Apoio', ativo: apoio, aoClicar: () => setApoio((v) => !v) }] : []),
-    ...(emAndamento && euAvalio && pep ? [{ id: 'checklist', rotulo: 'Checklist do PEP', curto: 'PEP', aoClicar: () => irPara('sl-checklist') }] : []),
-    ...(!emAndamento && ultima && ciclo ? [{ id: 'fim', rotulo: 'Resultado da estação', curto: 'Resultado', aoClicar: () => irPara('sl-fim') }] : []),
-    ...(ciclo ? [{ id: 'fila', rotulo: 'Fila do ciclo', curto: 'Fila', aoClicar: () => irPara('sl-fila') }] : []),
-    { id: 'codigo', rotulo: 'Copiar o código da sala', curto: 'Código', aoClicar: () => { navigator.clipboard?.writeText(salaId); setAviso('Código da sala copiado.'); } },
+  const souCand = meu === 'candidato' && emAndamento && exe.candidato_id === eu;
+  // abas da lateral (estilo Zoom): só as que o papel e o momento permitem
+  const ABAS = [
+    ...(!modoCandidato ? [['pessoas', '👥', `Pessoas (${est.participantes.length})`, pedidosPendentes && souAdmin ? pedidosPendentes : 0], ['chat', '💬', 'Chat', 0]] : []),
+    ...(!modoCandidato && (ciclo || souAdmin) ? [['ciclo', '🔁', ciclo ? 'Ciclo' : 'Novo ciclo', 0]] : []),
+    ...(!emAndamento && ultima && ciclo && !modoCandidato ? [['resultado', '🏁', 'Resultado', 0]] : []),
+    ...(souAdmin && !modoCandidato ? [['config', '⚙️', 'Sala', 0]] : []),
+    ...(mostrarSolucionar({ papel: meu, eAvaliador: euEAvaliador, video }) ? [['midia', '🛠️', 'Câmera e áudio', 0]] : []),
   ];
+  const abaAtual = ABAS.some(([id]) => id === aba) ? aba : null;
+  const galeria = Object.entries(tiles);
 
-  return (
-    <div className="tela sl">
-      <FerramentasSala ferramentas={modoCandidato ? ferramentas.filter((f) => SO_ESTACAO.has(f.id)) : ferramentas} />
-      <div className="sl-topo">
-        <div><h2 data-testid="nome-sala">{est.sala.nome || 'Sala'}</h2>{!modoCandidato && <button className="sl-cod" onClick={() => navigator.clipboard?.writeText(salaId)} title="Copiar código">{salaId}</button>}</div>
-        <span className={`sl-papel p-${meu}`} data-testid="meu-papel">{PAPEL[meu] ?? meu}</span>
-      </div>
-      {aviso && <p className="aviso" role="alert">{aviso}</p>}
-
-      <section className="sl-bloco" id="sl-video" aria-label="Vídeo">
-        <div className="sl-tiles">{Object.entries(tiles).map(([uid, t]) => <Tile key={uid} track={t.track} rotulo={t.local ? 'Você' : 'Participante'} />)}</div>
-        <div className="acoes">
-          {video.modo === 'demo' && <span className="sub">Modo demonstração (sem vídeo real)</span>}
-          <button className="btn mini sl-midia-btn" data-testid="botao-camera" onClick={() => alternar('cam')} aria-pressed={video.cam}>{video.cam ? 'Desligar câmera' : 'Ligar câmera'}</button>
-          <button className="btn mini sl-midia-btn" data-testid="botao-mic" onClick={() => alternar('mic')} aria-pressed={video.mic}>{video.mic ? 'Silenciar microfone' : 'Ligar microfone'}</button>
-        </div>
-        {video.erro && <p className="aviso">{video.erro}</p>}
-        {mostrarSolucionar({ papel: meu, eAvaliador: euEAvaliador, video }) && <Solucionar resultado={diag} aoVerificar={verificarMidia} aoReligar={religarMidia} aberto={ajudaAberta} setAberto={setAjudaAberta} />}
-        {souAdmin && !modoCandidato && <label className="sl-op"><input type="checkbox" data-testid="opcao-apoio" checked={est.sala.apoio_cognitivo !== false} onChange={(e) => agir(`/api/salas/${salaId}/apoio-cognitivo`, { liberado: e.target.checked }, 'PATCH')} /> Permitir o apoio cognitivo (grafo da conduta) ao candidato</label>}
-        {souAdmin && !modoCandidato && <label className="sl-op"><input type="checkbox" checked={est.sala.audio_observadores} onChange={(e) => agir(`/api/salas/${salaId}/audio-observadores`, { liberado: e.target.checked }, 'PATCH')} /> Liberar áudio dos observadores</label>}
-      </section>
-
-      {pausadaPorSaida.length > 0 && (
-        <p className="sl-pausa-aviso" role="status" data-testid="pausa-aviso"><b>Estação pausada.</b> Ela segue sozinha quando o chefe e o candidato estiverem conectados ao mesmo tempo.{chefeAusente ? ' O chefe não está na sala.' : ''}</p>
-      )}
-      {!modoCandidato && souAdmin && <ConfigurarSala sala={est.sala} api={api} token={token} aoSalvar={carregar} />}
-      {!modoCandidato && <SalaChat salaId={salaId} api={api} token={token} eu={eu} tique={tiqueChat} />}
-
-      {!modoCandidato && est.ciclos_pausados.length > 0 && (
-        <section className="sl-bloco" aria-label="Ciclos pausados">
-          <h3>Ciclos pausados</h3>
-          {est.ciclos_pausados.map((c) => (
-            <div key={c.ciclo_id} className="sl-linha">
-              <span>{c.execucao_pausada ? 'Estação pausada' : 'Ciclo pausado'} · {c.motivo ?? 'troca de papéis'}</span>
-              <button className="btn mini menta" onClick={() => agir(`/api/ciclos/${c.ciclo_id}/retomar`)}>Retomar</button>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {!modoCandidato && <BannerRandomico salaId={salaId} api={api} token={token} versao={est?.sala?.versao} souAdmin={souAdmin} podeSeguir={souAdmin && !emAndamento && Boolean(ultima)} aoMudou={carregar} />}
-
-      {!modoCandidato && <section className="sl-bloco" id="sl-participantes" aria-label="Participantes">
-        <h3>Participantes ({est.participantes.length})</h3>
+  const conteudoAba = {
+    pessoas: (
+      <>
         {est.participantes.map((p) => (
           <div key={p.usuario_id} className="sl-linha">
             <span>{p.nome}{p.usuario_id === eu && ' (você)'} <em className={`sl-papel p-${p.papel}`}>{PAPEL[p.papel]}{p.e_avaliador && p.papel !== 'admin' ? ' · avalia' : ''}</em>{p.video_pausado && <em className="sl-mudo"> vídeo pausado</em>}</span>
@@ -371,124 +291,180 @@ function Sala({ salaId, token, usuario, api, aoSair, sugestao, aoRevisar, aoAnal
         {meu === 'candidato' && !emAndamento && <div className="acoes"><button type="button" className="btn mini" onClick={() => agir(`/api/salas/${salaId}/candidato/abandonar`)}>Deixar de ser candidato (passo a observar)</button></div>}
         {chefeAusente && !emAndamento && meu !== 'admin' && <div className="acoes"><button type="button" className="btn mini menta" data-testid="assumir-chefe" onClick={() => agir(`/api/salas/${salaId}/assumir-chefe`)}>O chefe saiu: assumir a chefia</button></div>}
         {minhaSolicitacao && <div className="sl-linha"><span>Seu pedido ({PAPEL[minhaSolicitacao.papel]}) aguarda resposta.</span><button className="btn mini" onClick={() => agir(`/api/solicitacoes/${minhaSolicitacao.id}/cancelar`)}>Cancelar</button></div>}
-      </section>}
+        {pedidosPendentes > 0 && meu === 'admin' && (
+          <div id="sl-pedidos"><h4>Pedidos de papel</h4>
+            {est.solicitacoes.filter((x) => x.solicitante_id !== eu).map((x) => (
+              <div key={x.id} className="sl-linha"><span>{x.nome} quer ser {PAPEL[x.papel]?.toLowerCase()}</span>
+                <span className="acoes"><button className="btn mini menta" onClick={() => agir(`/api/solicitacoes/${x.id}/decidir`, { aceitar: true })}>Aceitar</button><button className="btn mini" onClick={() => agir(`/api/solicitacoes/${x.id}/decidir`, { aceitar: false })}>Recusar</button></span></div>
+            ))}
+          </div>
+        )}
+      </>
+    ),
+    chat: <SalaChat salaId={salaId} api={api} token={token} eu={eu} tique={tiqueChat} />,
+    config: (
+      <>
+        <ConfigurarSala sala={est.sala} api={api} token={token} aoSalvar={carregar} />
+        <label className="sl-op"><input type="checkbox" data-testid="opcao-apoio" checked={est.sala.apoio_cognitivo !== false} onChange={(e) => agir(`/api/salas/${salaId}/apoio-cognitivo`, { liberado: e.target.checked }, 'PATCH')} /> Permitir o apoio cognitivo (grafo da conduta) ao candidato</label>
+        <label className="sl-op"><input type="checkbox" checked={est.sala.audio_observadores} onChange={(e) => agir(`/api/salas/${salaId}/audio-observadores`, { liberado: e.target.checked }, 'PATCH')} /> Liberar áudio dos observadores</label>
+        <button type="button" className="btn mini" onClick={() => { navigator.clipboard?.writeText(salaId); setAviso('Código da sala copiado.'); }}>Copiar o código da sala</button>
+      </>
+    ),
+    midia: <Solucionar resultado={diag} aoVerificar={verificarMidia} aoReligar={religarMidia} aberto setAberto={setAjudaAberta} />,
+    resultado: ultima && ciclo ? (
+      <div className="sl-fim" id="sl-fim" data-testid="fim-estacao">
+        <h3>Estação finalizada: {ultima.titulo}</h3>
+        <div className="sl-stats">
+          <div><b>{pts(ultima.nota)}</b><span>de {pts(ultima.max)} pts{ultima.percentual !== null && ` · ${ultima.percentual}%`}</span></div>
+          <div><b>{fmt(ultima.duracao_s)}</b><span>de {ultima.duracao_min} min</span></div>
+          <div><b>{ultima.vezes_realizada}ª</b><span>vez desta estação</span></div>
+          <div><b>{ultima.criticos_falhos ?? 0}</b><span>itens críticos falhos</span></div>
+        </div>
+        {ultima.historico.length > 1 && <p className="sub">Últimas notas: {ultima.historico.map((h) => h.nota ?? '—').reverse().join(' → ')}</p>}
+        <details><summary>Itens</summary>
+          {ultima.itens.map((i) => <div key={i.id} className={`sl-it r-${i.resultado}`}>{i.resultado === 'sim' ? '✔' : i.resultado === 'parcial' ? '◐' : '✘'} {i.descricao} <em>{pts(i.pontos)}/{pts(i.pontos_total)}</em></div>)}
+        </details>
+        {souAdmin ? (
+          <>
+            <p className="sub">O que fazer agora?</p>
+            <div className="acoes">
+              <button className="btn mini menta" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'avancar' })} disabled={pendentes.length === 0}>Próxima estação</button>
+              <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'manter' })}>Manter papéis</button>
+              <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'inverter' })}>Inverter papéis</button>
+              <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'encerrar' })}>Encerrar ciclo</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="sub">Aguardando o chefe decidir o próximo passo. O vídeo continua aberto.</p>
+            {meu === 'candidato' && <div className="acoes"><button className="btn mini" data-testid="inverter-candidato" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'inverter' })}>Inverter papéis</button></div>}
+          </>
+        )}
+        {(meu === 'candidato' || euAvaliou(ultima, est, eu)) && <Autocorrecao key={ultima.id} execId={ultima.id} api={api} token={token} aoAdotar={async () => { await carregar(); try { const r = await api(`/api/salas/${salaId}/ultima-execucao`, { token }); setUltima(r.ultima ?? null); } catch { /* mantém */ } }} />}
+        {euAvaliou(ultima, est, eu) && <LiberarTranscricao key={`lib-${ultima.id}`} execId={ultima.id} api={api} token={token} />}
+        {aoAnalise && (meu === 'candidato' || euAvaliou(ultima, est, eu)) && <button className="btn mini menta" onClick={() => aoAnalise(ultima.id)}>Ver análise completa da estação</button>}
+        {meu === 'candidato' && aoRevisar && <button className="btn mini menta" onClick={aoRevisar}>Registrar o que faltou (revisão)</button>}
+      </div>
+    ) : null,
+    ciclo: (
+      <>
+        {est.ciclos_pausados.length > 0 && est.ciclos_pausados.map((c) => (
+          <div key={c.ciclo_id} className="sl-linha">
+            <span>{c.execucao_pausada ? 'Estação pausada' : 'Ciclo pausado'} · {c.motivo ?? 'troca de papéis'}</span>
+            <button className="btn mini menta" onClick={() => agir(`/api/ciclos/${c.ciclo_id}/retomar`)}>Retomar</button>
+          </div>
+        ))}
+        <BannerRandomico salaId={salaId} api={api} token={token} versao={est?.sala?.versao} souAdmin={souAdmin} podeSeguir={souAdmin && !emAndamento && Boolean(ultima)} aoMudou={carregar} />
+        {ciclo ? (
+          <div id="sl-fila">
+            {fila.length === 0 && <p className="sub">Nenhuma estação visível ainda.</p>}
+            {fila.map((i) => (
+              <div key={i.id} className="sl-linha" data-estado={i.estado}>
+                <span>{i.posicao}. {meu === 'candidato' && ['pendente', 'em_andamento'].includes(i.estado) ? 'Estação surpresa' : i.titulo}{i.grupo && <em> · {i.grupo}</em>} <em className={`sl-est e-${i.estado}`}>{i.estado.replace('_', ' ')}</em></span>
+                {souAdmin && (
+                  <span className="acoes">
+                    {i.estado === 'pendente' && <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/itens/${i.id}/liberar`, { liberada: !i.liberada }, 'PATCH')}>{i.liberada ? 'Bloquear' : 'Liberar'}</button>}
+                    {i.estado === 'pendente' && !emAndamento && <button className="btn mini menta" onClick={() => agir(`/api/ciclos/${ciclo.id}/execucoes`, { item_id: i.id })}>Iniciar</button>}
+                  </span>
+                )}
+              </div>
+            ))}
+            {souAdmin && !emAndamento && !ultima && <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'encerrar' })}>Encerrar este ciclo</button>}
+            {souAdmin && (<><h4>Adicionar estações</h4>{seletor}<button className="btn mini" disabled={escolhidas.length === 0} onClick={() => adicionar(false)}>Adicionar ao ciclo</button>
+              {repetidas && (
+                <div className="aviso" role="alert" data-testid="aviso-na-fila">
+                  <b>{repetidas.msg}</b>
+                  <ul>{repetidas.lista.map((r) => <li key={`${r.id}-${r.posicao}`}>«{r.titulo}» — {ROTULO_SITUACAO[r.situacao] ?? r.situacao} (posição {r.posicao})</li>)}</ul>
+                  <div className="acoes"><button type="button" className="btn mini menta" onClick={() => adicionar(true)}>Duplicar a prática</button>
+                    {escolhidas.length > repetidas.lista.length && <button type="button" className="btn mini" onClick={soAsNovas}>Só as outras</button>}
+                    <button type="button" className="btn mini" onClick={() => setRepetidas(null)}>Cancelar</button></div>
+                </div>)}</>)}
+          </div>
+        ) : souAdmin ? (
+          <>{seletor}<button className="btn" disabled={escolhidas.length === 0} onClick={criarCiclo}>Criar ciclo com {escolhidas.length || ''} estação(ões)</button></>
+        ) : <p className="sub">Aguardando o chefe montar o ciclo.</p>}
+      </>
+    ),
+  };
 
-      {est.solicitacoes.filter((s) => s.solicitante_id !== eu).length > 0 && meu === 'admin' && (
-        <section className="sl-bloco" id="sl-pedidos" aria-label="Pedidos de papel">
-          <h3>Pedidos de papel</h3>
-          {est.solicitacoes.filter((s) => s.solicitante_id !== eu).map((s) => (
-            <div key={s.id} className="sl-linha"><span>{s.nome} quer ser {PAPEL[s.papel]?.toLowerCase()}</span>
-              <span className="acoes"><button className="btn mini menta" onClick={() => agir(`/api/solicitacoes/${s.id}/decidir`, { aceitar: true })}>Aceitar</button><button className="btn mini" onClick={() => agir(`/api/solicitacoes/${s.id}/decidir`, { aceitar: false })}>Recusar</button></span></div>
-          ))}
+  return (
+    <div className={`tela sl sl-zoom${abaAtual ? ' com-lateral' : ''}`} data-testid="sala-zoom">
+      <div className="sl-principal">
+        <header className="sl-cab">
+          <div className="sl-cab-nome"><h2 data-testid="nome-sala">{est.sala.nome || 'Sala'}</h2>{!modoCandidato && <button className="sl-cod" onClick={() => { navigator.clipboard?.writeText(salaId); setAviso('Código da sala copiado.'); }} title="Copiar código">copiar código</button>}</div>
+          {emAndamento && <Relogio inicio={exe.iniciada_em} pausaSeg={exe.pausa_seg ?? 0} limiteMin={pep?.duracao_min} />}
+          <span className={`sl-papel p-${meu}`} data-testid="meu-papel">{PAPEL[meu] ?? meu}</span>
+        </header>
+        {aviso && <p className="aviso" role="alert">{aviso}</p>}
+        {pausadaPorSaida.length > 0 && (
+          <p className="sl-pausa-aviso" role="status" data-testid="pausa-aviso"><b>Estação pausada.</b> Ela segue sozinha quando o chefe e o candidato estiverem conectados ao mesmo tempo.{chefeAusente ? ' O chefe não está na sala.' : ''}</p>
+        )}
+        <section className={`sl-palco n-${Math.min(galeria.length, 4)}`} id="sl-video" aria-label="Vídeo" ref={(el) => chamada.definirPalco(el)}>
+          {galeria.map(([uid, t]) => <Tile key={`${uid}-${ch.visao}`} track={ch.visao === 'palco' ? t.track : null} rotulo={t.local ? 'Você' : 'Participante'} />)}
+          {galeria.length === 0 && <div className="sl-palco-vazio"><span aria-hidden="true">🎥</span><p>{video.modo === 'demo' ? 'Modo demonstração: sem vídeo real neste servidor.' : 'Ligue a câmera para aparecer aqui.'}</p></div>}
+          {video.erro && <p className="aviso sl-palco-erro">{video.erro}</p>}
         </section>
+        <nav className="sl-zbarra" aria-label="Controles da sala">
+          <button type="button" className={`zb${video.mic ? '' : ' off'}`} data-testid="botao-mic" aria-pressed={video.mic} onClick={() => alternar('mic')}><span aria-hidden="true">{video.mic ? '🎙️' : '🔇'}</span><small>{video.mic ? 'Mudo' : 'Áudio'}</small></button>
+          <button type="button" className={`zb${video.cam ? '' : ' off'}`} data-testid="botao-camera" aria-pressed={video.cam} onClick={() => alternar('cam')}><span aria-hidden="true">{video.cam ? '📹' : '🚫'}</span><small>{video.cam ? 'Parar vídeo' : 'Vídeo'}</small></button>
+          {emAndamento && <button type="button" className={`zb${painelAberto ? ' on' : ''}`} onClick={() => setPainelAberto((v) => !v)} data-testid="botao-painel"><span aria-hidden="true">📋</span><small>Estação</small></button>}
+          <i className="zb-sep" />
+          {ABAS.map(([id, ic, rot, n]) => (
+            <button key={id} type="button" className={`zb${abaAtual === id ? ' on' : ''}`} onClick={() => setAba(abaAtual === id ? null : id)} aria-pressed={abaAtual === id}>
+              <span aria-hidden="true">{ic}</span><small>{rot}</small>{n > 0 && <b className="zb-n">{n}</b>}
+            </button>
+          ))}
+          <i className="zb-sep" />
+          {!modoCandidato && <button type="button" className="zb sair" onClick={sair}><span aria-hidden="true">🚪</span><small>Sair</small></button>}
+        </nav>
+      </div>
+
+      {abaAtual && (
+        <aside className="sl-lateral" aria-label={ABAS.find(([id]) => id === abaAtual)?.[2]}>
+          <header><b>{ABAS.find(([id]) => id === abaAtual)?.[2]}</b><button type="button" onClick={() => setAba(null)} aria-label="Fechar">×</button></header>
+          <div className="sl-lateral-corpo" id={`sl-${abaAtual === 'pessoas' ? 'participantes' : abaAtual}`}>{conteudoAba[abaAtual]}</div>
+        </aside>
       )}
 
       {emAndamento && (
-        <section className="sl-bloco sl-exec" id="sl-estacao" aria-label="Estação em andamento">
-          <h3>{meu === 'candidato' && exe.candidato_id === eu ? 'Estação em andamento' : exe.titulo}</h3>
-          <p className="sub">Candidato: {nome(exe.candidato_id)} · Avalia: {nome(exe.avaliador_id)}</p>
-          <Relogio inicio={exe.iniciada_em} pausaSeg={exe.pausa_seg ?? 0} limiteMin={pep?.duracao_min} />
-          <CartasEstacao execId={exe.id} papel={euAvalio ? 'avaliador' : meu} api={api} token={token} segmentos={aoVivo.segmentos} />
-          <span id="sl-transcricao" />
-          {meu === 'candidato' && exe.candidato_id === eu && <TranscricaoCandidato execId={exe.id} api={api} token={token} aoFala={falaLocal.registrar} />}
-          {apoioPermitido && meu === 'candidato' && exe.candidato_id === eu && (
-            <div className="ap-abrir" data-testid="apoio-oferta"><span className="sub">Quer uma ajuda visual? O apoio cognitivo monta, ao vivo, o grafo da conduta a partir do que você fala. Você pode movê-lo, redimensioná-lo e ver em 3D.</span>
-              <button type="button" className="btn mini menta" aria-pressed={apoio} onClick={() => setApoio((v) => !v)} data-testid="abrir-apoio">{apoio ? 'Fechar apoio cognitivo' : 'Abrir apoio cognitivo'}</button></div>)}
-          {apoio && apoioPermitido && meu === 'candidato' && exe.candidato_id === eu && <ApoioCognitivo fala={falaLocal.fala} inicio={exe.iniciada_em} anotacoes={notasApoio} aoAnotar={setNotasApoio} aoFechar={() => setApoio(false)} />}
-          {euAvalio && <FalaDoCandidato segmentos={aoVivo.segmentos} info={aoVivo.info} aoAnalisar={aoVivo.analisar} />}
-          {euAvalio && <AnaliseDaFala info={aoVivo.info} />}
-          {euAvalio && pep && (
-            <>
-              <span id="sl-checklist" />
-              {pep.script_ator && <details><summary>Roteiro do ator</summary><TextoEstacao corpo={pep.script_ator} /></details>}
-              {pep.itens.map((i) => (
-                <div key={i.id} className={`sl-pep${i.critico ? ' crit' : ''}`}>
-                  <span>{i.descricao}{i.critico && <em> crítico</em>} <em>{pts(i.pontos_total)} pts</em></span>
-                  <Sugestao resumo={aoVivo.info.resumo} s={aoVivo.sugestoes[i.id]} aoUsar={(v) => setMarcas((m) => ({ ...m, [i.id]: v }))} />
-                  <span className="sl-marcas" role="group" aria-label={i.descricao}>
-                    {MARCAS.map(([v, rot]) => <button key={v} className={`sl-m${marcas[i.id] === v ? ' on' : ''}`} aria-pressed={marcas[i.id] === v} onClick={() => setMarcas((m) => ({ ...m, [i.id]: v }))}>{rot}</button>)}
-                  </span>
-                </div>
-              ))}
-              <button className="btn" onClick={finalizar}>Finalizar estação</button>
-            </>
-          )}
-          <CancelarEstacao execId={exe.id} euAvalio={euAvalio} souCandidato={meu === 'candidato' && exe.candidato_id === eu} agir={agir} salaId={salaId} />
-          {!euAvalio && <p className="sub">{meu === 'candidato' ? 'Conduza o atendimento. O avaliador registra o checklist.' : 'Acompanhe em silêncio.'}</p>}
-        </section>
-      )}
-
-      {!emAndamento && ultima && ciclo && (
-        <section className="sl-bloco sl-fim" id="sl-fim" aria-label="Fim da estação" data-testid="fim-estacao">
-          <h3>Estação finalizada: {ultima.titulo}</h3>
-          <div className="sl-stats">
-            <div><b>{pts(ultima.nota)}</b><span>de {pts(ultima.max)} pts{ultima.percentual !== null && ` · ${ultima.percentual}%`}</span></div>
-            <div><b>{fmt(ultima.duracao_s)}</b><span>de {ultima.duracao_min} min</span></div>
-            <div><b>{ultima.vezes_realizada}ª</b><span>vez desta estação</span></div>
-            <div><b>{ultima.criticos_falhos ?? 0}</b><span>itens críticos falhos</span></div>
-          </div>
-          {ultima.historico.length > 1 && <p className="sub">Últimas notas: {ultima.historico.map((h) => h.nota ?? '—').reverse().join(' → ')}</p>}
-          <details><summary>Itens</summary>
-            {ultima.itens.map((i) => <div key={i.id} className={`sl-it r-${i.resultado}`}>{i.resultado === 'sim' ? '✔' : i.resultado === 'parcial' ? '◐' : '✘'} {i.descricao} <em>{pts(i.pontos)}/{pts(i.pontos_total)}</em></div>)}
-          </details>
-          {souAdmin ? (
-            <>
-              <p className="sub">O que fazer agora?</p>
-              <div className="acoes">
-                <button className="btn mini menta" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'avancar' })} disabled={pendentes.length === 0}>Próxima estação</button>
-                <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'manter' })}>Manter papéis</button>
-                <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'inverter' })}>Inverter papéis</button>
-                <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'encerrar' })}>Encerrar ciclo</button>
-              </div>
-            </>
-          ) : (
-            <>
-              <p className="sub">Aguardando o chefe decidir o próximo passo. O vídeo continua aberto.</p>
-              {meu === 'candidato' && <div className="acoes"><button className="btn mini" data-testid="inverter-candidato" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'inverter' })}>Inverter papéis</button></div>}
-            </>
-          )}
-          {(meu === 'candidato' || euAvaliou(ultima, est, eu)) && <Autocorrecao key={ultima.id} execId={ultima.id} api={api} token={token} aoAdotar={async () => { await carregar(); try { const r = await api(`/api/salas/${salaId}/ultima-execucao`, { token }); setUltima(r.ultima ?? null); } catch { /* mantém */ } }} />}
-          {euAvaliou(ultima, est, eu) && <LiberarTranscricao key={`lib-${ultima.id}`} execId={ultima.id} api={api} token={token} />}
-          {aoAnalise && (meu === 'candidato' || euAvaliou(ultima, est, eu)) && <button className="btn mini menta" onClick={() => aoAnalise(ultima.id)}>Ver análise completa da estação</button>}
-          {meu === 'candidato' && aoRevisar && <button className="btn mini menta" onClick={aoRevisar}>Registrar o que faltou (revisão)</button>}
-        </section>
-      )}
-
-      {modoCandidato ? null : ciclo ? (
-        <section className="sl-bloco" id="sl-fila" aria-label="Fila do ciclo">
-          <h3>Fila do ciclo</h3>
-          {fila.length === 0 && <p className="sub">Nenhuma estação visível ainda.</p>}
-          {fila.map((i) => (
-            <div key={i.id} className="sl-linha" data-estado={i.estado}>
-              <span>{i.posicao}. {meu === 'candidato' && ['pendente', 'em_andamento'].includes(i.estado) ? 'Estação surpresa' : i.titulo}{i.grupo && <em> · {i.grupo}</em>} <em className={`sl-est e-${i.estado}`}>{i.estado.replace('_', ' ')}</em></span>
-              {souAdmin && (
-                <span className="acoes">
-                  {i.estado === 'pendente' && <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/itens/${i.id}/liberar`, { liberada: !i.liberada }, 'PATCH')}>{i.liberada ? 'Bloquear' : 'Liberar'}</button>}
-                  {i.estado === 'pendente' && !emAndamento && <button className="btn mini menta" onClick={() => agir(`/api/ciclos/${ciclo.id}/execucoes`, { item_id: i.id })}>Iniciar</button>}
-                </span>
+        <>
+          <CartasTrilho dados={cartas.dados} />
+          <PainelEstacao aberto={painelAberto} aoAlternar={() => setPainelAberto((v) => !v)}
+            titulo={souCand ? 'Estação em andamento' : exe.titulo} subtitulo={`Candidato: ${nome(exe.candidato_id)} · Avalia: ${nome(exe.avaliador_id)}`}
+            extra={<Relogio inicio={exe.iniciada_em} pausaSeg={exe.pausa_seg ?? 0} limiteMin={pep?.duracao_min} />}>
+            <div id="sl-estacao" className="sl-exec">
+              {euAvalio && <CartasEstacao cartas={cartas} papel="avaliador" segmentos={aoVivo.segmentos} />}
+              <span id="sl-transcricao" />
+              {souCand && <TranscricaoCandidato execId={exe.id} api={api} token={token} aoFala={falaLocal.registrar} />}
+              {apoioPermitido && souCand && (
+                <div className="ap-abrir" data-testid="apoio-oferta"><span className="sub">Quer uma ajuda visual? O apoio cognitivo monta, ao vivo, o grafo da conduta a partir do que você fala.</span>
+                  <button type="button" className="btn mini menta" aria-pressed={apoio} onClick={() => setApoio((v) => !v)} data-testid="abrir-apoio">{apoio ? 'Fechar apoio cognitivo' : 'Abrir apoio cognitivo'}</button></div>)}
+              {euAvalio && <FalaDoCandidato segmentos={aoVivo.segmentos} info={aoVivo.info} aoAnalisar={aoVivo.analisar} />}
+              {euAvalio && <AnaliseDaFala info={aoVivo.info} />}
+              {euAvalio && pep && (
+                <>
+                  <span id="sl-checklist" />
+                  {pep.script_ator && <RoteiroAtor corpo={pep.script_ator} />}
+                  <h4 className="pe-sec">Checklist do PEP</h4>
+                  {pep.itens.map((i) => (
+                    <div key={i.id} className={`sl-pep${i.critico ? ' crit' : ''}`}>
+                      <span>{i.descricao}{i.critico && <em> crítico</em>} <em>{pts(i.pontos_total)} pts</em></span>
+                      <Sugestao resumo={aoVivo.info.resumo} s={aoVivo.sugestoes[i.id]} aoUsar={(v) => setMarcas((m) => ({ ...m, [i.id]: v }))} />
+                      <span className="sl-marcas" role="group" aria-label={i.descricao}>
+                        {MARCAS.map(([v, rot]) => <button key={v} className={`sl-m${marcas[i.id] === v ? ' on' : ''}`} aria-pressed={marcas[i.id] === v} onClick={() => setMarcas((m) => ({ ...m, [i.id]: v }))}>{rot}</button>)}
+                      </span>
+                    </div>
+                  ))}
+                  <button className="btn" onClick={finalizar}>Finalizar estação</button>
+                </>
               )}
+              <CancelarEstacao execId={exe.id} euAvalio={euAvalio} souCandidato={souCand} agir={agir} salaId={salaId} />
+              {!euAvalio && <p className="sub">{meu === 'candidato' ? 'Conduza o atendimento. Os cartões liberados aparecem à direita da tela; toque para abrir e arrastar.' : 'Acompanhe em silêncio.'}</p>}
             </div>
-          ))}
-          {souAdmin && !emAndamento && !ultima && <button className="btn mini" onClick={() => agir(`/api/ciclos/${ciclo.id}/proximo`, { acao: 'encerrar' })}>Encerrar este ciclo</button>}
-          {souAdmin && (<><h4>Adicionar estações</h4>{seletor}<button className="btn mini" disabled={escolhidas.length === 0} onClick={() => adicionar(false)}>Adicionar ao ciclo</button>
-            {repetidas && (
-              <div className="aviso" role="alert" data-testid="aviso-na-fila">
-                <b>{repetidas.msg}</b>
-                <ul>{repetidas.lista.map((r) => <li key={`${r.id}-${r.posicao}`}>«{r.titulo}» — {ROTULO_SITUACAO[r.situacao] ?? r.situacao} (posição {r.posicao})</li>)}</ul>
-                <div className="acoes"><button type="button" className="btn mini menta" onClick={() => adicionar(true)}>Duplicar a prática</button>
-                  {escolhidas.length > repetidas.lista.length && <button type="button" className="btn mini" onClick={soAsNovas}>Só as outras</button>}
-                  <button type="button" className="btn mini" onClick={() => setRepetidas(null)}>Cancelar</button></div>
-              </div>)}</>)}
-        </section>
-      ) : souAdmin ? (
-        <section className="sl-bloco" aria-label="Novo ciclo">
-          <h3>Novo ciclo</h3>
-          {seletor}
-          <button className="btn" disabled={escolhidas.length === 0} onClick={criarCiclo}>Criar ciclo com {escolhidas.length || ''} estação(ões)</button>
-        </section>
-      ) : <p className="sub">Aguardando o chefe montar o ciclo.</p>}
-
-      {!modoCandidato && <button className="btn mini sl-sair" onClick={sair}>Sair da sala</button>}
+          </PainelEstacao>
+          {apoio && apoioPermitido && souCand && <ApoioCognitivo fala={falaLocal.fala} inicio={exe.iniciada_em} anotacoes={notasApoio} aoAnotar={setNotasApoio} aoFechar={() => setApoio(false)} />}
+        </>
+      )}
     </div>
   );
 }

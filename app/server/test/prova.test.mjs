@@ -11,3 +11,10 @@ test('data da prova: aceita dia ou dia+hora; recusa lixo; nome curto sem quebras
   assert.throws(() => validarConfig('PROVA_NOME', 'a\nb'));
   assert.throws(() => validarConfig('PROVA_NOME', 'x'.repeat(81)));
 });
+
+import { ehAtendimento, TIPOS_MATERIAL } from '../src/estacao-esquema.js';
+test('exame físico: tipo próprio, "outro" com título de exame físico vira exame_fisico, aviso quando falta', () => {
+  assert.ok(TIPOS_MATERIAL.includes('exame_fisico'));
+  assert.equal(ehAtendimento({ titulo: 'Dor torácica', cenario: 'Pronto-socorro', script_ator: 'x' }), true);
+  assert.equal(ehAtendimento({ titulo: 'Comunicação de má notícia', sintese: 'comunicação de má notícia à família', cenario: 'enfermaria' }), false);
+});

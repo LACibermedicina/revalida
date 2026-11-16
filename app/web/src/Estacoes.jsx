@@ -9,7 +9,7 @@ import './estacoes.css';
 import Seletor from './Seletor.jsx';
 
 const AREAS = [['clinica_medica', 'Clínica Médica'], ['cirurgia', 'Cirurgia'], ['ginecologia_obstetricia', 'Ginecologia e Obstetrícia'], ['pediatria', 'Pediatria'], ['mfc', 'Medicina de Família e Comunidade']];
-const TIPOS = [['laboratorial', 'Exame laboratorial'], ['imagem', 'Imagem'], ['biopsia', 'Biópsia'], ['laudo', 'Laudo'], ['outro', 'Outro']];
+const TIPOS = [['exame_fisico', 'Exame físico'], ['laboratorial', 'Exame laboratorial'], ['imagem', 'Imagem'], ['biopsia', 'Biópsia'], ['laudo', 'Laudo'], ['outro', 'Outro']];
 const DIFICULDADES = ['básica', 'intermediária', 'avançada'];
 const ORIGEM = { ia: ['ia', 'Gerada por IA'], importada: ['imp', 'Importada'], manual: ['manual', 'Manual'], inep: ['imp', 'INEP'], comunidade: ['manual', 'Comunidade'] };
 const STATUS = { rascunho: ['rasc', 'Rascunho'], revisao: ['rev', 'Em revisão'], aprovada: ['apr', 'Aprovada'] };
