@@ -1,0 +1,76 @@
+/* ===== ícones ilustrados (Icones.jsx): animação ao passar o mouse / focar, e em loop suave quando a tela está ativa ===== */
+.pxi{overflow:visible;display:block}
+.pxi .px-corpo{transform-box:view-box;transform-origin:24px 42px}
+.pxi *{transform-box:fill-box}
+
+/* gatilhos: QUALQUER botão/link/cartão que contenha o ícone */
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-corpo{animation:px-pula .6s cubic-bezier(.3,1.6,.5,1)}
+:is([aria-current=page],.ativo,.aberto-grupo) > * .pxi .px-corpo,:is([aria-current=page],.ativo) .pxi .px-corpo{animation:px-respira 2.8s ease-in-out infinite}
+.pxi .px-sombra{transform-box:fill-box;transform-origin:center}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-sombra{animation:px-sombra .6s cubic-bezier(.3,1.6,.5,1)}
+
+/* detalhes de cada desenho (só no hover/foco/ativo) */
+.pxi .px-fumaca,.pxi .px-rec,.pxi .px-antena-luz,.pxi .px-aura{transform-origin:center}
+.pxi .px-rec{animation:px-pisca 1.6s steps(1) infinite}
+.pxi .px-antena-luz,.pxi .px-aura{opacity:.55}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi :is(.px-fumaca){animation:px-fumaca 1.4s ease-out infinite}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-janela{animation:px-acende 1s ease-in-out infinite alternate}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-aba{transform-origin:left center;animation:px-zoom 1s ease-in-out infinite alternate}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao,[aria-current=page],.ativo):is(:hover,:focus-visible,[aria-current=page],.ativo) .pxi .px-gira{transform-box:view-box;transform-origin:24px 24px;animation:px-gira 3s linear infinite}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi :is(.px-p1,.px-p2,.px-p3){transform-origin:center;animation:px-pop .9s ease-in-out infinite}
+.pxi .px-p2{animation-delay:.15s!important}.pxi .px-p3{animation-delay:.3s!important}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi :is(.px-chk0,.px-chk1,.px-chk2){transform-origin:left center;animation:px-marca .5s both}
+.pxi .px-chk1{animation-delay:.12s!important}.pxi .px-chk2{animation-delay:.24s!important}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-amigo1{transform-origin:bottom center;animation:px-aceno .9s ease-in-out infinite alternate}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-amigo2{transform-origin:bottom center;animation:px-aceno .9s .2s ease-in-out infinite alternate-reverse}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-balao{transform-origin:bottom left;animation:px-pop 1.2s ease-in-out infinite}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao,[aria-current=page],.ativo):is(:hover,:focus-visible,[aria-current=page],.ativo) .pxi :is(.px-antena-luz,.px-aura){animation:px-brilha 1.2s ease-in-out infinite alternate}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-olhos-bot{transform-origin:center;animation:px-pisca-olho 2s infinite}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao,[aria-current=page],.ativo):is(:hover,:focus-visible,[aria-current=page],.ativo) .pxi :is(.px-ondas path){animation:px-onda 1.1s ease-out infinite}
+.pxi .px-ondas path{opacity:.25}
+.pxi .px-ondas .px-onda2{animation-delay:.3s!important}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-estrela{transform-origin:center;animation:px-estrela 1s ease-in-out infinite}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-maca{transform-origin:bottom center;animation:px-quica .7s ease-in-out infinite alternate}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-lupa{animation:px-procura 1.6s ease-in-out infinite}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-cracha{transform-origin:top center;animation:px-balanca 1.2s ease-in-out infinite}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-lapis{transform-origin:bottom left;animation:px-escreve .45s ease-in-out infinite alternate}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-sino{transform-origin:top center;animation:px-balanca .5s ease-in-out infinite}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-badalo{transform-origin:center;animation:px-badalo .5s ease-in-out infinite}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-seta{animation:px-sai .8s ease-in-out infinite}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-folha{transform-origin:left center;animation:px-porta 1.2s ease-in-out infinite alternate}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi :is(.px-m1,.px-m3){transform-origin:center;animation:px-barra .6s ease-in-out infinite alternate}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-jan2{animation:px-janela 1.2s ease-in-out infinite alternate}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-pino{transform-origin:bottom center;animation:px-quica .5s ease-in-out infinite alternate}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-disco{transform-origin:center;animation:px-pulsa .8s ease-in-out infinite}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-borla{transform-origin:24px 18px;transform-box:view-box;animation:px-balanca 1s ease-in-out infinite}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao):is(:hover,:focus-visible) .pxi .px-flecha{animation:px-flecha .7s cubic-bezier(.2,1.6,.5,1) both}
+:is(button,a,[role=button],[role=menuitem],.ic-mesa,.gp-cartao,.aberto-grupo):is(:hover,:focus-visible,.aberto-grupo) .pxi .px-coracao{transform-origin:center;animation:px-pulsa .9s ease-in-out infinite}
+
+@keyframes px-pula{0%{transform:none}35%{transform:translateY(-5px) scale(1.06,.95)}65%{transform:translateY(0) scale(.96,1.05)}100%{transform:none}}
+@keyframes px-respira{50%{transform:translateY(-1.5px) scale(1.02)}}
+@keyframes px-sombra{35%{transform:scale(.75);opacity:.08}}
+@keyframes px-pisca{50%{opacity:.15}}
+@keyframes px-fumaca{0%{transform:translateY(2px);opacity:0}30%{opacity:.9}100%{transform:translate(3px,-6px) scale(1.4);opacity:0}}
+@keyframes px-acende{to{filter:brightness(1.25) drop-shadow(0 0 2px #FFE16B)}}
+@keyframes px-zoom{to{transform:scaleX(1.15)}}
+@keyframes px-gira{to{transform:rotate(1turn)}}
+@keyframes px-pop{50%{transform:scale(1.25)}}
+@keyframes px-marca{from{transform:scaleX(.2);opacity:0}}
+@keyframes px-aceno{from{transform:rotate(-5deg)}to{transform:rotate(5deg)}}
+@keyframes px-brilha{from{opacity:.35}to{opacity:1;transform:scale(1.15)}}
+@keyframes px-pisca-olho{0%,42%,50%,100%{transform:none}46%{transform:scaleY(.1)}}
+@keyframes px-onda{0%{opacity:.15}40%{opacity:1}100%{opacity:.15}}
+@keyframes px-estrela{50%{transform:scale(1.3) rotate(18deg)}}
+@keyframes px-quica{to{transform:translateY(-3px) rotate(-6deg)}}
+@keyframes px-procura{0%,100%{transform:translate(0,0)}33%{transform:translate(-6px,-4px)}66%{transform:translate(-2px,-8px)}}
+@keyframes px-balanca{0%,100%{transform:rotate(0)}25%{transform:rotate(9deg)}75%{transform:rotate(-9deg)}}
+@keyframes px-escreve{from{transform:translate(0,0) rotate(0)}to{transform:translate(-2px,1px) rotate(-6deg)}}
+@keyframes px-badalo{0%,100%{transform:translateX(0)}25%{transform:translateX(2.5px)}75%{transform:translateX(-2.5px)}}
+@keyframes px-sai{50%{transform:translateX(3px)}}
+@keyframes px-porta{to{transform:scaleX(.7)}}
+@keyframes px-barra{to{transform:scaleX(.7)}}
+@keyframes px-janela{to{transform:translate(-3px,-2px)}}
+@keyframes px-pulsa{50%{transform:scale(1.12)}}
+@keyframes px-flecha{from{transform:translate(10px,-10px);opacity:0}}
+
+@media (prefers-reduced-motion:reduce){.pxi,.pxi *{animation:none!important}}

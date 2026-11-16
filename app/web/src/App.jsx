@@ -14,7 +14,7 @@ import TelaDesempenho from './Desempenho.jsx';
 import TelaSolo from './Solo.jsx';
 import Logo, { Wordmark } from './Logo.jsx';
 import Mesa from './Mesa.jsx';
-import { useEstadoMesa, useJanelas, useAvisos } from './useMesa.js';
+import { GRUPOS, RESUMO, TELAS, useEstadoMesa, useJanelas, useAvisos } from './useMesa.js';
 import CenaLogin from './CenaLogin.jsx';
 import ZoomTela from './ZoomTela.jsx';
 import TelaPodcast from './Podcast.jsx';
@@ -890,7 +890,7 @@ export default function App() {
       aoPraticar={(id) => { setSugestao(id); setChaveCiclos((k) => k + 1); setTela('ciclos'); }}
       aoPraticarIA={(id) => { setEstacaoIA(id); setTela('solo'); }}
       aoIr={(dest, cmd = {}) => { setComando({ tela: dest, ...cmd, n: Date.now() }); setTela(dest); }}
-      aoAbrirSala={abrirSalaCiclos} aoAbrirSalaAntiga={abrirSala} aoAnalise={abrirAnalise} aoCarregar={() => window.__boot?.pronto()} />
+      aoAbrirSala={abrirSalaCiclos} aoAbrirSalaAntiga={abrirSala} aoAnalise={abrirAnalise} aoCarregar={() => window.__boot?.pronto()} widgets={emJanela} />
   );
   };
 
@@ -953,18 +953,17 @@ export default function App() {
           <span className="marca nav-marca"><Logo tamanho={menuModo === 'icones' ? 44 : 88} />{menuModo !== 'icones' && <Wordmark />}</span>
           <ZoomTela />
           <button type="button" aria-current={tela === 'painel' ? 'page' : undefined} onClick={() => setTela('painel')}><span className="ni" aria-hidden="true"><Icone nome="inicio" /></span>Início</button>
-          <button type="button" aria-current={tela === 'sala' ? 'page' : undefined} disabled={!sala}
-            onClick={() => sala && setTela('sala')} style={!sala ? { opacity: .4 } : undefined}><span className="ni" aria-hidden="true"><Icone nome="sala" /></span>Sala</button>
-          <button type="button" aria-current={tela === 'ciclos' ? 'page' : undefined} onClick={() => setTela('ciclos')}><span className="ni" aria-hidden="true"><Icone nome="ciclos" /></span>Ciclos</button>
-          <button type="button" aria-current={tela === 'estacoes' ? 'page' : undefined} onClick={() => setTela('estacoes')}><span className="ni" aria-hidden="true"><Icone nome="catalogo" /></span>Estações</button>
-          <button type="button" aria-current={tela === 'comunidade' ? 'page' : undefined} onClick={() => setTela('comunidade')}><span className="ni" aria-hidden="true"><Icone nome="comunidade" /></span>Comunidade</button>
-          <button type="button" aria-current={tela === 'solo' ? 'page' : undefined} onClick={() => setTela('solo')}><span className="ni" aria-hidden="true"><Icone nome="solo" /></span>Praticar com IA</button>
-          <button type="button" aria-current={tela === 'podcast' ? 'page' : undefined} onClick={() => setTela('podcast')}><span className="ni" aria-hidden="true"><Icone nome="podcast" /></span>Podcast e Rádio</button>
-          <button type="button" aria-current={tela === 'desempenho' ? 'page' : undefined} onClick={() => setTela('desempenho')}><span className="ni" aria-hidden="true"><Icone nome="desempenho" /></span>Desempenho</button>
-          <button type="button" aria-current={tela === 'estudo' ? 'page' : undefined} onClick={() => setTela('estudo')}><span className="ni" aria-hidden="true"><Icone nome="estudo" /></span>Estudo</button>
-          {ehAdminApp && <button type="button" aria-current={tela === 'admin' ? 'page' : undefined} onClick={() => setTela('admin')}><span className="ni" aria-hidden="true"><Icone nome="admin" /></span>Admin</button>}
-          <button type="button" aria-current={tela === 'conta' ? 'page' : undefined} onClick={() => setTela('conta')}><span className="ni" aria-hidden="true"><Icone nome="conta" /></span>Conta</button>
-          {largo && <button type="button" data-testid="modo-mesa" onClick={() => trocarShell('mesa')}><span className="ni" aria-hidden="true"><Icone nome="menu" /></span>Modo mesa</button>}
+          {GRUPOS.map((g) => (
+            <div key={g.id} className="nav-grupo" role="group" aria-label={g.nome} style={{ '--gcor': g.cor }}>
+              <p className="nav-grupo-tit" aria-hidden="true">{g.nome}</p>
+              {g.telas.filter((t) => !['notas', 'notificacoes'].includes(t) && (t !== 'admin' || ehAdminApp)).map((t) => (
+                <button key={t} type="button" aria-current={tela === t ? 'page' : undefined} disabled={t === 'sala' && !sala}
+                  onClick={() => (t !== 'sala' || sala) && setTela(t)} style={t === 'sala' && !sala ? { opacity: .4 } : undefined} title={RESUMO[t]}>
+                  <span className="ni" aria-hidden="true"><Icone nome={TELAS[t][1]} /></span>{TELAS[t][0]}
+                </button>))}
+            </div>
+          ))}
+          {largo && <button type="button" data-testid="modo-mesa" onClick={() => trocarShell('mesa')}><span className="ni" aria-hidden="true"><Icone nome="mesa" /></span>Modo mesa</button>}
           <button type="button" onClick={() => sair()}><span className="ni" aria-hidden="true"><Icone nome="sair" /></span>Sair</button>
                 </nav>
       )}

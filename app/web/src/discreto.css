@@ -1,0 +1,68 @@
+/* ===== camada final: caixas discretas e botões "de brinquedo" (estilo animação 3D) mais contidos e organizados ===== */
+.cartao,.item,.sala{border:1px solid #E6EEF8;border-radius:18px;box-shadow:0 1px 0 #EEF4FB,0 10px 24px -20px rgba(43,92,138,.45)}
+.cartao{padding:14px 16px}
+.sec{margin-bottom:8px;font:800 .74rem/1.2 var(--display);letter-spacing:.09em;text-transform:uppercase;color:var(--suave)}
+
+/* botão: gomoso, com "lábio" fino embaixo e brilho em cima; menor e sem animação contínua */
+.btn{min-height:42px;padding:0 18px;border-radius:14px;font-size:.95rem;letter-spacing:.01em;text-shadow:0 1px 0 rgba(0,0,0,.14);animation:none!important;
+  background:linear-gradient(180deg,#6AB4FF 0%,#3B8DF5 55%,#2B77E6 100%);box-shadow:0 3px 0 #1F5FC4,0 8px 14px -10px rgba(31,95,196,.8),inset 0 1.5px 0 rgba(255,255,255,.45)}
+.btn:hover:not(:disabled){transform:translateY(-1px);filter:none;box-shadow:0 4px 0 #1F5FC4,0 10px 16px -10px rgba(31,95,196,.85),inset 0 1.5px 0 rgba(255,255,255,.5)}
+.btn:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 #1F5FC4,inset 0 1.5px 0 rgba(255,255,255,.35)}
+.btn.menta,.btn.primario{background:linear-gradient(180deg,#5FE3B0 0%,#22BE86 55%,#119F6E 100%);box-shadow:0 3px 0 #0B7C55,0 8px 14px -10px rgba(11,124,85,.8),inset 0 1.5px 0 rgba(255,255,255,.45)}
+.btn.menta:hover:not(:disabled),.btn.primario:hover:not(:disabled){box-shadow:0 4px 0 #0B7C55,0 10px 16px -10px rgba(11,124,85,.85),inset 0 1.5px 0 rgba(255,255,255,.5)}
+.btn.menta:active:not(:disabled),.btn.primario:active:not(:disabled){box-shadow:0 1px 0 #0B7C55,inset 0 1.5px 0 rgba(255,255,255,.35)}
+.btn.coral{background:linear-gradient(180deg,#FF9C8F 0%,#F2645E 55%,#DD4A4F 100%);box-shadow:0 3px 0 #B3282D,0 8px 14px -10px rgba(179,40,45,.8),inset 0 1.5px 0 rgba(255,255,255,.45)}
+.btn.coral:hover:not(:disabled){box-shadow:0 4px 0 #B3282D,0 10px 16px -10px rgba(179,40,45,.85),inset 0 1.5px 0 rgba(255,255,255,.5)}
+.btn.coral:active:not(:disabled){box-shadow:0 1px 0 #B3282D,inset 0 1.5px 0 rgba(255,255,255,.35)}
+/* mini: secundário claro (branco com texto colorido); só os coloridos (menta/coral/primário) chamam atenção */
+.btn.mini{min-height:34px;padding:0 13px;border-radius:12px;font-size:.84rem}
+.btn.mini:not(.menta):not(.primario):not(.coral){background:linear-gradient(180deg,#FFFFFF,#F1F6FD);color:#2563C9;text-shadow:none;
+  box-shadow:0 2px 0 #D3E1F3,inset 0 0 0 1px #DCE7F5,0 6px 12px -10px rgba(31,72,130,.5)}
+.btn.mini:not(.menta):not(.primario):not(.coral):hover:not(:disabled){background:#fff;box-shadow:0 3px 0 #C6D7EE,inset 0 0 0 1px #C9DAF0,0 8px 14px -10px rgba(31,72,130,.55)}
+.btn.mini:not(.menta):not(.primario):not(.coral):active:not(:disabled){box-shadow:0 0 0 #C6D7EE,inset 0 0 0 1px #C9DAF0}
+.acoes{gap:8px}
+
+/* ===== mesa: véu translúcido sobre o fundo (o Epi fica por cima), widgets do Início e Epi móvel ===== */
+.mesa-veu{position:absolute;inset:0;z-index:1;pointer-events:none;background:rgba(242,248,255,.46);backdrop-filter:blur(3px) saturate(1.05);-webkit-backdrop-filter:blur(3px) saturate(1.05)}
+.mesa-icones{z-index:2}
+.mesa-widgets,.pn-widgets{position:absolute;inset:0}
+.mesa-widgets{z-index:3;pointer-events:none;transition:opacity .25s,visibility .25s}
+.mesa-widgets.escondidos{opacity:0;visibility:hidden}
+.pn-widgets > .msg{position:absolute;left:116px;bottom:12px;pointer-events:auto}
+.wd{position:absolute;pointer-events:auto;padding:14px 16px;border-radius:20px;color:var(--fg);cursor:grab;touch-action:none;
+  background:rgba(255,255,255,.66);backdrop-filter:blur(22px) saturate(1.6);-webkit-backdrop-filter:blur(22px) saturate(1.6);
+  border:1px solid rgba(255,255,255,.75);box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 12px 30px -16px rgba(31,72,130,.45);animation:wd-entra .3s ease-out both}
+.wd.movendo{cursor:grabbing;z-index:5;box-shadow:0 20px 44px -16px rgba(31,72,130,.6)}
+.wd-x{position:absolute;top:-8px;left:-8px;z-index:2;width:22px;height:22px;padding:0;border:0;border-radius:50%;display:grid;place-items:center;
+  background:rgba(240,244,250,.95);color:#5B6B8C;font:700 .9rem/1 var(--corpo);box-shadow:0 1px 4px rgba(31,72,130,.3);cursor:pointer;opacity:0;transition:opacity .15s}
+.wd:hover .wd-x,.wd:focus-within .wd-x{opacity:1}
+.wd .cartao{padding:0;background:none;border:0;box-shadow:none;border-radius:0}
+.wd > section,.wd > div{margin:0}
+.wd .pn-topo{margin:0;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.wd .pn-saudacao .hello{font-size:1.35rem}
+.wd .pn-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0}
+.wd .pn-kpi{min-height:0;padding:8px 6px;background:rgba(255,255,255,.55);border:0;border-radius:14px;box-shadow:none}
+.wd .pn-kpi b{font-size:1.5rem}
+.wd .pn-kpi small{font-size:.68rem;line-height:1.2}
+.wd .pn-kpi .anel{transform:scale(.72);margin:-10px 0}
+.wd .mesa-frase{position:static;max-width:none;padding:0 0 0 40px;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;border:0;opacity:1;transform:none}
+.wd .mesa-frase::before{left:0;width:26px;height:26px}
+.wd .mesa-frase b{font-size:.98rem}
+.wd .pn-salas{grid-template-columns:1fr}
+@keyframes wd-entra{from{opacity:0;transform:translateY(-6px) scale(.98)}}
+
+.mesa-bot{z-index:4;pointer-events:auto;cursor:grab;touch-action:none;width:clamp(130px,12vw,180px);height:clamp(180px,17vw,250px);outline:none;border-radius:24px}
+.mesa-bot.movendo{cursor:grabbing}
+.mesa-bot:focus-visible{box-shadow:0 0 0 3px rgba(31,111,224,.5)}
+.mesa-bot.sem-placa .mascote3d{inset:0}
+.mesa-placa{padding:5px 26px 5px 12px;border-radius:12px;background:rgba(255,255,255,.8);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 2px 0 rgba(214,230,248,.9),0 8px 16px -10px rgba(31,72,130,.5);white-space:nowrap}
+.mesa-placa figcaption{font-size:.82rem}
+.mesa-placa small{font-size:.5rem}
+.placa-x{position:absolute;top:50%;right:5px;transform:translateY(-50%);width:18px;height:18px;padding:0;border:0;border-radius:50%;background:#EEF3FA;color:#5B6B8C;font:700 .8rem/1 var(--corpo);cursor:pointer;opacity:0;transition:opacity .15s}
+.mesa-bot:hover .placa-x,.mesa-placa:focus-within .placa-x{opacity:1}
+@media (prefers-reduced-motion:reduce){.wd{animation:none}.mesa-widgets{transition:none}}
+/* widgets: sem posição salva, fluem em colunas automáticas; arrastados, ficam soltos onde a pessoa deixou */
+.pn-widgets{padding:12px 236px 12px 116px;column-width:340px;column-gap:16px;column-fill:auto;height:100%;box-sizing:border-box}
+.wd{position:relative;display:block;margin:0 0 14px;break-inside:avoid}
+.wd.solto{position:absolute;margin:0}
+.mesa-frase{transition:none}

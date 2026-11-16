@@ -5,28 +5,87 @@ import Notas, { criarNota } from './Notas.jsx';
 import Central from './Central.jsx';
 import Mascote3D from './Mascote3D.jsx';
 import Pets from './Pets.jsx';
-import { GRADE, TELAS, TELAS_FAVORITAVEIS } from './useMesa.js';
+import { widgets } from './Widgets.jsx';
+import { GRADE, GRUPOS, RESUMO, TELAS, TELAS_FAVORITAVEIS } from './useMesa.js';
 
-const FRASES = [
-  ['Cada estação treinada é um passo a mais até o seu CRM.', 'Bora para a próxima fase!'],
-  ['Hoje você treina; amanhã você atende.', 'Constância vence talento.'],
-  ['Errar no treino é o jeito mais barato de acertar na prova.', 'Anote, revise, repita.'],
-  ['Um paciente bem acolhido começa com um bom-dia.', 'Comunicação também pontua.'],
-  ['Pequenos plantões de estudo, grandes conquistas.', 'Você está mais perto do que imagina.'],
-];
-
-/** Frase inspiradora da mesa: troca sozinha a cada 14 s (sem interação). */
-function FraseMesa() {
-  const [i, setI] = useState(() => new Date().getDate() % FRASES.length);
-  const [on, setOn] = useState(true);
-  useEffect(() => {
-    const t = setInterval(() => { setOn(false); setTimeout(() => { setI((k) => (k + 1) % FRASES.length); setOn(true); }, 500); }, 14000);
-    return () => clearInterval(t);
-  }, []);
-  return <p className={`mesa-frase${on ? ' on' : ''}`} aria-live="off"><b>{FRASES[i][0]}</b><small>{FRASES[i][1]}</small></p>;
+/* ---------- Epi da mesa: sempre presente, discreto; arrasta para qualquer lugar; a placa da base pode ser removida ---------- */
+const lerEpi = () => { try { return JSON.parse(localStorage.getItem('rv_epi_mesa')) || {}; } catch { return {}; } };
+function EpiMesa() {
+  const [cfg, setCfg] = useState(lerEpi);
+  const [p, setP] = useState(null);
+  const [cutuca, setCutuca] = useState(0);
+  const ref = useRef(null); const a = useRef(null);
+  const salvarCfg = (n) => { setCfg(n); try { localStorage.setItem('rv_epi_mesa', JSON.stringify(n)); } catch { /* sem storage */ } };
+  useEffect(() => { const f = () => setCfg(lerEpi()); addEventListener('rv-epi', f); return () => removeEventListener('rv-epi', f); }, []);
+  const pos = p ?? (cfg.x != null ? { x: cfg.x, y: cfg.y } : null);
+  return (
+    <div ref={ref} className={`mesa-bot${p ? ' movendo' : ''}${cfg.semPlaca ? ' sem-placa' : ''}`} style={pos ? { left: pos.x, top: pos.y, right: 'auto', bottom: 'auto' } : undefined}
+      role="button" tabIndex={0} aria-label="Epi, o mascote. Arraste para mudar de lugar; toque para ele acenar." data-testid="epi-mesa"
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setCutuca((n) => n + 1); } }}
+      onPointerDown={(e) => {
+        if (e.button > 0 || e.target.closest('button')) return;
+        const r = ref.current.getBoundingClientRect(), pai = ref.current.parentElement.getBoundingClientRect();
+        a.current = { px: e.clientX, py: e.clientY, x: r.left - pai.left, y: r.top - pai.top, w: pai.width - r.width, h: pai.height - r.height, mov: false };
+        e.currentTarget.setPointerCapture(e.pointerId);
+      }}
+      onPointerMove={(e) => {
+        const s = a.current; if (!s) return; const dx = e.clientX - s.px, dy = e.clientY - s.py;
+        if (!s.mov && Math.hypot(dx, dy) < 5) return; s.mov = true;
+        setP({ x: Math.min(Math.max(s.x + dx, 0), s.w), y: Math.min(Math.max(s.y + dy, 0), s.h) });
+      }}
+      onPointerUp={() => { const s = a.current; a.current = null; if (s?.mov && p) salvarCfg({ ...cfg, x: Math.round(p.x), y: Math.round(p.y) }); else if (s) setCutuca((n) => n + 1); setP(null); }}
+      onPointerCancel={() => { a.current = null; setP(null); }}>
+      <Mascote3D fluido pose="wave" cutucar={cutuca} titulo="" />
+      {!cfg.semPlaca && (
+        <figure className="mesa-placa"><figcaption>REVALIDA.M3D<small>Estudos preparatórios</small></figcaption>
+          <button type="button" className="placa-x" aria-label="Remover a placa" title="Remover a placa (Exibir › Mostrar a placa do Epi traz de volta)" onClick={() => salvarCfg({ ...cfg, semPlaca: true })}>×</button>
+        </figure>
+      )}
+    </div>
+  );
 }
+const epiCfg = (mudar) => { const c = { ...lerEpi(), ...mudar }; try { localStorage.setItem('rv_epi_mesa', JSON.stringify(c)); } catch { /* sem storage */ } dispatchEvent(new Event('rv-epi')); };
 
-const DOCK = ['painel', 'ciclos', 'estacoes', 'comunidade', 'solo', 'podcast', 'desempenho', 'estudo'];
+/* ---------- grupo do dock: um ícone; ao passar o mouse (ou focar/tocar) abre o bloco com os recursos e o que há em cada um ---------- */
+function GrupoDock({ g, telas, aberto, setAberto, jan, abrir, titulo, avisos }) {
+  const fechar = useRef(null);
+  const on = aberto === g.id;
+  const entrar = () => { clearTimeout(fechar.current); setAberto(g.id); };
+  const sair = () => { clearTimeout(fechar.current); fechar.current = setTimeout(() => setAberto((a) => (a === g.id ? null : a)), 220); };
+  useEffect(() => () => clearTimeout(fechar.current), []);
+  const abertas = telas.filter((t) => jan.lista.some((w) => w.tela === t));
+  const ativo = telas.includes(jan.topo);
+  const pil = telas.includes('notificacoes') ? avisos.total : 0;
+  return (
+    <div className={`dk-grupo-ic${on ? ' aberto-grupo' : ''}`} onPointerEnter={(e) => e.pointerType === 'mouse' && entrar()} onPointerLeave={(e) => e.pointerType === 'mouse' && sair()}
+      onFocus={entrar} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) sair(); }} onKeyDown={(e) => { if (e.key === 'Escape') { setAberto(null); e.currentTarget.querySelector('.dk-item')?.focus(); } }}>
+      <button type="button" className={`dk-item${abertas.length ? ' aberto' : ''}${ativo ? ' ativo' : ''}`} aria-expanded={on} aria-controls={`gp-${g.id}`} data-grupo={g.id}
+        onClick={() => setAberto(on ? null : g.id)} style={{ '--gcor': g.cor }}>
+        <span className="dk-ic" aria-hidden="true"><Icone nome={g.icone} /></span>
+        {pil > 0 && <b className="dk-pil">{pil > 9 ? '9+' : pil}</b>}
+        <span className="dk-rot">{g.nome}</span>
+      </button>
+      {on && (
+        <div className="gp-bloco" id={`gp-${g.id}`} role="group" aria-label={g.nome} style={{ '--gcor': g.cor }}>
+          <p className="gp-tit"><b>{g.nome}</b><small>{telas.length} {telas.length === 1 ? 'recurso' : 'recursos'}</small></p>
+          <div className="gp-grade">
+            {telas.map((t) => {
+              const w = jan.lista.find((x) => x.tela === t);
+              return (
+                <button key={t} type="button" className={`gp-cartao${w ? ' aberto' : ''}${jan.topo === t ? ' ativo' : ''}`} data-tela={t} aria-current={jan.topo === t ? 'page' : undefined}
+                  onClick={() => { setAberto(null); if (w && jan.topo === t) jan.minimizar(t); else abrir(t); }}>
+                  <span className="gp-ic" aria-hidden="true"><Icone nome={TELAS[t][1]} /></span>
+                  <span className="gp-txt"><b>{titulo(t)}{t === 'notificacoes' && avisos.total > 0 ? ` (${avisos.total})` : ''}</b><small>{RESUMO[t]}</small></span>
+                  {w && <i className="gp-estado">{w.min ? 'minimizada' : 'aberta'}</i>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /* ---------- janela (caixa que se arrasta, redimensiona, minimiza e fecha) ---------- */
 function Janela({ w, foco, titulo, icone, jan, children }) {
@@ -68,18 +127,19 @@ function Janela({ w, foco, titulo, icone, jan, children }) {
 function IconeMesa({ f, i, aoAbrir, aoRemover, aoMover, aoMenu }) {
   const [p, setP] = useState(null);
   const a = useRef(null);
-  const [nome, ic] = f.tipo === 'tela' ? [TELAS[f.ref]?.[0] ?? f.ref, TELAS[f.ref]?.[1] ?? 'inicio'] : [f.rotulo, f.tipo === 'estacao' ? 'catalogo' : 'estudo'];
+  const [nome, ic] = f.tipo === 'tela' ? [TELAS[f.ref]?.[0] ?? f.ref, TELAS[f.ref]?.[1] ?? 'inicio'] : [f.rotulo, f.tipo === 'estacao' ? 'pino' : 'tema'];
   const pos = p ?? { x: f.x, y: f.y };
   return (
     <div className={`ic-mesa${p ? ' movendo' : ''}`} style={{ left: pos.x, top: pos.y }} data-testid="fav" data-ref={f.ref}
-      role="button" tabIndex={0} aria-label={`${f.rotulo}${f.tipo === 'estacao' ? ' (estação favorita)' : f.tipo === 'tema' ? ' (tema para revisão)' : ''}. Enter abre; Delete remove.`}
-      onDoubleClick={() => aoAbrir(f)} onContextMenu={(e) => { e.preventDefault(); aoMenu(f, e.clientX, e.clientY); }}
+      role="button" tabIndex={0} aria-label={`${f.rotulo}${f.tipo === 'estacao' ? ' (estação favorita)' : f.tipo === 'tema' ? ' (tema para revisão)' : ''}. Clique ou Enter abre; arraste para mover; Delete remove.`}
+      onContextMenu={(e) => { e.preventDefault(); aoMenu(f, e.clientX, e.clientY); }}
       onKeyDown={(e) => { if (e.key === 'Enter') aoAbrir(f); else if (e.key === 'Delete' || e.key === 'Backspace') aoRemover(i); else if (e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) { const r = e.currentTarget.getBoundingClientRect(); aoMenu(f, r.left + 20, r.top + 20); } }}
       onPointerDown={(e) => { if (e.button > 0 || e.target.closest('.rm')) return; a.current = { px: e.clientX, py: e.clientY, x: f.x, y: f.y, mov: false }; e.currentTarget.setPointerCapture(e.pointerId); }}
       onPointerMove={(e) => { const s = a.current; if (!s) return; const dx = e.clientX - s.px, dy = e.clientY - s.py; if (!s.mov && Math.hypot(dx, dy) < 5) return; s.mov = true; setP({ x: Math.max(0, s.x + dx), y: Math.max(0, s.y + dy) }); }}
-      onPointerUp={() => { const s = a.current; a.current = null; if (s?.mov && p) { aoMover(i, Math.round(p.x / GRADE) * GRADE, Math.round(p.y / GRADE) * GRADE); } setP(null); }}>
+      onPointerUp={() => { const s = a.current; a.current = null; if (s?.mov && p) { aoMover(i, Math.round(p.x / GRADE) * GRADE, Math.round(p.y / GRADE) * GRADE); } else if (s) aoAbrir(f); setP(null); }}
+      onPointerCancel={() => { a.current = null; setP(null); }}>
       <span className="ic-img"><Icone nome={ic} />{f.tipo !== 'tela' && <b className="estrela" aria-hidden="true">★</b>}</span>
-      <span className="ic-nome">{nome === f.ref ? f.rotulo : (f.tipo === 'tela' ? nome : f.rotulo)}</span>
+      <span className="ic-nome"><span>{nome === f.ref ? f.rotulo : (f.tipo === 'tela' ? nome : f.rotulo)}</span></span>
       <button type="button" className="rm" aria-label={`Remover ${f.rotulo} dos favoritos`} title="Remover dos favoritos" tabIndex={-1} onClick={() => aoRemover(i)}>✕</button>
     </div>
   );
@@ -163,8 +223,10 @@ export default function Mesa({ usuario, token, api, jan, estado, salvar, avisos,
       : renderTela(t));
 
   const abertas = jan.lista.map((w) => w.tela);
-  const dockFixos = [...DOCK, ...(ehAdmin ? ['admin'] : [])];
-  const dockExtras = abertas.filter((t) => !dockFixos.includes(t) && !['notas', 'notificacoes', 'conta'].includes(t));
+  const [grupoAberto, setGrupoAberto] = useState(null);
+  const telasDoGrupo = (g) => g.telas.filter((t) => (t !== 'sala' || temSala || abertas.includes('sala')) && (t !== 'admin' || ehAdmin));
+  const noDock = ['painel', ...GRUPOS.flatMap((g) => g.telas)];
+  const dockExtras = abertas.filter((t) => !noDock.includes(t));
   const item = (t) => {
     const w = jan.lista.find((x) => x.tela === t);
     return (
@@ -203,6 +265,11 @@ export default function Mesa({ usuario, token, api, jan, estado, salvar, avisos,
           </Menu>
           <Menu id="exibir" rotulo="Exibir" aberto={aberto} setAberto={setAberto}>
             <It onClick={alternarDock}>{dockVisivel ? 'Ocultar o dock' : 'Mostrar o dock'}</It>
+            <It onClick={() => { jan.minimizarTodas(); widgets.mostrarTodos(); }}>Mostrar o Início</It>
+            <It onClick={() => widgets.reorganizar()}>Reorganizar o Início</It>
+            <It onClick={() => epiCfg({ semPlaca: false })}>Mostrar a placa do Epi</It>
+            <It onClick={() => epiCfg({ x: null, y: null })}>Epi de volta ao canto</It>
+            <hr />
             <It onClick={aoClassico}>Usar o menu clássico</It>
           </Menu>
         </nav>
@@ -225,14 +292,13 @@ export default function Mesa({ usuario, token, api, jan, estado, salvar, avisos,
         <div className="mesa-icones">
           {estado.favoritos.map((f, i) => <IconeMesa key={`${f.tipo}-${f.ref}`} f={f} i={i} aoAbrir={aoFavorito} aoRemover={rm} aoMover={mover} aoMenu={(fv, x, y) => setMenuFav({ f: fv, i, x, y })} />)}
         </div>
-        {estado.favoritos.length === 0 && jan.lista.length === 0 && <p className="mesa-vazia">Sua mesa está vazia. Use <b>Favoritos</b> para fixar recursos, estações e temas aqui.</p>}
-        <FraseMesa />
         <Pets />
-        <div className="mesa-bot" aria-hidden="true">
-          <Mascote3D fluido pose="wave" titulo="" />
-          <figure className="mesa-placa"><img src="/marca/avatar.png" alt="" width="52" height="52" /><figcaption>REVALIDA.M3D<small>Estudos preparatórios</small></figcaption></figure>
+        <i className="mesa-veu" aria-hidden="true" />
+        <div className={`mesa-widgets${jan.topo ? ' escondidos' : ''}`} aria-hidden={jan.topo ? true : undefined} data-testid="mesa-widgets">
+          {renderTela('painel')}
         </div>
-        {jan.lista.map((w) => <Janela key={w.tela} w={w} foco={jan.topo === w.tela} titulo={titulo(w.tela)} icone={TELAS[w.tela]?.[1] ?? 'inicio'} jan={jan}>{conteudo(w.tela)}</Janela>)}
+        <EpiMesa />
+        {jan.lista.filter((w) => w.tela !== 'painel').map((w) => <Janela key={w.tela} w={w} foco={jan.topo === w.tela} titulo={titulo(w.tela)} icone={TELAS[w.tela]?.[1] ?? 'inicio'} jan={jan}>{conteudo(w.tela)}</Janela>)}
         {menuFav && (
           <div className="menu-fav" role="menu" style={{ left: menuFav.x, top: menuFav.y }} onClick={() => setMenuFav(null)}>
             <It onClick={() => aoFavorito(menuFav.f)}>Abrir</It>
@@ -245,10 +311,10 @@ export default function Mesa({ usuario, token, api, jan, estado, salvar, avisos,
 
       {dockVisivel && (
         <nav className="dock" aria-label="Navegação" data-testid="dock">
-          <div className="dk-grupo">{dockFixos.map(item)}</div>
-          {dockExtras.length > 0 && <><i className="dk-sep" /><div className="dk-grupo">{dockExtras.map(item)}</div></>}
+          <div className="dk-grupo">{item('painel')}</div>
           <i className="dk-sep" />
-          <div className="dk-grupo">{item('notas')}{item('notificacoes')}{item('conta')}</div>
+          <div className="dk-grupo">{GRUPOS.map((g) => <GrupoDock key={g.id} g={g} telas={telasDoGrupo(g)} aberto={grupoAberto} setAberto={setGrupoAberto} jan={jan} abrir={abrir} titulo={titulo} avisos={avisos} />)}</div>
+          {dockExtras.length > 0 && <><i className="dk-sep" /><div className="dk-grupo">{dockExtras.map(item)}</div></>}
         </nav>
       )}
       {avisos.toast && (

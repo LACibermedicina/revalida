@@ -4,9 +4,24 @@ export const GRADE = 112;                                   // tamanho da célul
 export const TELAS = {                                      // recursos que viram janela / ícone / item do dock
   painel: ['Início', 'inicio'], ciclos: ['Ciclos', 'ciclos'], estacoes: ['Estações', 'catalogo'], comunidade: ['Comunidade', 'comunidade'],
   solo: ['Praticar com IA', 'solo'], podcast: ['Podcast e Rádio', 'podcast'], desempenho: ['Desempenho', 'desempenho'], estudo: ['Estudo', 'estudo'],
-  conta: ['Conta', 'conta'], admin: ['Admin', 'admin'], sala: ['Sala', 'sala'], analise: ['Análise', 'estudo'],
+  conta: ['Conta', 'conta'], admin: ['Admin', 'admin'], sala: ['Sala', 'sala'], analise: ['Análise', 'analise'],
   notas: ['Notas rápidas', 'notas'], notificacoes: ['Central de notificações', 'sino'],
 };
+/** O que cada recurso tem dentro (aparece no bloco do grupo, ao passar o mouse). */
+export const RESUMO = {
+  painel: 'Resumo do dia, sugestões e bloco de 5 com IA', solo: 'Paciente IA, cronômetro e correção pelo PEP',
+  ciclos: 'Rodízio de estações em dupla ou em grupo', sala: 'Vídeo da estação em andamento', estacoes: 'Banco de estações: buscar, criar e revisar',
+  estudo: 'Temas, cartões de revisão e materiais', podcast: 'Episódios e rádio com os temas da prova', notas: 'Anotações rápidas que ficam na mesa',
+  desempenho: 'Notas por área, evolução e pontos fracos', notificacoes: 'Convites, mensagens e avisos', analise: 'Correção detalhada de uma estação feita',
+  comunidade: 'Colegas, duplas e convites para treinar', conta: 'Perfil, senha e preferências', admin: 'Usuários, IA, e-mail e configurações',
+};
+/** Recursos agrupados pelo tipo de uso; cada grupo vira um bloco no dock (e uma seção no menu clássico). */
+export const GRUPOS = [
+  { id: 'treinar', nome: 'Treinar', icone: 'g_treinar', cor: '#3D9BFF', telas: ['solo', 'ciclos', 'sala', 'estacoes'] },
+  { id: 'estudar', nome: 'Estudar', icone: 'g_estudar', cor: '#2B3A57', telas: ['estudo', 'podcast', 'notas'] },
+  { id: 'acompanhar', nome: 'Acompanhar', icone: 'g_acompanhar', cor: '#FF5A4E', telas: ['desempenho', 'notificacoes'] },
+  { id: 'pessoas', nome: 'Pessoas', icone: 'g_pessoas', cor: '#FF6FA8', telas: ['comunidade', 'conta', 'admin'] },
+];
 export const TELAS_FAVORITAVEIS = ['painel', 'ciclos', 'estacoes', 'comunidade', 'solo', 'podcast', 'desempenho', 'estudo', 'conta', 'notas', 'notificacoes'];
 const PADRAO = () => ({
   favoritos: [['solo', 0, 0], ['estudo', 0, 1], ['podcast', 0, 2], ['notas', 0, 3]].map(([ref, c, l]) => ({ tipo: 'tela', ref, rotulo: TELAS[ref][0], x: c * GRADE, y: l * GRADE })),
@@ -54,6 +69,8 @@ export function useJanelas(area) {
     return { ...w, w: ww, h: hh, x: Math.min(Math.max(w.x, 8 - ww + 80), W - 80), y: Math.min(Math.max(w.y, 0), H - 40) };
   };
   const abrir = useCallback((tela) => {
+    // o Início não é janela: é a própria mesa (widgets). "Abrir o Início" = minimizar tudo e mostrar a mesa.
+    if (tela === 'painel') { setLista((l) => l.filter((w) => w.tela !== 'painel').map((w) => ({ ...w, min: true }))); return; }
     setLista((l) => {
       const ex = l.find((w) => w.tela === tela);
       if (ex) return l.map((w) => (w.tela === tela ? { ...w, min: false, z: ++z.current } : w));

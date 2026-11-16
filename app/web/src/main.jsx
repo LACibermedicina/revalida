@@ -5,6 +5,8 @@ import App from './App.jsx';
 import './mesa.css';
 import './mascote2d.css';
 import './tema-hospital.css';
+import './icones.css';
+import './discreto.css';
 import { destinoInicial, ligar, lerModo } from './dispositivo.js';
 
 // Identifica o aparelho (celular/desktop/relógio), mede o quadro do app e, num relógio, abre direto a versão mini.

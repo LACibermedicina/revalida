@@ -187,3 +187,44 @@ i.on{width:9px;height:9px;border-radius:99px;background:#9a9a9a;flex:none}i.on.s
 @media (max-width:900px){.pets{display:none}}
 @media (min-width:1600px){.pets{--pets-escala:1.12}}
 @media (prefers-reduced-motion:reduce){.pet-zzz i{animation:none;opacity:.7}}
+
+/* ===== ícones da mesa: o nome fica numa bandeirinha que só se abre ao passar o mouse (ou focar) ===== */
+.ic-mesa{width:84px}
+.ic-mesa .ic-nome{position:relative;display:flex;align-items:center;max-width:none;min-height:16px;margin-top:2px;padding:0 0 0 4px;border-radius:0;background:none;box-shadow:none;
+  overflow:visible;-webkit-line-clamp:unset;transform-origin:left center;animation:bd-ondula 3.6s ease-in-out infinite}
+.ic-mesa .ic-nome::before{content:"";position:absolute;left:0;top:-5px;bottom:-9px;width:3px;border-radius:2px;background:#8C9BB3}   /* mastro */
+.ic-mesa .ic-nome > span{display:block;height:16px;max-width:14px;min-width:14px;overflow:hidden;white-space:nowrap;padding:0;border-radius:2px 0 0 2px;
+  background:linear-gradient(90deg,#FF6FA8,#FF9B3D);color:transparent;font:800 .76rem/16px var(--display);transition:max-width .3s cubic-bezier(.3,1.2,.5,1),padding .2s,color .15s}
+.ic-mesa .ic-nome::after{content:"";width:10px;height:16px;background:#FF9B3D;clip-path:polygon(0 0,100% 0,55% 50%,100% 100%,0 100%)}
+.ic-mesa:is(:hover,:focus-visible) .ic-nome > span{max-width:180px;padding:0 3px 0 8px;color:#fff}
+.ic-mesa:is(:hover,:focus-visible){z-index:6}
+@keyframes bd-ondula{50%{transform:skewY(-4deg)}}
+
+/* ===== dock por grupos: bloco com os recursos ao passar o mouse ===== */
+.dk-grupo-ic{position:relative}
+.dk-grupo-ic .dk-item::before{content:"";position:absolute;top:-3px;right:6px;width:9px;height:9px;border-radius:50%;background:var(--gcor);box-shadow:0 0 0 2px #fff;opacity:.85}
+.dk-grupo-ic.aberto-grupo .dk-item{transform:scale(1.18) translateY(-3px)}
+.dk-grupo-ic.aberto-grupo .dk-rot{opacity:0}
+.gp-bloco{position:absolute;bottom:calc(100% + 16px);left:50%;transform:translateX(-50%);z-index:60;width:min(440px,calc(100vw - 24px));padding:14px;border-radius:24px;
+  background:rgba(255,255,255,.97);border:2px solid #fff;box-shadow:0 5px 0 rgba(201,220,242,.95),0 26px 50px -18px rgba(31,72,130,.6);animation:gp-abre .22s cubic-bezier(.3,1.4,.5,1) both;transform-origin:50% 100%}
+.gp-bloco::before{content:"";position:absolute;left:0;right:0;bottom:-18px;height:18px}            /* ponte: o mouse passa do ícone ao bloco sem fechar */
+.gp-bloco::after{content:"";position:absolute;left:50%;bottom:-9px;width:16px;height:16px;margin-left:-8px;background:#fff;transform:rotate(45deg);border-radius:3px;box-shadow:3px 3px 0 rgba(201,220,242,.9)}
+.gp-tit{display:flex;align-items:baseline;justify-content:space-between;margin:0 4px 10px;font:800 1.05rem var(--display);color:var(--gcor)}
+.gp-tit small{font:700 .72rem var(--corpo);color:var(--suave)}
+.gp-grade{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gp-cartao{position:relative;display:flex;align-items:center;gap:10px;min-height:72px;padding:10px;border:0;border-radius:16px;background:#F4F8FD;text-align:left;cursor:pointer;color:var(--fg);
+  box-shadow:inset 0 0 0 2px #E3EEFA;transition:transform .15s cubic-bezier(.3,1.4,.5,1),background .15s,box-shadow .15s;animation:gp-cartao .3s cubic-bezier(.3,1.4,.5,1) both}
+.gp-cartao:nth-child(2){animation-delay:.04s}.gp-cartao:nth-child(3){animation-delay:.08s}.gp-cartao:nth-child(4){animation-delay:.12s}
+.gp-cartao:hover,.gp-cartao:focus-visible{transform:translateY(-2px);background:#fff;box-shadow:inset 0 0 0 2px var(--gcor),0 8px 16px -10px rgba(31,72,130,.5);outline:none}
+.gp-cartao.ativo{box-shadow:inset 0 0 0 2px var(--gcor)}
+.gp-ic{flex:none;display:grid;place-items:center;width:48px;height:48px}
+.gp-ic svg{width:46px;height:46px}
+.gp-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
+.gp-txt b{font:800 .9rem/1.15 var(--display)}
+.gp-txt small{font:600 .74rem/1.25 var(--corpo);color:var(--suave)}
+.gp-estado{position:absolute;top:6px;right:8px;font:800 .6rem var(--display);font-style:normal;letter-spacing:.06em;text-transform:uppercase;color:var(--gcor)}
+.dk-ic svg{width:44px;height:44px}
+.ic-img svg{width:48px;height:48px}
+@keyframes gp-abre{from{opacity:0;transform:translateX(-50%) translateY(8px) scale(.92)}}
+@keyframes gp-cartao{from{opacity:0;transform:translateY(6px)}}
+@media (prefers-reduced-motion:reduce){.gp-bloco,.gp-cartao,.ic-mesa .ic-nome{animation:none}.ic-mesa .ic-nome > span{transition:none}}

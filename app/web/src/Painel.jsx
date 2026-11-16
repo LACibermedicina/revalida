@@ -40,8 +40,10 @@ function Evolucao({ pontos }) {
 import Mascote from './Mascote.jsx';
 import { bloco, useBloco } from './bloco.js';
 import { FocoBloco, ListaBloco } from './BlocoIA.jsx';
+import { Widget } from './Widgets.jsx';
+import FraseMesa from './Frase.jsx';
 
-export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise, aoPraticar, aoPraticarIA, aoIr, aoAbrirSala, aoAbrirSalaAntiga }) {
+export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise, aoPraticar, aoPraticarIA, aoIr, aoAbrirSala, aoAbrirSalaAntiga, widgets = false }) {
   const b = useBloco();
   const [foco, setFoco] = useState(undefined);   // undefined = janela fechada; null = segue a próxima pronta; número = estação escolhida
   const sortearBloco = () => { bloco.sortear(api, token); setFoco(null); };
@@ -65,11 +67,14 @@ export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise,
   const avalia = Boolean(av && (av.feitas > 0 || av.ao_vivo.length > 0 || (p.salas ?? []).some((s) => s.papel === 'admin' || s.papel === 'avaliador')));
   const nota = d?.nota_media ?? 0;
 
+  // no modo mesa, cada bloco vira um widget solto sobre o fundo (posição livre, pode ocultar); no clássico, layout normal
+  const W = (id, rotulo, padrao, el) => (widgets ? <Widget key={id} id={id} rotulo={rotulo} padrao={padrao}>{el}</Widget> : el);
+  const Duas = widgets ? React.Fragment : ({ children }) => <div className="pn-duas">{children}</div>;
   return (
-    <div className="tela pn-tela" data-testid="painel">
-      <div className="pn-topo">
+    <div className={widgets ? 'pn-widgets' : 'tela pn-tela'} data-testid="painel">
+      {W('ola', 'Saudação e atalhos', { x: 116, y: 10, w: 470 }, <div className="pn-topo">
         <div className="pn-saudacao">
-          <Mascote corpo pose="em-pe" tamanho={104} className="pn-bot" titulo="Epi, o mascote da M3D" />
+          {!widgets && <Mascote corpo pose="em-pe" tamanho={104} className="pn-bot" titulo="Epi, o mascote da M3D" />}
           <div><div className="sub">Bom treino,</div><div className="hello">{usuario.nome.split(' ')[0]} 👋</div></div>
         </div>
         <div className="pn-atalhos" role="group" aria-label="Atalhos">
@@ -77,27 +82,28 @@ export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise,
           <button type="button" className="btn mini" onClick={() => aoIr('estacoes')}>Estações</button>
           <button type="button" className="btn mini" onClick={() => aoIr('estudo')}>Estudar</button>
         </div>
-      </div>
+      </div>)}
+      {widgets && W('frase', 'Frase do dia', {}, <FraseMesa />)}
       {erro && <div className="msg e" role="alert">{erro}</div>}
 
-      <div className="pn-kpis" data-testid="kpis">
+      {W('kpis', 'Resumo', { x: 116, y: 104, w: 470 }, <div className="pn-kpis" data-testid="kpis">
         <div className="pn-kpi"><Anel frac={nota / 10} cor="var(--menta)"><span>{n1(nota)}</span></Anel><small>nota média</small></div>
         <div className="pn-kpi"><b>{d?.estacoes ?? 0}</b><small>estações feitas</small></div>
         <button type="button" className="pn-kpi clic" onClick={() => aoIr('estudo')} title="Abrir cartões de revisão"><b className={rev?.vencidos ? 'alerta' : ''}>{rev?.vencidos ?? 0}</b><small>cartões para revisar{rev?.novos ? ` · ${rev.novos} novos` : ''}</small></button>
         <button type="button" className="pn-kpi clic" onClick={() => aoIr('ciclos')} title="Abrir salas e ciclos"><b>{(p?.salas?.length ?? 0) + antigas.length}</b><small>salas abertas</small></button>
-      </div>
+      </div>)}
 
-      <div className="pn-duas">
-        <section className="cartao" aria-label="Evolução"><div className="sec">Evolução</div><Evolucao pontos={p?.tendencia ?? []} /></section>
-        <section className="cartao" aria-label="Por área"><div className="sec">Por área</div>
+      <Duas>
+        {W('evolucao', 'Evolução', { x: 604, y: 10, w: 380 }, <section className="cartao" aria-label="Evolução"><div className="sec">Evolução</div><Evolucao pontos={p?.tendencia ?? []} /></section>)}
+        {W('area', 'Por área', { x: 604, y: 214, w: 380 }, <section className="cartao" aria-label="Por área"><div className="sec">Por área</div>
           {(d?.por_area?.length ? d.por_area : []).map((a) => (
             <div className="barra" key={a.area}><span>{AREAS[a.area] || a.area}</span><i><u style={{ width: `${(a.nota / 10) * 100}%`, background: CORES[a.area] || 'var(--mar)' }} /></i><b>{n1(a.nota)}</b></div>
           ))}
           {d && d.por_area.length === 0 && <p className="sub">Suas notas por área aparecem depois da primeira estação.</p>}
-        </section>
-      </div>
+        </section>)}
+      </Duas>
 
-      {avalia && (
+      {avalia && W('aval', 'Como avaliador', { x: 1002, y: 140, w: 360 }, 
         <section className="cartao pn-aval" data-testid="painel-avaliador" aria-label="Como avaliador">
           <div className="sec">Como avaliador</div>
           <div className="pn-mini"><span><b>{av.feitas}</b> estações avaliadas</span><span><b>{av.candidatos}</b> candidatos</span><span><b className={av.sem_liberar ? 'alerta' : ''}>{av.sem_liberar}</b> transcrições sem liberar</span></div>
@@ -116,7 +122,7 @@ export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise,
         </section>
       )}
 
-      <section className="cartao sugestoes" data-testid="sugestoes" aria-label="Treinar agora">
+      {W('treinar', 'Treinar agora', { x: 116, y: 250, w: 470 }, <section className="cartao sugestoes" data-testid="sugestoes" aria-label="Treinar agora">
         <div className="sec">Treinar agora</div>
         {b ? (<>
           <p className="sub">Bloco com IA: uma estação nova para cada grande área.</p>
@@ -138,9 +144,9 @@ export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise,
           <FocoBloco b={b} n={foco} api={api} token={token} aoFechar={() => setFoco(undefined)} aoMudar={(n) => setFoco(n)}
             aoSozinho={(id) => { setFoco(undefined); aoPraticarIA?.(id); }} aoAbrirSala={(id) => { setFoco(undefined); aoAbrirSala(id); }} />
         )}
-      </section>
+      </section>)}
 
-      {((p?.salas?.length ?? 0) + antigas.length > 0) && (
+      {((p?.salas?.length ?? 0) + antigas.length > 0) && W('salas', 'Minhas salas', { x: 604, y: 420, w: 380 }, 
         <section aria-label="Minhas salas"><div className="sec">Minhas salas</div>
           <div className="pn-salas">
             {(p?.salas ?? []).map((s) => { const [rot, cls] = PAPEL[s.papel] ?? ['', 'obs']; return (
@@ -156,7 +162,7 @@ export default function TelaPainel({ usuario, token, api, aoCarregar, aoAnalise,
         </section>
       )}
 
-      {(p?.feitas?.length ?? 0) > 0 && (
+      {(p?.feitas?.length ?? 0) > 0 && W('feitas', 'Estações que fiz', { x: 1002, y: 360, w: 360 }, 
         <section aria-label="Estações que fiz"><div className="sec">Estações que fiz</div>
           <div className="cartao" data-testid="estacoes-feitas">
             {p.feitas.map((x) => { const pc = x.maximo > 0 ? Math.round((x.nota / x.maximo) * 100) : null; return (
