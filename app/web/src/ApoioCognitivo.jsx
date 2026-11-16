@@ -129,8 +129,8 @@ function Grafo3D({ grafo, sel, aoSel }) {
     <div className="ap-3d">
       <canvas ref={ref} data-testid="apoio-3d" role="img" aria-label={`Grafo da conduta em 3D com ${grafo.nos.length} nós. A visão 2D tem a mesma informação com navegação por teclado.`} tabIndex={0}
         onPointerDown={entrada.baixar} onPointerMove={entrada.mover} onPointerUp={entrada.soltar} onPointerCancel={entrada.cancelar} onPointerLeave={() => { est.current.hover = null; }}
-        onDoubleClick={entrada.duplo} onKeyDown={entrada.tecla} onContextMenu={entrada.menu}
-        onKeyDown={(e) => { if (e.key === 'ArrowLeft') girar(-0.12); else if (e.key === 'ArrowRight') girar(0.12); else if (e.key === '+') zoomar(1.2); else if (e.key === '-') zoomar(0.8); }} />
+        onDoubleClick={entrada.duplo} onContextMenu={entrada.menu}
+        onKeyDown={(e) => { entrada.tecla?.(e); if (e.defaultPrevented) return; if (e.key === 'ArrowLeft') girar(-0.12); else if (e.key === 'ArrowRight') girar(0.12); else if (e.key === '+') zoomar(1.2); else if (e.key === '-') zoomar(0.8); }} />
       <div className="ap-zoom">
         <button type="button" className="btn mini" onClick={() => zoomar(1.25)} aria-label="Aproximar">+</button>
         <button type="button" className="btn mini" onClick={() => zoomar(0.8)} aria-label="Afastar">−</button>
