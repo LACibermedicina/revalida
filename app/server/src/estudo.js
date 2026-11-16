@@ -140,6 +140,40 @@ export function registrarEstudo(app, { q, autenticar, ia, rng = Math.random, lim
   }));
 
   /* ---------- mapa de temas ---------- */
+  // Temas das estações que a pessoa já fez (o ponto de partida do mapa e do fluxograma): por estação, mais recente primeiro.
+  app.get('/api/estudo/meus-temas', autenticar, rota(async (req, res) => {
+    await base();
+    const r = await q(`select s.id estacao_id, s.titulo, s.area, ue.vezes_realizada vezes, ue.ultima_em,
+        coalesce(json_agg(json_build_object('id', t.id, 'nome', t.nome) order by t.nome) filter (where t.id is not null), '[]') temas
+      from usuario_estacao ue join estacoes s on s.id = ue.estacao_id
+      left join estacao_temas et on et.estacao_id = s.id left join temas t on t.id = et.tema_id
+      where ue.usuario_id = $1 group by s.id, s.titulo, s.area, ue.vezes_realizada, ue.ultima_em
+      order by ue.ultima_em desc nulls last limit 60`, [U(req)]);
+    res.json({ estacoes: r.rows });
+  }));
+
+  // Fluxograma da conduta do tema (no contexto de uma estação, se informada). GET lê o que já existe; POST cria com a IA.
+  const lerFluxo = async (temaId, estacaoId) => (await q(`select titulo, passos, criado_em from tema_fluxos where tema_id=$1 and coalesce(estacao_id,'00000000-0000-0000-0000-000000000000'::uuid) = coalesce($2::uuid,'00000000-0000-0000-0000-000000000000'::uuid)`, [temaId, estacaoId])).rows[0] ?? null;
+  app.get('/api/estudo/temas/:id/fluxo', autenticar, ID, rota(async (req, res) => {
+    const est = idValido(req.query?.estacao_id) ? req.query.estacao_id : null;
+    res.json({ fluxo: await lerFluxo(req.params.id, est) });
+  }));
+  app.post('/api/estudo/temas/:id/fluxo', autenticar, ID, rota(async (req, res) => {
+    const t = await tema(req.params.id); if (!t) return res.status(404).json({ erro: 'Tema não encontrado.' });
+    const estId = idValido(req.body?.estacao_id) ? req.body.estacao_id : null;
+    const ja = await lerFluxo(t.id, estId);
+    if (ja && !req.body?.refazer) return res.json({ fluxo: ja });
+    if (!ia.configurado()) return ia503(res);
+    if (limite(req, res)) return;
+    try {
+      const estacao = estId ? (await q('select titulo, instrucoes_candidato, diagnostico_alvo from estacoes where id=$1', [estId])).rows[0] ?? null : null;
+      const r = await ia.gerarFluxo({ tema: t.nome, area: t.area, estacao, diretrizes: await diretrizesDoTema(q, t) });
+      await q(`delete from tema_fluxos where tema_id=$1 and coalesce(estacao_id,'00000000-0000-0000-0000-000000000000'::uuid) = coalesce($2::uuid,'00000000-0000-0000-0000-000000000000'::uuid)`, [t.id, estId]);
+      await q('insert into tema_fluxos (tema_id, estacao_id, titulo, passos) values ($1,$2,$3,$4)', [t.id, estId, r.titulo || t.nome, JSON.stringify(r.passos)]);
+      res.status(201).json({ fluxo: await lerFluxo(t.id, estId) });
+    } catch (e) { erroIA(res, e); }
+  }));
+
   app.get('/api/estudo/grafo', autenticar, rota(async (req, res) => {
     await base();
     const ts = await desempenhoTemas(q, U(req));
@@ -152,8 +186,18 @@ export function registrarEstudo(app, { q, autenticar, ia, rng = Math.random, lim
     // nós: os ligados + os já praticados; os temas da base sem nenhuma ligação ficam fora (poluiriam o mapa)
     const nos = ts.filter((t) => comLigacao.has(t.id) || t.execucoes > 0 || t.cartoes_total > 0 || t.origem !== 'base').slice(0, 400)
       .map((t) => ({ ...t, ligacoes: grau.get(t.id) ?? 0, estacoes: est.get(t.id)?.n ?? 0, complexidade: complexidadeDoTema({ definida: def.get(t.id) ?? null, difMedia: est.get(t.id)?.dif ?? null, grau: grau.get(t.id) ?? 0 }) }));
-    const vivos = new Set(nos.map((n) => n.id));
-    res.json({ nos, arestas: arestas.filter((a) => vivos.has(a.de) && vivos.has(a.para)), tipos: [...new Set(arestas.map((a) => a.tipo))].sort() });
+    let lista = nos;
+    // escopo "meus": só os temas das estações que a pessoa fez e os vizinhos diretos deles (mapa simples e pessoal)
+    if (req.query?.escopo === 'meus') {
+      const meus = new Set((await q('select distinct et.tema_id from usuario_estacao ue join estacao_temas et on et.estacao_id = ue.estacao_id where ue.usuario_id = $1', [U(req)])).rows.map((r) => r.tema_id));
+      const perto = new Set(meus);
+      for (const a of arestas) { if (meus.has(a.de)) perto.add(a.para); if (meus.has(a.para)) perto.add(a.de); }
+      const porId = new Map(ts.map((t) => [t.id, t]));
+      lista = [...perto].map((id) => nos.find((n) => n.id === id) ?? (porId.get(id) ? { ...porId.get(id), ligacoes: grau.get(id) ?? 0, estacoes: est.get(id)?.n ?? 0, complexidade: complexidadeDoTema({ definida: def.get(id) ?? null, difMedia: est.get(id)?.dif ?? null, grau: grau.get(id) ?? 0 }) } : null))
+        .filter(Boolean).map((n) => ({ ...n, meu: meus.has(n.id) }));
+    }
+    const vivos = new Set(lista.map((n) => n.id));
+    res.json({ nos: lista, arestas: arestas.filter((a) => vivos.has(a.de) && vivos.has(a.para)), tipos: [...new Set(arestas.map((a) => a.tipo))].sort() });
   }));
 
   /* ---------- sugestão de estações e biblioteca de revisão ---------- */

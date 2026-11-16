@@ -18,3 +18,16 @@ test('exame físico: tipo próprio, "outro" com título de exame físico vira ex
   assert.equal(ehAtendimento({ titulo: 'Dor torácica', cenario: 'Pronto-socorro', script_ator: 'x' }), true);
   assert.equal(ehAtendimento({ titulo: 'Comunicação de má notícia', sintese: 'comunicação de má notícia à família', cenario: 'enfermaria' }), false);
 });
+
+import { validarFluxo } from '../src/estudo-ia.js';
+test('fluxograma: ids únicos, ligações só para frente e para passos existentes', () => {
+  const v = validarFluxo({ titulo: 'x', passos: [
+    { id: 'a', tipo: 'inicio', texto: 'Começo', proximos: [{ para: 'b' }, { para: 'zz' }] },
+    { id: 'b', tipo: 'decisao', texto: 'Grave?', proximos: [{ para: 'c', rotulo: 'sim' }, { para: 'a' }] },
+    { id: 'c', tipo: 'qualquer', texto: 'Tratar', proximos: [] },
+  ] });
+  assert.equal(v.ok, true);
+  assert.deepEqual(v.passos[0].proximos, [{ para: 'b', rotulo: '' }]);
+  assert.deepEqual(v.passos[1].proximos, [{ para: 'c', rotulo: 'sim' }]);
+  assert.equal(v.passos[2].tipo, 'acao');
+});

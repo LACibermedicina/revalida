@@ -4,7 +4,7 @@
 //
 // Um provedor "quebrado" fica em pausa por um tempo (disjuntor), para a próxima chamada não esperar timeout de novo.
 
-import { promptCartoes, validarCartoes, promptResumo, validarResumo, promptExpandir, validarExpansao } from './estudo-ia.js';
+import { promptCartoes, validarCartoes, promptResumo, validarResumo, promptExpandir, validarExpansao, promptFluxo, validarFluxo } from './estudo-ia.js';
 import { promptRoteiro, validarRoteiro } from './podcast-ia.js';
 import { promptPaciente, validarPaciente } from './paciente-ia.js';
 import { promptAnalise, validarAnalise, promptTranscreverAudio, validarTranscricaoAudio } from './analise-transcricao.js';
@@ -365,6 +365,11 @@ export function criarIA({ cfg, fetchImpl = (...a) => fetch(...a), relogio = Date
     async expandirTema(p) {
       const { sistema, usuario } = promptExpandir(p);
       try { const r = await gerarJSON({ sistema, usuario, validar: validarExpansao, maxTokens: 3000 }); return { ...validarExpansao(r.dados), provedor: r.provedor, modelo: r.modelo }; } catch (e) { throw traduzir(e); }
+    },
+    /** Fluxograma simplificado da conduta/raciocínio do tema (no contexto de uma estação, se houver). */
+    async gerarFluxo(p) {
+      const { sistema, usuario } = promptFluxo(p);
+      try { const r = await gerarJSON({ sistema, usuario, validar: validarFluxo, maxTokens: 3000 }); const v = validarFluxo(r.dados); return { titulo: v.titulo, passos: v.passos, provedor: r.provedor, modelo: r.modelo }; } catch (e) { throw traduzir(e); }
     },
     /** Roteiro falado de um episódio de podcast (aprofundamento de tema ou revisão de cartões). */
     async gerarRoteiro(p) {

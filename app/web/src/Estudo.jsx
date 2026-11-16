@@ -6,7 +6,8 @@ import QuadroTema from './QuadroTema.jsx';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { layout3D, projetar, escolherNo, faixaDesempenho } from './grafo3d.js';
 import { criarEntrada, estadoInicial, zoomEm, resetar } from './nav3d.js';
-import Mapa2D, { VISTAS } from './Mapa2D.jsx';
+import Mapa2D from './Mapa2D.jsx';
+import FluxoConduta from './FluxoConduta.jsx';
 import './estudo.css';
 import { CartaRPG, TodosCartoes, AssistenteCartoes } from './Cartoes.jsx';
 import Seletor from './Seletor.jsx';
@@ -15,7 +16,7 @@ const AREAS = { clinica_medica: 'Clínica Médica', cirurgia: 'Cirurgia', gineco
 const CATEGORIAS = [['conhecimento', 'Conhecimento'], ['sequencia', 'Sequência'], ['comunicacao', 'Comunicação'], ['tempo', 'Tempo']];
 const TIPO_REL = { relacionado: 'relacionado', pre_requisito: 'pré-requisito', diagnostico_diferencial: 'diagnóstico diferencial', complicacao: 'complicação', conduta: 'conduta' };
 const pct = (d) => (d === null || d === undefined ? '—' : `${Math.round(d * 100)}%`);
-const ABAS = [['trilha', 'Trilha'], ['cartoes', 'Cartões'], ['biblioteca', 'Biblioteca de revisão'], ['mapa', 'Mapa 3D'], ['erros', 'Caderno de erros'], ['guia', 'Guia de treino'], ['diretrizes', 'Diretrizes']];
+const ABAS = [['trilha', 'Trilha'], ['cartoes', 'Cartões'], ['biblioteca', 'Biblioteca de revisão'], ['mapa', 'Mapa e fluxograma'], ['erros', 'Caderno de erros'], ['guia', 'Guia de treino'], ['diretrizes', 'Diretrizes']];
 
 function Aviso({ semDiretriz }) {
   return semDiretriz ? <p className="es-sem" role="note">Sem diretriz de referência cadastrada: este conteúdo segue o consenso clínico geral e precisa ser conferido. A administração pode cadastrar a diretriz na aba Diretrizes.</p> : null;
@@ -213,69 +214,85 @@ function TemaPainel({ id, token, api, aoCartoes, aoPraticar, aoMudou }) {
 
 /* ======================= mapa 3D ======================= */
 const COR = { sem: '--suave', baixo: '--coral', medio: '--sol', alto: '--menta' };
-const NIVEIS_COMPLEXIDADE = [[1, 'Básico'], [2, 'Intermediário'], [3, 'Avançado']];
-const FAIXAS = [['baixo', 'Abaixo de 60%'], ['medio', '60–80%'], ['alto', 'Acima de 80%'], ['sem', 'Sem dados']];
-function alternarEm(set, v) { const n = new Set(set); if (n.has(v)) n.delete(v); else n.add(v); return n; }
 
 function Mapa({ token, api, inicial, aoCartoes, aoPraticar }) {
+  // Mapa pessoal e simples: parte das estações que a pessoa fez. Primeiro escolhe o tema (se a estação tiver vários),
+  // depois vê o fluxograma da conduta (no contexto da estação), o mapa 3D só com o tema e os vizinhos, e as relações.
+  const [meus, setMeus] = useState(null);
   const [g, setG] = useState(null);
   const [erro, setErro] = useState('');
+  const [estSel, setEstSel] = useState(null);
   const [sel, setSel] = useState(inicial ?? null);
-  const [lista, setLista] = useState(false);
-  const [vista, setVista] = useState('3d');   // 3d | grafo | plano | fluxo | mental
-  const [filtro, setFiltro] = useState('');
-  const [niveis, setNiveis] = useState(new Set());
-  const [tipos, setTipos] = useState(new Set());
-  const [faixas, setFaixas] = useState(new Set());
-  const [area, setArea] = useState('');
-  const [assoc, setAssoc] = useState({ estacoes: false, cartoes: false, lacunas: false, vizinhos: false });
-  const carregar = useCallback(() => api('/api/estudo/grafo', { token }).then(setG).catch((e) => setErro(e.message)), [api, token]);
+  const [vista, setVista] = useState('fluxo');
+  const carregar = useCallback(() => Promise.all([
+    api('/api/estudo/meus-temas', { token }).then((r) => setMeus(r.estacoes)),
+    api('/api/estudo/grafo?escopo=meus', { token }).then(setG),
+  ]).catch((e) => setErro(e.message)), [api, token]);
   useEffect(() => { carregar(); }, [carregar]);
   const vis = useMemo(() => {
-    if (!g) return null;
-    const arestasTipo = g.arestas.filter((a) => !tipos.size || tipos.has(a.tipo));
-    let viz = null;
-    if (assoc.vizinhos && sel) { viz = new Set([sel]); for (const a of arestasTipo) { if (a.de === sel) viz.add(a.para); if (a.para === sel) viz.add(a.de); } }
-    const nos = g.nos.filter((n) => (!niveis.size || niveis.has(n.complexidade)) && (!faixas.size || faixas.has(faixaDesempenho(n.desempenho))) && (!area || n.area === area)
-      && (!assoc.estacoes || n.estacoes > 0) && (!assoc.cartoes || n.cartoes_total > 0) && (!assoc.lacunas || n.lacunas > 0) && (!viz || viz.has(n.id))
-      && (!filtro.trim() || n.nome.toLowerCase().includes(filtro.trim().toLowerCase())));
-    const ids = new Set(nos.map((n) => n.id));
-    return { nos, arestas: arestasTipo.filter((a) => ids.has(a.de) && ids.has(a.para)) };
-  }, [g, niveis, tipos, faixas, area, assoc, sel, filtro]);
+    if (!g || !sel) return null;
+    const viz = new Set([sel]);
+    for (const a of g.arestas) { if (a.de === sel) viz.add(a.para); if (a.para === sel) viz.add(a.de); }
+    const nos = g.nos.filter((n) => viz.has(n.id));
+    return { nos, arestas: g.arestas.filter((a) => viz.has(a.de) && viz.has(a.para)) };
+  }, [g, sel]);
   if (erro) return <p className="aviso" role="alert">{erro}</p>;
-  if (!g) return <p className="sub" role="status">Montando o mapa…</p>;
-  const ativos = niveis.size + tipos.size + faixas.size + (area ? 1 : 0) + Object.values(assoc).filter(Boolean).length + (filtro.trim() ? 1 : 0);
-  const limpar = () => { setNiveis(new Set()); setTipos(new Set()); setFaixas(new Set()); setArea(''); setFiltro(''); setAssoc({ estacoes: false, cartoes: false, lacunas: false, vizinhos: false }); };
-  return (
-    <>
-      <div className="es-linha">
-        <p className="sub">Cada ponto é um tema; a cor mostra o seu desempenho e as linhas, as relações clínicas. Arraste para mover, use a roda para aproximar{vista === '3d' ? '; botão direito gira' : ''}.</p>
-        <button className="btn mini" onClick={() => setLista((v) => !v)} aria-pressed={lista}>{lista ? 'Ver o mapa' : 'Ver como lista'}</button>
+  if (!meus || !g) return <p className="sub" role="status">Montando o seu mapa…</p>;
+  const nomeTema = (id) => g.nos.find((n) => n.id === id)?.nome ?? meus.flatMap((e) => e.temas).find((t) => t.id === id)?.nome ?? 'Tema';
+  const escolherEstacao = (e) => { setEstSel(e.estacao_id); if (e.temas.length === 1) { setSel(e.temas[0].id); setVista('fluxo'); } else setSel(null); };
+
+  if (!sel) {
+    const est = meus.find((e) => e.estacao_id === estSel);
+    return (
+      <div className="mp" data-testid="mapa-escolha">
+        <p className="sub">{est ? <>A estação <b>{est.titulo}</b> envolve mais de um tema. Qual você quer detalhar?</> : 'Escolha uma estação que você fez. O mapa e o fluxograma mostram só o tema dela e o que está ligado a ele.'}</p>
+        {est ? (
+          <div className="mp-temas">
+            {est.temas.map((t) => <button key={t.id} type="button" className="mp-tema" onClick={() => { setSel(t.id); setVista('fluxo'); }}><span aria-hidden="true">🧭</span>{t.nome}</button>)}
+            <button type="button" className="btn mini" onClick={() => setEstSel(null)}>‹ Outra estação</button>
+          </div>
+        ) : meus.length === 0 ? (
+          <p className="mp-vazio">Seu mapa começa na primeira estação que você fizer. Os temas dela, e os ligados a eles, aparecem aqui.</p>
+        ) : (
+          <div className="mp-estacoes">
+            {meus.map((e) => (
+              <button key={e.estacao_id} type="button" className="mp-est" onClick={() => escolherEstacao(e)} disabled={e.temas.length === 0}>
+                <b>{e.titulo}</b>
+                <small>{AREAS[e.area] ?? e.area} · feita {e.vezes}×</small>
+                <span className="mp-chips">{e.temas.length ? e.temas.slice(0, 4).map((t) => <i key={t.id}>{t.nome}</i>) : <i>sem tema ligado</i>}{e.temas.length > 4 && <i>+{e.temas.length - 4}</i>}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      {g.nos.length > 0 && !lista && (
-        <div className="es-vistas" role="tablist" aria-label="Como ver o mapa" data-testid="vistas-mapa">
-          {VISTAS.map(([k, n]) => <button key={k} type="button" role="tab" aria-selected={vista === k} className={`btn mini${vista === k ? ' menta' : ''}`} onClick={() => setVista(k)} data-testid={`vista-${k}`}>{n}</button>)}
+    );
+  }
+
+  // estações que a pessoa fez e que passam por este tema ou por um vizinho: caminhos para outras estações
+  const vizinhos = new Set(vis?.nos.map((n) => n.id) ?? []);
+  const ligadas = meus.filter((e) => e.estacao_id !== estSel && e.temas.some((t) => vizinhos.has(t.id)));
+  return (
+    <div className="mp" data-testid="mapa-tema">
+      <div className="mp-topo">
+        <button type="button" className="btn mini" onClick={() => setSel(null)}>‹ Escolher outro tema</button>
+        <h3>{nomeTema(sel)}</h3>
+        {estSel && <small className="sub">no contexto de: {meus.find((e) => e.estacao_id === estSel)?.titulo}</small>}
+      </div>
+      <div className="es-vistas" role="tablist" aria-label="Como ver o tema">
+        {[['fluxo', '🧭 Fluxograma da conduta'], ['3d', '🌐 Mapa 3D'], ['grafo', '🔗 Relações']].map(([k, n]) => <button key={k} type="button" role="tab" aria-selected={vista === k} className={`btn mini${vista === k ? ' menta' : ''}`} onClick={() => setVista(k)} data-testid={`vista-${k}`}>{n}</button>)}
+      </div>
+      {vista === 'fluxo' && <FluxoConduta temaId={sel} estacaoId={estSel} api={api} token={token} />}
+      {vista !== 'fluxo' && vis && (vis.nos.length <= 1
+        ? <p className="sub">Este tema ainda não tem ligações no seu mapa. Use “Expandir o mapa (IA)” abaixo para ligar temas relacionados.</p>
+        : vista === '3d' ? <Canvas3D nos={vis.nos} arestas={vis.arestas} sel={sel} aoSel={setSel} /> : <Mapa2D vista="grafo" nos={vis.nos} arestas={vis.arestas} sel={sel} aoSel={setSel} />)}
+      {vista !== 'fluxo' && <Legenda />}
+      {ligadas.length > 0 && (
+        <div className="mp-ligadas"><p className="sub">Este tema também leva a outras estações que você fez:</p>
+          <div className="mp-chips">{ligadas.slice(0, 8).map((e) => <button key={e.estacao_id} type="button" className="mp-tema" onClick={() => escolherEstacao(e)}>{e.titulo}</button>)}</div>
         </div>
       )}
-      {g.nos.length > 0 && (
-        <details className="es-filtros" data-testid="filtros-mapa" open={ativos > 0}>
-          <summary>Filtros {ativos > 0 && <em>{ativos} ativo(s) · {vis.nos.length} de {g.nos.length} temas</em>}</summary>
-          <fieldset><legend>Complexidade</legend>{NIVEIS_COMPLEXIDADE.map(([n, r]) => <button key={n} type="button" className={`es-chip${niveis.has(n) ? ' on' : ''}`} aria-pressed={niveis.has(n)} onClick={() => setNiveis((x) => alternarEm(x, n))}>{r}</button>)}</fieldset>
-          <fieldset><legend>Desempenho</legend>{FAIXAS.map(([k, r]) => <button key={k} type="button" className={`es-chip${faixas.has(k) ? ' on' : ''}`} aria-pressed={faixas.has(k)} onClick={() => setFaixas((x) => alternarEm(x, k))}>{r}</button>)}</fieldset>
-          {g.tipos?.length > 0 && <fieldset><legend>Tipo de relação</legend>{g.tipos.map((t) => <button key={t} type="button" className={`es-chip${tipos.has(t) ? ' on' : ''}`} aria-pressed={tipos.has(t)} onClick={() => setTipos((x) => alternarEm(x, t))}>{TIPO_REL[t] ?? t}</button>)}</fieldset>}
-          <fieldset><legend>Informações associadas</legend>
-            {[['estacoes', 'Com estações'], ['cartoes', 'Com cartões'], ['lacunas', 'Com lacunas'], ['vizinhos', 'Só vizinhos do tema escolhido']].map(([k, r]) => <button key={k} type="button" className={`es-chip${assoc[k] ? ' on' : ''}`} aria-pressed={assoc[k]} disabled={k === 'vizinhos' && !sel} onClick={() => setAssoc((x) => ({ ...x, [k]: !x[k] }))}>{r}</button>)}</fieldset>
-          <div className="es-grade"><label className="campo"><span>Área</span><Seletor value={area} onChange={(e) => setArea(e.target.value)}><option value="">Todas</option>{Object.entries(AREAS).map(([k, n]) => <option key={k} value={k}>{n}</option>)}</Seletor></label>
-            <label className="campo"><span>Buscar tema</span><input value={filtro} onChange={(e) => setFiltro(e.target.value)} /></label></div>
-          {ativos > 0 && <button type="button" className="ln" onClick={limpar}>Limpar filtros</button>}
-        </details>
-      )}
-      {g.nos.length === 0 ? <p className="sub">O mapa começa quando há estações com conceitos. Crie ou publique uma estação.</p> : vis.nos.length === 0 ? <p className="sub" role="status">Nenhum tema com esses filtros.</p> : lista
-        ? <ul className="es-lista" data-testid="lista-temas">{vis.nos.map((n) => <li key={n.id}><button className={`es-item f-${faixaDesempenho(n.desempenho)}${sel === n.id ? ' on' : ''}`} onClick={() => setSel(n.id)}>{n.nome} <em>{pct(n.desempenho)} · nível {n.complexidade} · {n.estacoes} estação(ões) · {n.cartoes_total} cartão(ões)</em></button></li>)}</ul>
-        : vista === '3d' ? <Canvas3D nos={vis.nos} arestas={vis.arestas} sel={sel} aoSel={setSel} /> : <Mapa2D vista={vista} nos={vis.nos} arestas={vis.arestas} sel={sel} aoSel={setSel} />}
-      <Legenda />
-      {sel && <TemaPainel id={sel} token={token} api={api} aoCartoes={aoCartoes} aoPraticar={aoPraticar} aoMudou={carregar} />}
-    </>
+      <TemaPainel id={sel} token={token} api={api} aoCartoes={aoCartoes} aoPraticar={aoPraticar} aoMudou={carregar} />
+    </div>
   );
 }
 
